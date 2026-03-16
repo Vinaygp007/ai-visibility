@@ -1,37 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
-import fs from "fs";
-import path from "path";
 import crypto from "crypto";
+import { getDb } from "@/lib/firebase";
 
-// ── Cache ──────────────────────────────────────────────────────────────────
-const CACHE_DIR = path.join(process.cwd(), ".aiscope-cache");
-const CACHE_TTL_HOURS = 24;
+// ── Firebase Cache (1 hour TTL) ───────────────────────────────────────────
+// Collection: "scans" | Doc ID: md5(url|mode) | TTL: 1 hour
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour in milliseconds
+const COLLECTION = "scans";
 
-function getCacheKey(key: string) {
+function getCacheKey(key: string): string {
   return crypto.createHash("md5").update(key).digest("hex");
 }
-function readCache(key: string): object | null {
-  if (process.env.NODE_ENV !== "development") return null;
+
+async function readCache(key: string): Promise<object | null> {
+  const db = await getDb();
+  if (!db) return null;
   try {
-    const file = path.join(CACHE_DIR, `${getCacheKey(key)}.json`);
-    if (!fs.existsSync(file)) return null;
-    const { timestamp, data } = JSON.parse(fs.readFileSync(file, "utf-8"));
-    if ((Date.now() - timestamp) / 3600000 > CACHE_TTL_HOURS) { fs.unlinkSync(file); return null; }
-    console.log(`[cache HIT] ${key}`);
+    const docId = getCacheKey(key);
+    const doc = await db.collection(COLLECTION).doc(docId).get();
+    if (!doc.exists) return null;
+
+    const { timestamp, data } = doc.data() as { timestamp: number; data: object };
+    const ageMs = Date.now() - timestamp;
+
+    if (ageMs > CACHE_TTL_MS) {
+      // Expired — delete silently in background
+      doc.ref.delete().catch(() => {});
+      console.log("[firebase] cache expired for", key);
+      return null;
+    }
+
+    const remainingMins = Math.round((CACHE_TTL_MS - ageMs) / 60000);
+    console.log("[firebase] cache HIT for", key, "—", remainingMins, "mins remaining");
     return data;
-  } catch { return null; }
+  } catch (e) {
+    console.warn("[firebase] readCache error:", e);
+    return null;
+  }
 }
-function writeCache(key: string, data: object) {
-  if (process.env.NODE_ENV !== "development") return;
+
+async function writeCache(key: string, data: object): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
   try {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-    fs.writeFileSync(
-      path.join(CACHE_DIR, `${getCacheKey(key)}.json`),
-      JSON.stringify({ timestamp: Date.now(), data }, null, 2)
-    );
-  } catch (e) { console.warn("Cache write failed:", e); }
+    const docId = getCacheKey(key);
+    await db.collection(COLLECTION).doc(docId).set({
+      url: key,
+      timestamp: Date.now(),
+      createdAt: new Date().toISOString(),
+      data,
+    });
+    console.log("[firebase] cached result for", key);
+  } catch (e) {
+    console.warn("[firebase] writeCache error:", e);
+  }
 }
 
 // ── HTTP Fetcher ───────────────────────────────────────────────────────────
@@ -713,7 +736,7 @@ export async function POST(request: NextRequest) {
     if (!bustCache) {
       // Always use a single cache key per URL — include citations flag
       const cacheKey = url + (runCitations ? "|citations" : "|basic");
-      const cached = readCache(cacheKey) as Record<string, unknown> | null;
+      const cached = await readCache(cacheKey) as Record<string, unknown> | null;
       if (cached) {
         console.log("[cache] serving cached result for", cacheKey);
         return NextResponse.json({ ...cached, _cached: true });
@@ -761,7 +784,7 @@ export async function POST(request: NextRequest) {
     const merged = mergeResults(providerResults, deterministicScores, tech.siteName, url);
     const final = { ...merged, citations: citationResults };
     const cacheKey = url + (runCitations ? "|citations" : "|basic");
-    writeCache(cacheKey, final);
+    writeCache(cacheKey, final); // async, non-blocking
     return NextResponse.json(final);
   } catch (error) {
     console.error("Analysis error:", error);
