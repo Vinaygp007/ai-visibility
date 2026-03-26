@@ -4,6 +4,17 @@ import OpenAI from "openai";
 import crypto from "crypto";
 import { getDb } from "@/lib/firebase";
 
+// ── CORS helper for cross-origin integration demos ───────────────────────
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type,Authorization",
+};
+
+function json(obj: unknown, status = 200) {
+  return NextResponse.json(obj, { status, headers: CORS_HEADERS });
+}
+
 // ── Firebase Cache (1 hour TTL) ───────────────────────────────────────────
 // Collection: "scans" | Doc ID: md5(url|mode) | TTL: 1 hour
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour in milliseconds
@@ -721,16 +732,37 @@ async function runCitationChecks(siteUrl: string, skipGemini = false): Promise<C
 }
 
 // ── Route handler ──────────────────────────────────────────────────────────
+// OPTIONS: CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
+// GET: brief endpoint info / integration example for other projects
+export async function GET() {
+  return json({
+    name: "AiScope /api/analyze",
+    description: "POST endpoint that analyzes a site for AI visibility. Use POST with JSON { url, runCitations }.",
+    auth_required: false,
+    example: {
+      method: "POST",
+      url: "/api/analyze",
+      body: { url: "https://example.com", runCitations: false },
+      exampleFetch: "fetch('/api/analyze', {method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url:'https://example.com'})}).then(r=>r.json())"
+    },
+    notes: "This demo allows cross-origin requests (CORS: *). The endpoint does not require an API key by default. In production, consider restricting allowed origins and adding auth.",
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { url, bustCache, runCitations = false } = await request.json();
-    if (!url) return NextResponse.json({ error: "URL is required", errorCode: "MISSING_URL" }, { status: 400 });
+    if (!url) return json({ error: "URL is required", errorCode: "MISSING_URL" }, 400);
 
     if (!process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY && !process.env.PERPLEXITY_API_KEY) {
-      return NextResponse.json({
+      return json({
         error: "No AI provider configured. Add GEMINI_API_KEY, OPENAI_API_KEY, or PERPLEXITY_API_KEY to .env.local",
         errorCode: "MISSING_KEY",
-      }, { status: 500 });
+      }, 500);
     }
 
     if (!bustCache) {
@@ -739,7 +771,7 @@ export async function POST(request: NextRequest) {
       const cached = await readCache(cacheKey) as Record<string, unknown> | null;
       if (cached) {
         console.log("[cache] serving cached result for", cacheKey);
-        return NextResponse.json({ ...cached, _cached: true });
+        return json({ ...cached, _cached: true });
       }
     }
 
@@ -785,7 +817,7 @@ export async function POST(request: NextRequest) {
     const final = { ...merged, citations: citationResults };
     const cacheKey = url + (runCitations ? "|citations" : "|basic");
     writeCache(cacheKey, final); // async, non-blocking
-    return NextResponse.json(final);
+    return json(final);
   } catch (error) {
     console.error("Analysis error:", error);
     const msg = String(error instanceof Error ? error.message : error);
@@ -794,6 +826,6 @@ export async function POST(request: NextRequest) {
       : (msg.includes("429") || low.includes("quota") || low.includes("rate limit")) ? "QUOTA_EXCEEDED"
       : (msg.includes("401") || msg.includes("403") || low.includes("api_key")) ? "INVALID_KEY"
       : "UNKNOWN";
-    return NextResponse.json({ error: msg, errorCode }, { status: 500 });
+    return json({ error: msg, errorCode }, 500);
   }
 }
