@@ -323,7 +323,7 @@ function buildPrompt(url: string, t: Tech): string {
     '    {"priority": "low", "title": "short title", "description": "specific fix", "impact": "expected result"}\n' +
     '  ]\n' +
     "}\n\n" +
-    "Rules: return ONLY the JSON. No markdown. No extra text. summary must be under 200 chars. description under 120 chars."
+    "Rules: return ONLY the JSON. No markdown. No extra text. summary must be under 150 chars. description under 100 chars. title under 50 chars. impact under 80 chars."
   );
 }
 
@@ -344,6 +344,48 @@ function parseJSON(raw: string): object {
   );
   try { return JSON.parse(s); } catch (e) {
     throw new Error("JSON parse failed: " + String(e).slice(0, 100));
+  }
+}
+
+// ── Truncated-JSON recovery ────────────────────────────────────────────────
+// When a model like Perplexity sonar truncates mid-response, the JSON is
+// syntactically broken. This function tries to close open structures so the
+// string becomes valid JSON — better than a hard failure.
+function attemptJSONRecovery(raw: string): object | null {
+  try {
+    let s = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
+    const start = s.indexOf("{");
+    if (start === -1) return null;
+    s = s.slice(start);
+
+    // Remove trailing comma before we start closing
+    s = s.replace(/,\s*$/, "");
+
+    // Count open braces / brackets to figure out what needs closing
+    let braces = 0, brackets = 0;
+    let inString = false, escape = false;
+    for (const ch of s) {
+      if (escape) { escape = false; continue; }
+      if (ch === "\\" && inString) { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === "{") braces++;
+      else if (ch === "}") braces--;
+      else if (ch === "[") brackets++;
+      else if (ch === "]") brackets--;
+    }
+
+    // Close any open structures
+    let suffix = "";
+    for (let i = 0; i < brackets; i++) suffix += "]";
+    for (let i = 0; i < braces; i++) suffix += "}";
+    const candidate = s + suffix;
+
+    // Strip trailing comma inside the now-closed object/array
+    const cleaned = candidate.replace(/,(\s*[}\]])/g, "$1");
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
   }
 }
 
@@ -385,11 +427,16 @@ async function callPerplexity(prompt: string): Promise<object> {
       messages: [
         {
           role: "system",
-          content: "You are an AI Visibility Auditor. Return ONLY a valid JSON object. No markdown. No explanation. Start with { and end with }.",
+          content:
+            "You are an AI Visibility Auditor. Return ONLY a valid JSON object. " +
+            "No markdown, no code fences, no explanation. " +
+            "Start your response with { and end with }. " +
+            "Keep all string values under 150 characters to avoid truncation.",
         },
         { role: "user", content: prompt },
       ],
-      max_tokens: 2000,
+      // 800 tokens is plenty for the summary + 4 recommendations; 2000 caused truncation
+      max_tokens: 800,
       temperature: 0.1,
     }),
   });
@@ -398,7 +445,15 @@ async function callPerplexity(prompt: string): Promise<object> {
     throw new Error("Perplexity " + res.status + ": " + errText.slice(0, 200));
   }
   const data = await res.json();
-  return parseJSON(data.choices?.[0]?.message?.content || "{}");
+  const raw: string = data.choices?.[0]?.message?.content || "{}";
+  try {
+    return parseJSON(raw);
+  } catch (firstErr) {
+    // Last-resort recovery: attempt to close truncated JSON by appending missing brackets/braces
+    const recovered = attemptJSONRecovery(raw);
+    if (recovered) return recovered;
+    throw firstErr;
+  }
 }
 
 // ── Run all providers in parallel ─────────────────────────────────────────
