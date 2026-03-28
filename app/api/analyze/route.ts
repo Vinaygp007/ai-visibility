@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import crypto from "crypto";
 import { getDb } from "@/lib/firebase";
-import { GET as openaiGET, OPTIONS as openaiOPTIONS } from "../openai/route";
+import { GET as openaiGET, OPTIONS as openaiOPTIONS } from "../openapi/route";
 
 // ── Firebase Cache (1 hour TTL) ───────────────────────────────────────────
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour in milliseconds

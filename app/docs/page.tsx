@@ -20,7 +20,7 @@ export default function DocsPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const w = window as any;
         w.SwaggerUIBundle({
-          url: "/api/openai",
+          url: "/api/openapi",
           dom_id: "#swagger-ui",
           presets: [w.SwaggerUIBundle.presets.apis, w.SwaggerUIStandalonePreset],
           layout: "StandaloneLayout",
