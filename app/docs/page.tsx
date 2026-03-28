@@ -4,40 +4,68 @@ import { useEffect } from "react";
 
 export default function DocsPage() {
   useEffect(() => {
-    // Load Swagger UI CSS
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui.min.css";
-    document.head.appendChild(link);
+    // Client-side diagnostic logging for Swagger UI init
+    try {
+      console.info("Docs: starting Swagger UI asset load");
 
-    // Load SwaggerUIBundle first, then StandalonePreset, then init
-    const script1 = document.createElement("script");
-    script1.src = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-bundle.min.js";
-    script1.onload = () => {
-      const script2 = document.createElement("script");
-      script2.src = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-standalone-preset.min.js";
-      script2.onload = () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const w = window as any;
-        w.SwaggerUIBundle({
-          url: "/api/openapi",
-          dom_id: "#swagger-ui",
-          presets: [w.SwaggerUIBundle.presets.apis, w.SwaggerUIStandalonePreset],
-          layout: "StandaloneLayout",
-          deepLinking: true,
-          displayRequestDuration: true,
-          defaultModelsExpandDepth: 1,
-          defaultModelExpandDepth: 2,
-          docExpansion: "list",
-          filter: true,
-          tryItOutEnabled: true,
-          persistAuthorization: true,
-          syntaxHighlight: { activated: true, theme: "agate" },
-        });
+      // Load Swagger UI CSS
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui.min.css";
+      link.onload = () => console.info("Docs: swagger css loaded");
+      link.onerror = (e) => console.error("Docs: swagger css failed to load", e);
+      document.head.appendChild(link);
+
+      // Load SwaggerUIBundle first, then StandalonePreset, then init
+      const script1 = document.createElement("script");
+      script1.src = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-bundle.min.js";
+      script1.onload = () => {
+        console.info("Docs: swagger bundle loaded");
+        const script2 = document.createElement("script");
+        script2.src = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-standalone-preset.min.js";
+        script2.onload = () => {
+          console.info("Docs: swagger standalone preset loaded");
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const w = window as any;
+            if (!w.SwaggerUIBundle) throw new Error("SwaggerUIBundle not available on window");
+            w.SwaggerUIBundle({
+              url: "/api/openapi",
+              dom_id: "#swagger-ui",
+              presets: [w.SwaggerUIBundle.presets.apis, w.SwaggerUIStandalonePreset],
+              layout: "StandaloneLayout",
+              deepLinking: true,
+              displayRequestDuration: true,
+              defaultModelsExpandDepth: 1,
+              defaultModelExpandDepth: 2,
+              docExpansion: "list",
+              filter: true,
+              tryItOutEnabled: true,
+              persistAuthorization: true,
+              syntaxHighlight: { activated: true, theme: "agate" },
+            });
+            console.info("Docs: SwaggerUIBundle initialized");
+          } catch (initErr) {
+            console.error("Docs: Swagger init error", initErr);
+            const mount = document.getElementById("swagger-ui");
+            if (mount) {
+              const errEl = document.createElement("div");
+              errEl.style.color = "#fecaca";
+              errEl.style.padding = "12px";
+              errEl.style.background = "rgba(15,17,23,0.8)";
+              errEl.textContent = "Swagger UI initialization failed: " + String(initErr);
+              mount.appendChild(errEl);
+            }
+          }
+        };
+        script2.onerror = (e) => console.error("Docs: swagger standalone preset failed to load", e);
+        document.head.appendChild(script2);
       };
-      document.head.appendChild(script2);
-    };
-    document.head.appendChild(script1);
+      script1.onerror = (e) => console.error("Docs: swagger bundle failed to load", e);
+      document.head.appendChild(script1);
+    } catch (e) {
+      console.error("Docs: unexpected error while setting up Swagger UI", e);
+    }
   }, []);
 
   return (
