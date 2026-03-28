@@ -4,13 +4,13 @@ import { useEffect } from "react";
 
 export default function DocsPage() {
   useEffect(() => {
-    // Load CSS
+    // Load Swagger UI CSS
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui.min.css";
     document.head.appendChild(link);
 
-    // Load SwaggerUIBundle, then StandalonePreset, then init
+    // Load SwaggerUIBundle first, then StandalonePreset, then init
     const script1 = document.createElement("script");
     script1.src = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-bundle.min.js";
     script1.onload = () => {
@@ -43,16 +43,23 @@ export default function DocsPage() {
   return (
     <>
       <style>{`
-        *, *::before, *::after { box-sizing: border-box; }
-        body {
+        /* ── Hard-reset Tailwind/globals interference ── */
+        *, *::before, *::after {
+          box-sizing: border-box;
+        }
+        html, body {
           margin: 0 !important;
           padding: 0 !important;
           background: #0f1117 !important;
           color: #e2e8f0 !important;
           font-family: ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+          min-height: 100vh;
         }
 
-        /* ── Top bar ── */
+        /* ── Hide Swagger's own top bar (we have our own) ── */
+        .swagger-ui .topbar { display: none !important; }
+
+        /* ── Our custom header ── */
         .aiscope-header {
           background: linear-gradient(135deg, #0f1117 0%, #1a1f2e 100%);
           border-bottom: 1px solid rgba(99,102,241,0.25);
@@ -63,6 +70,7 @@ export default function DocsPage() {
           position: sticky;
           top: 0;
           z-index: 1000;
+          box-shadow: 0 1px 20px rgba(0,0,0,0.4);
         }
         .aiscope-logo {
           font-size: 20px;
@@ -94,20 +102,20 @@ export default function DocsPage() {
         }
         .aiscope-cors::before { content: "● "; font-size: 8px; }
 
-        /* ── Swagger wrapper ── */
+        /* ── Swagger UI wrapper ── */
         #swagger-ui {
           max-width: 1200px;
           margin: 0 auto;
           padding: 28px 24px 80px;
         }
 
-        .swagger-ui .topbar { display: none !important; }
-
+        /* ── Fix Swagger UI wrapper backgrounds ── */
         .swagger-ui .wrapper,
         .swagger-ui .scheme-container {
           background: transparent !important;
           box-shadow: none !important;
           padding: 0 !important;
+          max-width: 100% !important;
         }
 
         /* ── Info block ── */
@@ -257,13 +265,13 @@ export default function DocsPage() {
           border-radius: 8px !important;
         }
 
-        /* ── Arrows / icons ── */
+        /* ── SVG arrows ── */
         .swagger-ui .expand-methods svg,
         .swagger-ui .expand-operation svg,
         .swagger-ui button svg,
         .swagger-ui .arrow { fill: #64748b !important; }
 
-        /* ── Scrollbar ── */
+        /* ── Custom scrollbar ── */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #0f1117; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
