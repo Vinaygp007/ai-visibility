@@ -5,6 +5,12 @@ import crypto from "crypto";
 import { getDb } from "@/lib/firebase";
 import { GET as openaiGET, OPTIONS as openaiOPTIONS } from "../openapi/route";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 // ── Firebase Cache (1 hour TTL) ───────────────────────────────────────────
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour in milliseconds
 const COLLECTION = "scans";
@@ -787,13 +793,13 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const { url, bustCache, runCitations = false } = await request.json();
-    if (!url) return NextResponse.json({ error: "URL is required", errorCode: "MISSING_URL" }, { status: 400 });
+    if (!url) return NextResponse.json({ error: "URL is required", errorCode: "MISSING_URL" }, { status: 400, headers: CORS_HEADERS });
 
     if (!process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY && !process.env.PERPLEXITY_API_KEY) {
       return NextResponse.json({
         error: "No AI provider configured. Add GEMINI_API_KEY, OPENAI_API_KEY, or PERPLEXITY_API_KEY to .env.local",
         errorCode: "MISSING_KEY",
-      }, { status: 500 });
+      }, { status: 500, headers: CORS_HEADERS });
     }
 
     if (!bustCache) {
@@ -802,7 +808,7 @@ export async function POST(request: NextRequest) {
       const cached = await readCache(cacheKey) as Record<string, unknown> | null;
       if (cached) {
         console.log("[cache] serving cached result for", cacheKey);
-        return NextResponse.json({ ...cached, _cached: true });
+        return NextResponse.json({ ...cached, _cached: true }, { headers: CORS_HEADERS });
       }
     }
 
@@ -848,7 +854,7 @@ export async function POST(request: NextRequest) {
     const final = { ...merged, citations: citationResults };
     const cacheKey = url + (runCitations ? "|citations" : "|basic");
     writeCache(cacheKey, final); // async, non-blocking
-    return NextResponse.json(final);
+    return NextResponse.json(final, { headers: CORS_HEADERS });
   } catch (error) {
     console.error("Analysis error:", error);
     const msg = String(error instanceof Error ? error.message : error);
@@ -857,6 +863,6 @@ export async function POST(request: NextRequest) {
       : (msg.includes("429") || low.includes("quota") || low.includes("rate limit")) ? "QUOTA_EXCEEDED"
       : (msg.includes("401") || msg.includes("403") || low.includes("api_key")) ? "INVALID_KEY"
       : "UNKNOWN";
-    return NextResponse.json({ error: msg, errorCode }, { status: 500 });
+    return NextResponse.json({ error: msg, errorCode }, { status: 500, headers: CORS_HEADERS });
   }
 }
