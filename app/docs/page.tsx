@@ -1,8 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+type CitationPrompts = {
+  system?: string;
+  user_template?: string;
+  placeholders?: Record<string, string>;
+};
 
 export default function DocsPage() {
+  const [citationPrompts, setCitationPrompts] = useState<CitationPrompts | null>(null);
+  const [promptLoadError, setPromptLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPrompts = async () => {
+      try {
+        const res = await fetch("/api/openapi");
+        if (!res.ok) throw new Error("OpenAPI fetch failed: HTTP " + res.status);
+        const spec = (await res.json()) as Record<string, unknown>;
+        const prompts = (spec["x-prompts"] as Record<string, unknown> | undefined)?.citations as
+          | CitationPrompts
+          | undefined;
+
+        if (!cancelled) {
+          setCitationPrompts(prompts ?? null);
+          setPromptLoadError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setCitationPrompts(null);
+          setPromptLoadError(String(e));
+        }
+      }
+    };
+
+    loadPrompts();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     // Client-side diagnostic logging for Swagger UI init
     try {
@@ -135,6 +174,64 @@ export default function DocsPage() {
           max-width: 1200px;
           margin: 0 auto;
           padding: 28px 24px 80px;
+        }
+
+        /* ── Prompts panel ── */
+        .aiscope-prompts {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 18px 24px 0;
+        }
+        .aiscope-prompts-card {
+          background: linear-gradient(135deg, #1a1f2e, #1e2435);
+          border: 1px solid rgba(99,102,241,0.2);
+          border-radius: 16px;
+          padding: 18px 18px;
+          margin-top: 14px;
+        }
+        .aiscope-prompts-title {
+          color: #e2e8f0;
+          font-weight: 800;
+          font-size: 14px;
+          letter-spacing: -0.2px;
+          margin-bottom: 8px;
+        }
+        .aiscope-prompts-subtitle {
+          color: #94a3b8;
+          font-size: 13px;
+          line-height: 1.5;
+          margin-bottom: 12px;
+        }
+        .aiscope-prompts-label {
+          color: #818cf8;
+          font-weight: 700;
+          font-size: 12px;
+          margin-top: 14px;
+          margin-bottom: 6px;
+        }
+        .aiscope-prompts-pre {
+          background: rgba(15,17,23,0.9);
+          border: 1px solid rgba(99,102,241,0.15);
+          border-radius: 12px;
+          padding: 12px;
+          color: #a5f3fc;
+          font-size: 12.5px;
+          line-height: 1.5;
+          overflow: auto;
+          max-height: 280px;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+        .aiscope-prompts-placeholder {
+          display: inline-block;
+          margin-right: 10px;
+          margin-bottom: 6px;
+          padding: 4px 10px;
+          border-radius: 999px;
+          background: rgba(99,102,241,0.14);
+          border: 1px solid rgba(99,102,241,0.25);
+          color: #c7d2fe;
+          font-size: 12px;
         }
 
         /* ── Fix Swagger UI wrapper backgrounds ── */
@@ -309,6 +406,48 @@ export default function DocsPage() {
         <span className="aiscope-logo">⬡ AiScope</span>
         <span className="aiscope-badge">API v2.0</span>
         <span className="aiscope-cors">CORS Enabled</span>
+      </div>
+
+      <div className="aiscope-prompts">
+        <div className="aiscope-prompts-card">
+          <div className="aiscope-prompts-title">Citation Prompt (GTM/GEO)</div>
+          <div className="aiscope-prompts-subtitle">
+            Templates are loaded from <code>/api/openapi</code> (<code>x-prompts.citations</code>).
+          </div>
+
+          {promptLoadError ? (
+            <div className="aiscope-prompts-subtitle" style={{ color: "#fecaca" }}>
+              Failed to load prompts: {promptLoadError}
+            </div>
+          ) : null}
+
+          {!promptLoadError && !citationPrompts ? (
+            <div className="aiscope-prompts-subtitle">No prompt templates found in the OpenAPI spec.</div>
+          ) : null}
+
+          {citationPrompts ? (
+            <>
+              {citationPrompts.placeholders ? (
+                <>
+                  <div className="aiscope-prompts-label">Placeholders</div>
+                  <div>
+                    {Object.entries(citationPrompts.placeholders).map(([k, v]) => (
+                      <span key={k} className="aiscope-prompts-placeholder" title={v}>
+                        {`{${k}}`}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+
+              <div className="aiscope-prompts-label">System Prompt</div>
+              <pre className="aiscope-prompts-pre">{citationPrompts.system || "(missing)"}</pre>
+
+              <div className="aiscope-prompts-label">User Prompt Template</div>
+              <pre className="aiscope-prompts-pre">{citationPrompts.user_template || "(missing)"}</pre>
+            </>
+          ) : null}
+        </div>
       </div>
 
       <div id="swagger-ui" />
