@@ -589,29 +589,66 @@ export interface CitationResult {
   error?: string;
 }
 
-function citationQuery(domain: string): string {
+function citationQuery(companyName: string, companyUrl: string): string {
+  // Client-provided prompt — keep structure and wording intact.
+  // Fill {company_name} and {domain} with discovered site name + URL.
   return (
-    "I want to learn about the website " + domain + ". Please answer these questions:\n" +
-    "1. What is " + domain + " and what does it do?\n" +
-    "2. Who uses " + domain + " and why is it popular?\n" +
-    "3. What are the main features or services offered by " + domain + "?\n" +
-    "4. How does " + domain + " compare to similar websites or services?\n" +
-    "Please be specific and detailed, mentioning " + domain + " by name throughout your answer."
+    "Act as an elite Go-To-Market (GTM) Strategist and Generative Engine Optimization (GEO) expert.\n" +
+    "I want you to run a deep-dive competitive landscape and GEO analysis for the following company:\n" +
+    "* Company Name & URL: " + companyName + " — " + companyUrl + "\n\n" +
+    "Phase 1: Live Research & Context Gathering\n\n" +
+    "Before generating any analysis, you MUST search the web to research and establish ALL of the following about this company. Do not skip any item — each one feeds directly into the analysis:\n\n" +
+    "1. Core Product/Service: What exactly do they sell or offer? Who is the primary target buyer persona?\n" +
+    "2. Industry & Category Term: What industry do they operate in? What is the most accurate category term for their space (e.g., \"Agentic AI Support\", \"Recruitment CRM\", \"Revenue Intelligence Platform\")? Use the term their competitors and analysts use, not generic labels.\n" +
+    "3. Legal Entity & Compliance: What is their registered legal entity name? Where is their HQ? Do they hold any compliance certifications (SOC 2, ISO 27001, GDPR-ready, HIPAA, FCA-regulated, etc.)? If you cannot find certifications, state that explicitly.\n" +
+    "4. Key Personnel: Who are the founders and key executives? Any notable prior employers (ex-Google, ex-McKinsey, etc.) or domain expertise that builds credibility?\n" +
+    "5. Recent Momentum: Any recent funding rounds, accelerator participation, partnerships, or press coverage?\n" +
+    "6. Primary Competitor: Based on your research, identify their single most dominant competitor — the brand a buyer would most likely evaluate them against.\n" +
+    "7. Target Keyword/Prompt: What is the most commercially valuable search query or AI prompt that a potential buyer would use when looking for a solution in this company's category? (e.g., \"best AI compliance tool\", \"CoStar alternative\", \"automated accounts payable software\")\n" +
+    "8. Current Web Presence: Assess the quality and focus of their existing blog posts, case studies, whitepapers, and landing pages. Are they publishing content that targets their category term? Is it generic or specific?\n\n" +
+    "Phase 2: The Analysis Generation\n\n" +
+    "Using ONLY what you discovered in Phase 1 (do not fabricate details), generate the following structured analysis:\n\n" +
+    "1. The Market Context\n" +
+    "Write a brief, punchy introduction explaining the specific, nuanced market this company operates in. Define the main legacy problem they are trying to solve and how their approach changes the game. Reference the Category Term you identified.\n\n" +
+    "2. The Competitive Landscape\n" +
+    "Provide a ranked list of the leading companies in this Category Term space.\n\n" +
+    "* Include legacy incumbents, direct competitors, and rising startups — as many as are genuinely relevant.\n" +
+    "* You MUST include the Primary Competitor you identified.\n" +
+    "* Include " + companyName + " only if they legitimately belong in this landscape based on your research. If they are too early-stage, too niche, or too unknown to rank alongside established players, say so explicitly — do not force them into the list. Honesty here is more useful than flattery.\n" +
+    "* For each company, provide a 1-sentence explanation of what they are \"Best for.\"\n" +
+    "* If " + companyName + " does appear, be realistic with their placement. Do not inflate their ranking.\n\n" +
+    "3. Deep Dive: Where " + companyName + " Stands & Why\n" +
+    "Provide a candid breakdown of their current market position:\n\n" +
+    "* What works in their favour: List 2–3 highly specific product differentiators based on your research.\n" +
+    "* What holds them back: Be objective about their weaknesses compared to the dominant players.\n" +
+    "* Enterprise Trust & Legal Standing: How does their legal entity, HQ location, and compliance posture help or hinder their enterprise sales motion? If they lack visible certifications, flag this as a gap.\n" +
+    "* Current Web Presence Critique: Based on your Phase 1 assessment — are their blogs and case studies targeting the right keywords? Are they too generic? Do they have content that would surface in an AI-generated answer about their category?\n\n" +
+    "4. AI Visibility & Sentiment Analysis\n" +
+    "Simulate what a real buyer would see if they asked an AI assistant the Target Keyword/Prompt you identified in Phase 1. Answer that query as you naturally would — do not factor in that " + companyName + " is the subject of this report. Your uninfluenced response is the data.\n\n" +
+    "After giving that response, provide the following analysis:\n\n" +
+    "* Ranking: Which companies appeared in your answer and in what order? This is their current AI visibility ranking for this keyword.\n" +
+    "* Visibility verdict for " + companyName + ": Did they appear? If yes, at what position and with what framing? If no, state that clearly — do not soften it.\n" +
+    "* Sentiment breakdown: For each company that appeared in your answer, classify how you framed them:\n" +
+    "  — Framing type: top_pick / strong_option / niche_fit / honorable_mention / not_recommended / absent\n" +
+    "  — Sentiment score: a value from -1.0 (negative) to 1.0 (positive) based on your language\n" +
+    "  — Key phrases: the exact words or phrases you used that signal that sentiment (e.g., \"industry standard\", \"best for growing teams\", \"lacks enterprise features\")\n" +
+    "* Why " + companyName + " ranked where they did (or didn't appear): Be specific. What signals — content, citations, brand recognition, structured data, third-party mentions — caused this outcome?"
   );
 }
 
 function citationSystemPrompt(): string {
   return (
-    "You are a knowledgeable assistant with broad knowledge of websites and online services. " +
-    "When asked about a website, provide detailed, accurate information and reference the website by name frequently. " +
-    "If you know about the site, share that knowledge in detail. If you do not know it, say so honestly."
+    "You are an elite Go-To-Market (GTM) Strategist and Generative Engine Optimization (GEO) expert. " +
+    "Use live web research when tools are available. " +
+    "Do not fabricate; if you cannot find a required detail, state that explicitly."
   );
 }
 
 // ── Gemini citations (live Google Search) ─────────────────────────────────
-async function getGeminiCitations(siteUrl: string): Promise<CitationResult> {
-  const domain = new URL(siteUrl).hostname.replace("www.", "");
-  const query = citationQuery(domain);
+async function getGeminiCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+  const urlObj = new URL(siteUrl);
+  const domain = urlObj.hostname.replace("www.", "");
+  const query = citationQuery(companyName || domain, urlObj.origin);
   const sysPrompt = citationSystemPrompt();
 
   const attempt = async () => {
@@ -673,9 +710,10 @@ async function getGeminiCitations(siteUrl: string): Promise<CitationResult> {
 }
 
 // ── OpenAI citations (web_search_preview — live search) ───────────────────
-async function getOpenAICitations(siteUrl: string): Promise<CitationResult> {
-  const domain = new URL(siteUrl).hostname.replace("www.", "");
-  const query = citationQuery(domain);
+async function getOpenAICitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+  const urlObj = new URL(siteUrl);
+  const domain = urlObj.hostname.replace("www.", "");
+  const query = citationQuery(companyName || domain, urlObj.origin);
   const sysPrompt = citationSystemPrompt();
 
   try {
@@ -731,9 +769,10 @@ async function getOpenAICitations(siteUrl: string): Promise<CitationResult> {
 }
 
 // ── Perplexity citations (live web search) ────────────────────────────────
-async function getPerplexityCitations(siteUrl: string): Promise<CitationResult> {
-  const domain = new URL(siteUrl).hostname.replace("www.", "");
-  const query = citationQuery(domain);
+async function getPerplexityCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+  const urlObj = new URL(siteUrl);
+  const domain = urlObj.hostname.replace("www.", "");
+  const query = citationQuery(companyName || domain, urlObj.origin);
   const sysPrompt = citationSystemPrompt();
   try {
     const res = await fetch("https://api.perplexity.ai/chat/completions", {
@@ -770,11 +809,32 @@ async function getPerplexityCitations(siteUrl: string): Promise<CitationResult> 
 }
 
 // ── Run citation checks (after main analysis) ──────────────────────────────
-async function runCitationChecks(siteUrl: string, skipGemini = false): Promise<CitationResult[]> {
+async function runCitationChecks(siteUrl: string, companyName: string, skipGemini = false): Promise<CitationResult[]> {
   const tasks: Promise<CitationResult>[] = [];
-  if (process.env.GEMINI_API_KEY && !skipGemini) tasks.push(getGeminiCitations(siteUrl));
-  if (process.env.OPENAI_API_KEY)                tasks.push(getOpenAICitations(siteUrl));
-  if (process.env.PERPLEXITY_API_KEY)            tasks.push(getPerplexityCitations(siteUrl));
+  const urlObj = new URL(siteUrl);
+  const domain = urlObj.hostname.replace("www.", "");
+  const companyUrl = urlObj.origin;
+  const query = citationQuery(companyName || domain, companyUrl);
+  const sysPrompt = citationSystemPrompt();
+
+  const wrap = (provider: string, fn: () => Promise<CitationResult>): Promise<CitationResult> =>
+    fn().catch((err) => ({
+      provider,
+      query,
+      systemPrompt: sysPrompt,
+      rawAnswer: "",
+      count: 0,
+      urls: [],
+      allCitationUrls: [],
+      snippets: [],
+      dataSource: "live_search",
+      status: "failed",
+      error: String(err).slice(0, 150),
+    }));
+
+  if (process.env.GEMINI_API_KEY && !skipGemini) tasks.push(wrap("Gemini 2.0 Flash", () => getGeminiCitations(siteUrl, companyName)));
+  if (process.env.OPENAI_API_KEY)                tasks.push(wrap("ChatGPT (GPT-4o)", () => getOpenAICitations(siteUrl, companyName)));
+  if (process.env.PERPLEXITY_API_KEY)            tasks.push(wrap("Perplexity Sonar", () => getPerplexityCitations(siteUrl, companyName)));
   if (tasks.length === 0) return [];
   const results = await Promise.all(tasks);
   results.forEach(r => console.log("[citations] " + r.provider + ": " + r.count + " (" + r.status + ")"));
@@ -843,7 +903,7 @@ export async function POST(request: NextRequest) {
     let citationResults: CitationResult[] = [];
     if (runCitations) {
       console.log("[citations] running citation checks...");
-      citationResults = await runCitationChecks(url, !geminiSucceededInMain);
+      citationResults = await runCitationChecks(url, tech.siteName, !geminiSucceededInMain);
     } else {
       console.log("[citations] skipped (runCitations=false)");
     }
