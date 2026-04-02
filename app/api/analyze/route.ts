@@ -5,6 +5,51 @@ import crypto from "crypto";
 import { getDb } from "@/lib/firebase";
 import { GET as openaiGET, OPTIONS as openaiOPTIONS } from "../openapi/route";
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function isGeminiRateLimitError(err: unknown): boolean {
+  const msg = String(err ?? "").toLowerCase();
+  return (
+    msg.includes("[429") ||
+    msg.includes(" 429") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("quota") ||
+    msg.includes("rate limit")
+  );
+}
+
+function briefProviderError(err: unknown): string {
+  const msg = String(err ?? "Unknown error");
+  // Keep it reasonably sized for UI, but more informative than 150 chars.
+  return msg.length > 500 ? msg.slice(0, 500) + "…" : msg;
+}
+
+function normalizeGeminiModelName(name: string) {
+  return name.startsWith("models/") ? name.slice("models/".length) : name;
+}
+
+function getGeminiModelCandidates(): string[] {
+  const models = (
+    process.env.GEMINI_MODEL
+      ? [process.env.GEMINI_MODEL]
+      : [
+          // Prefer stable aliases that exist in v1beta ListModels.
+          "gemini-flash-latest",
+          "gemini-2.5-flash",
+          "gemini-flash-lite-latest",
+          "gemini-2.0-flash-lite",
+          "gemini-2.0-flash",
+        ]
+  )
+    .filter(Boolean)
+    .map((m) => normalizeGeminiModelName(String(m)));
+
+  // De-dupe while preserving order
+  return Array.from(new Set(models));
+}
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
@@ -397,10 +442,38 @@ function attemptJSONRecovery(raw: string): object | null {
 
 // ── AI providers ───────────────────────────────────────────────────────────
 async function callGemini(prompt: string): Promise<object> {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-  const res = await model.generateContent(prompt);
-  return parseJSON(res.response.text());
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+
+  const models = getGeminiModelCandidates();
+
+  const errors: string[] = [];
+  for (const modelName of models) {
+    // Retry on 429 with backoff (common even on paid keys).
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const res = await model.generateContent(prompt);
+        return parseJSON(res.response.text());
+      } catch (err) {
+        errors.push(`${modelName} (attempt ${attempt + 1}): ${briefProviderError(err)}`);
+        if (isGeminiRateLimitError(err) && attempt < 2) {
+          const waitMs = attempt === 0 ? 8_000 : 20_000;
+          console.log(`[Gemini] 429/quota on ${modelName}. Retrying in ${waitMs}ms...`);
+          await sleep(waitMs);
+          continue;
+        }
+        break; // non-retriable or retries exhausted -> try next model
+      }
+    }
+  }
+
+  throw new Error(
+    `Gemini failed (${models.join(", ")}). Errors: ` +
+      errors.slice(0, 3).join(" | ") +
+      (errors.length > 3 ? ` | (+${errors.length - 3} more)` : "")
+  );
 }
 
 async function callOpenAI(prompt: string): Promise<object> {
@@ -488,8 +561,9 @@ async function runAllProviders(prompt: string): Promise<ProviderResult[]> {
         console.log("[AI] " + p.name + " done in " + (Date.now() - t0) + "ms");
         return { name: p.name, data, error: null, durationMs: Date.now() - t0 };
       } catch (err) {
-        console.warn("[AI] " + p.name + " failed:", String(err).slice(0, 100));
-        return { name: p.name, data: null, error: String(err).slice(0, 150), durationMs: Date.now() - t0 };
+        const msg = briefProviderError(err);
+        console.warn("[AI] " + p.name + " failed:", msg.slice(0, 200));
+        return { name: p.name, data: null, error: msg, durationMs: Date.now() - t0 };
       }
     })
   );
@@ -652,24 +726,45 @@ async function getGeminiCitations(siteUrl: string, companyName: string): Promise
   const sysPrompt = citationSystemPrompt();
 
   const attempt = async () => {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    // NOTE: remove unsupported tool option to satisfy TypeScript 'Tool' typing
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-      systemInstruction: sysPrompt,
-    });
-    const result = await model.generateContent(query);
-    const response = result.response;
-    const text = response.text();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const candidates = (response as any).candidates ?? [];
-    const groundingChunks = candidates[0]?.groundingMetadata?.groundingChunks ?? [];
-    const allSourceUrls: string[] = groundingChunks
-      .map((c: Record<string, unknown>) => (c.web as Record<string, string>)?.uri ?? "")
-      .filter(Boolean);
-    const matchingUrls = allSourceUrls.filter(u => u.toLowerCase().includes(domain.toLowerCase()));
-    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
-    return { text, allSourceUrls, matchingUrls, mentionCount };
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+
+    const modelCandidates = getGeminiModelCandidates();
+    let lastErr: unknown = null;
+
+    for (const modelName of modelCandidates) {
+      for (let i = 0; i < 2; i++) {
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          // NOTE: keep options minimal for SDK compatibility.
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            systemInstruction: sysPrompt,
+          });
+          const result = await model.generateContent(query);
+          const response = result.response;
+          const text = response.text();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const candidates = (response as any).candidates ?? [];
+          const groundingChunks = candidates[0]?.groundingMetadata?.groundingChunks ?? [];
+          const allSourceUrls: string[] = groundingChunks
+            .map((c: Record<string, unknown>) => (c.web as Record<string, string>)?.uri ?? "")
+            .filter(Boolean);
+          const matchingUrls = allSourceUrls.filter((u) => u.toLowerCase().includes(domain.toLowerCase()));
+          const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+          return { text, allSourceUrls, matchingUrls, mentionCount };
+        } catch (err) {
+          lastErr = err;
+          if (isGeminiRateLimitError(err) && i === 0) {
+            await sleep(12_000);
+            continue;
+          }
+          break;
+        }
+      }
+    }
+
+    throw lastErr ?? new Error("Gemini citations failed");
   };
 
   try {
