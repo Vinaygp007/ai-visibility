@@ -817,6 +817,20 @@ async function runCitationChecks(siteUrl: string, companyName: string, skipGemin
   const query = citationQuery(companyName || domain, companyUrl);
   const sysPrompt = citationSystemPrompt();
 
+  const unavailable = (provider: CitationResult["provider"], reason: string): CitationResult => ({
+    provider,
+    query,
+    systemPrompt: sysPrompt,
+    rawAnswer: "",
+    count: 0,
+    urls: [],
+    allCitationUrls: [],
+    snippets: [],
+    dataSource: "live_search",
+    status: "unavailable",
+    error: reason,
+  });
+
   const wrap = (provider: string, fn: () => Promise<CitationResult>): Promise<CitationResult> =>
     fn().catch((err) => ({
       provider,
@@ -832,10 +846,33 @@ async function runCitationChecks(siteUrl: string, companyName: string, skipGemin
       error: String(err).slice(0, 150),
     }));
 
-  if (process.env.GEMINI_API_KEY && !skipGemini) tasks.push(wrap("Gemini 2.0 Flash", () => getGeminiCitations(siteUrl, companyName)));
-  if (process.env.OPENAI_API_KEY)                tasks.push(wrap("ChatGPT (GPT-4o)", () => getOpenAICitations(siteUrl, companyName)));
-  if (process.env.PERPLEXITY_API_KEY)            tasks.push(wrap("Perplexity Sonar", () => getPerplexityCitations(siteUrl, companyName)));
-  if (tasks.length === 0) return [];
+  // Always return a stable set of providers so integrators can rely on a consistent shape.
+  // Each provider is either executed (success/failed) or marked unavailable with a reason.
+  if (process.env.GEMINI_API_KEY && !skipGemini) {
+    tasks.push(wrap("Gemini 2.0 Flash", () => getGeminiCitations(siteUrl, companyName)));
+  } else {
+    tasks.push(Promise.resolve(
+      unavailable(
+        "Gemini 2.0 Flash",
+        !process.env.GEMINI_API_KEY
+          ? "GEMINI_API_KEY not configured"
+          : "Skipped because Gemini failed during main analysis"
+      )
+    ));
+  }
+
+  if (process.env.OPENAI_API_KEY) {
+    tasks.push(wrap("ChatGPT (GPT-4o)", () => getOpenAICitations(siteUrl, companyName)));
+  } else {
+    tasks.push(Promise.resolve(unavailable("ChatGPT (GPT-4o)", "OPENAI_API_KEY not configured")));
+  }
+
+  if (process.env.PERPLEXITY_API_KEY) {
+    tasks.push(wrap("Perplexity Sonar", () => getPerplexityCitations(siteUrl, companyName)));
+  } else {
+    tasks.push(Promise.resolve(unavailable("Perplexity Sonar", "PERPLEXITY_API_KEY not configured")));
+  }
+
   const results = await Promise.all(tasks);
   results.forEach(r => console.log("[citations] " + r.provider + ": " + r.count + " (" + r.status + ")"));
   return results;
@@ -852,7 +889,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { url, bustCache, runCitations = false } = await request.json();
+    const body = await request.json();
+    const url = body?.url as string | undefined;
+    const bustCache = body?.bustCache as boolean | undefined;
+    // Default citations ON for all integrations. Only explicit false disables.
+    const runCitations = body?.runCitations === false ? false : true;
     if (!url) return NextResponse.json({ error: "URL is required", errorCode: "MISSING_URL" }, { status: 400, headers: CORS_HEADERS });
 
     if (!process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY && !process.env.PERPLEXITY_API_KEY) {

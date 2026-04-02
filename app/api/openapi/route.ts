@@ -62,14 +62,22 @@ export async function GET() {
     openapi: "3.0.0",
     info: {
       title: "AiScope — AI Visibility Analyzer API",
-      version: "2.1.0",
+      version: "2.2.0",
       description:
-        "Analyze any website's visibility to AI crawlers, language models, and search engines. Returns deterministic scores, structured data checks, bot access rules, and live citation data from Gemini, ChatGPT, and Perplexity.",
+        "Analyze any website's visibility to AI crawlers, language models, and search engines. " +
+        "Returns deterministic scores, structured data checks, bot access rules, and live AI citation data " +
+        "from Gemini, ChatGPT, and Perplexity.\n\n" +
+        "**Important:** AI Citations (`runCitations`) are enabled by default in all POST requests. " +
+        "This gives you the full competitive landscape + GEO analysis out of the box. " +
+        "Pass `runCitations: false` explicitly if you want a faster, cheaper scan without citation research.",
       contact: {
         name: "AiScope",
       },
     },
     servers: [{ url: "/", description: "Current server" }],
+    "x-integration-note":
+      "Citations are ON by default (runCitations defaults to true). " +
+      "Every POST /api/analyze call will include live AI citation research unless you explicitly pass runCitations: false.",
     "x-prompts": {
       citations: {
         system: CITATION_SYSTEM_PROMPT,
@@ -102,9 +110,7 @@ export async function GET() {
               description: "OpenAPI spec JSON",
               content: {
                 "application/json": {
-                  schema: {
-                    type: "object",
-                  },
+                  schema: { type: "object" },
                   examples: {
                     spec: {
                       summary: "OpenAPI spec",
@@ -118,9 +124,15 @@ export async function GET() {
           },
         },
         post: {
-          summary: "Full AI Visibility Scan",
+          summary: "Full AI Visibility Scan (citations included by default)",
           description:
-            "Runs a comprehensive AI visibility audit on the given URL. Fetches robots.txt, llms.txt, llms-full.txt, sitemap.xml, and the homepage, then computes deterministic scores across 5 categories and asks AI providers (Gemini, ChatGPT, Perplexity) for recommendations and live citation data.",
+            "Runs a comprehensive AI visibility audit on the given URL.\n\n" +
+            "Fetches robots.txt, llms.txt, llms-full.txt, sitemap.xml, and the homepage, then computes " +
+            "deterministic scores across 5 categories.\n\n" +
+            "**Citations are ON by default.** The scan automatically runs live GEO/GTM research against " +
+            "Gemini, ChatGPT, and Perplexity — giving you competitive landscape analysis, AI sentiment " +
+            "scores, and citation data with every call. Pass `runCitations: false` to skip this and get " +
+            "a faster, cheaper basic scan.",
           operationId: "postAnalyze",
           tags: ["Analyze"],
           requestBody: {
@@ -129,17 +141,21 @@ export async function GET() {
               "application/json": {
                 schema: { $ref: "#/components/schemas/AnalyzeRequest" },
                 examples: {
-                  basic: {
-                    summary: "Basic scan",
+                  default_with_citations: {
+                    summary: "Standard scan (citations included by default)",
                     value: { url: "https://example.com" },
                   },
-                  bust_cache: {
-                    summary: "Force fresh scan",
-                    value: { url: "https://example.com", bustCache: true },
-                  },
-                  with_citations: {
-                    summary: "Scan + live GEO/GTM citation research",
+                  explicit_citations_on: {
+                    summary: "Explicitly request citations (same as default)",
                     value: { url: "https://example.com", runCitations: true },
+                  },
+                  no_citations: {
+                    summary: "Fast scan — skip citation research",
+                    value: { url: "https://example.com", runCitations: false },
+                  },
+                  bust_cache: {
+                    summary: "Force fresh scan (citations still included)",
+                    value: { url: "https://example.com", bustCache: true },
                   },
                 },
               },
@@ -147,7 +163,7 @@ export async function GET() {
           },
           responses: {
             "200": {
-              description: "Full scan result",
+              description: "Full scan result including citations",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/AnalyzeResponse" },
@@ -184,9 +200,13 @@ export async function GET() {
             },
             runCitations: {
               type: "boolean",
+              // ← KEY CHANGE: default is now true so external integrators get citations automatically
+              default: true,
               description:
-                "If true, runs live research-style citation checks using the client GTM/GEO prompt against Gemini, ChatGPT, and Perplexity.",
-              default: false,
+                "Controls whether live AI citation research is included in the response. " +
+                "**Defaults to true** — every scan includes competitive landscape analysis, AI sentiment scores, " +
+                "and citation data from Gemini, ChatGPT, and Perplexity. " +
+                "Set to false only if you want a faster, cheaper basic scan without citation research.",
             },
           },
         },
@@ -211,7 +231,10 @@ export async function GET() {
             },
             citations: {
               type: "array",
-              description: "Live citation check results from AI search providers",
+              description:
+                "Live citation check results from Gemini, ChatGPT, and Perplexity. " +
+                "Included by default (when runCitations is true or omitted). " +
+                "Each entry contains the raw AI answer, citation URLs, mention count, and sentiment data.",
               items: { $ref: "#/components/schemas/CitationResult" },
             },
             _providers: {
@@ -338,15 +361,13 @@ export async function GET() {
           properties: {
             systemPrompt: {
               type: "string",
-              example:
-                CITATION_SYSTEM_PROMPT,
+              example: CITATION_SYSTEM_PROMPT,
             },
             userPromptTemplate: {
               type: "string",
               description:
                 "Template with placeholders {company_name} and {domain} (filled at runtime).",
-              example:
-                CITATION_USER_TEMPLATE,
+              example: CITATION_USER_TEMPLATE,
             },
           },
         },

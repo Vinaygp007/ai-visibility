@@ -54,6 +54,8 @@ export default function HomePage() {
   const [state, setState] = useState<AppState>("idle");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [analyzingUrl, setAnalyzingUrl] = useState("");
+  // Store citations flag so retries always use the same value as the original call
+  const [analyzingCitations, setAnalyzingCitations] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [errorCode, setErrorCode] = useState("UNKNOWN");
   const [countdown, setCountdown] = useState(0);
@@ -77,20 +79,23 @@ export default function HomePage() {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, [state, errorCode]);
 
-  // Auto-fire retry when countdown hits 0
+  // Auto-fire retry when countdown hits 0 — reuses same citations flag
   useEffect(() => {
     if (countdown === 0 && state === "error" && errorCode === "QUOTA_EXCEEDED" && analyzingUrl) {
-      // small guard so it doesn't fire on mount
-      const timer = setTimeout(() => handleAnalyze(analyzingUrl), 300);
+      const timer = setTimeout(() => handleAnalyze(analyzingUrl, analyzingCitations), 300);
       return () => clearTimeout(timer);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown]);
 
-  const handleAnalyze = async (url: string, runCitations = false) => {
+  const handleAnalyze = async (url: string, runCitations = true) => {
+    // Strict boolean coercion — never let a truthy non-boolean slip through
+    const shouldRunCitations = runCitations === true;
+
     if (countdownRef.current) clearInterval(countdownRef.current);
     setCountdown(0);
     setAnalyzingUrl(url);
+    setAnalyzingCitations(shouldRunCitations); // remember for retries
     setState("loading");
     setResult(null);
     setErrorMsg("");
@@ -102,7 +107,7 @@ export default function HomePage() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, runCitations }),
+        body: JSON.stringify({ url, runCitations: shouldRunCitations }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -132,7 +137,10 @@ export default function HomePage() {
   return (
     <div className="min-h-screen" style={{ background: "#0a0b10" }}>
       <Navbar />
-      <HeroSection onAnalyze={(url, citations) => handleAnalyze(url, citations)} isLoading={state === "loading"} />
+      <HeroSection
+        onAnalyze={(url, citations) => handleAnalyze(url, citations === true)}
+        isLoading={state === "loading"}
+      />
 
       <main ref={mainRef} className="max-w-[900px] mx-auto px-6 pb-20">
         {state === "loading" && <LoadingSection url={analyzingUrl} />}
@@ -198,11 +206,14 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Action buttons */}
+            {/* Action buttons — all retries preserve the original citations flag */}
             <div className="flex flex-wrap gap-3 justify-center mb-6">
               {isRateLimit && countdown > 0 ? (
                 <button
-                  onClick={() => { if (countdownRef.current) clearInterval(countdownRef.current); handleAnalyze(analyzingUrl); }}
+                  onClick={() => {
+                    if (countdownRef.current) clearInterval(countdownRef.current);
+                    handleAnalyze(analyzingUrl, analyzingCitations);
+                  }}
                   className="px-5 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[#4285f4] hover:text-[#4285f4]"
                   style={{ borderColor: "rgba(255,255,255,0.13)", color: "#f0f0f5", background: "transparent" }}
                 >
@@ -210,7 +221,7 @@ export default function HomePage() {
                 </button>
               ) : (
                 <button
-                  onClick={() => handleAnalyze(analyzingUrl)}
+                  onClick={() => handleAnalyze(analyzingUrl, analyzingCitations)}
                   className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-95"
                   style={{ background: "#00e5ff", color: "#000" }}
                 >

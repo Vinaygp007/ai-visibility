@@ -23,7 +23,8 @@ const PROVIDERS = [
 
 export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) {
   const [url, setUrl] = useState("");
-  const [withCitations, setWithCitations] = useState(false);
+  // ← KEY CHANGE: was false, now true so citations always run by default
+  const [withCitations, setWithCitations] = useState(true);
 
   const handleSubmit = () => {
     if (!url.trim()) return;
@@ -54,7 +55,7 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
       {/* Provider badges */}
       <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
         <span className="text-xs font-mono" style={{ color: "#8b8d9e" }}>POWERED BY</span>
-        {PROVIDERS.map((p, i) => (
+        {PROVIDERS.map((p) => (
           <span key={p.name}
             className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl border"
             style={{ color: p.color, background: `${p.color}12`, borderColor: `${p.color}35` }}>
@@ -67,19 +68,25 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
       {/* URL input */}
       <div className="search-box flex items-center rounded-2xl border px-5 py-1.5 max-w-xl mx-auto transition-all"
         style={{ background: "#111219", borderColor: "rgba(255,255,255,0.13)" }}>
-        <input type="text" value={url}
+        <input
+          type="text"
+          value={url}
           onChange={e => setUrl(e.target.value)}
           onKeyDown={e => e.key === "Enter" && handleSubmit()}
           placeholder="https://yourwebsite.com"
-          className="flex-1 bg-transparent border-none outline-none text-[15px] text-white py-2.5" />
-        <button onClick={handleSubmit} disabled={isLoading}
+          className="flex-1 bg-transparent border-none outline-none text-[15px] text-white py-2.5"
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={isLoading}
           className="ml-3 rounded-xl px-6 py-2.5 text-sm font-semibold text-black transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-85 active:scale-95"
-          style={{ background: "#00e5ff", whiteSpace: "nowrap" }}>
+          style={{ background: "#00e5ff", whiteSpace: "nowrap" }}
+        >
           {isLoading ? "Analyzing..." : "Analyze →"}
         </button>
       </div>
 
-      {/* Citations toggle */}
+      {/* Citations toggle — on by default, user can opt out */}
       <div className="flex items-center justify-center gap-3 mt-4 mb-1">
         <button
           onClick={() => setWithCitations(!withCitations)}
@@ -91,16 +98,27 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
           }}
         >
           <span style={{ fontSize: 13 }}>{withCitations ? "✓" : "○"}</span>
-          Include AI Citations
-          <span
-            className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-            style={{ background: "rgba(255,184,48,0.15)", color: "#ffb830" }}
-          >
-            +$0.03
-          </span>
+          AI Citations
+          {withCitations ? (
+            <span
+              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              style={{ background: "rgba(0,229,255,0.12)", color: "#00e5ff" }}
+            >
+              ON
+            </span>
+          ) : (
+            <span
+              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              style={{ background: "rgba(255,184,48,0.15)", color: "#ffb830" }}
+            >
+              OFF
+            </span>
+          )}
         </button>
         <span className="text-[11px]" style={{ color: "#8b8d9e" }}>
-          {withCitations ? "Will query each AI about your site" : "Faster & cheaper — basic analysis only"}
+          {withCitations
+            ? "Full GEO + competitive analysis included"
+            : "Basic scan only — no citation research"}
         </span>
       </div>
 

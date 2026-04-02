@@ -1,39 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { AnalysisResult } from "@/types";
+import { AnalysisResult, CitationResult } from "@/types";
 import CategoryCard from "./CategoryCard";
 import Recommendations from "./Recommendations";
 import ScoreGauge from "./ScoreGauge";
-
-interface ProviderMeta {
-  name: string;
-  status: "success" | "failed";
-  score: number | null;
-  durationMs: number;
-  error: string | null;
-}
-
-interface CitationResult {
-  provider: string;
-  query: string;
-  systemPrompt: string;
-  rawAnswer: string;
-  count: number;
-  urls: string[];
-  allCitationUrls: string[];
-  snippets: string[];
-  dataSource?: "live_search" | "fetched_content" | "training_data";
-  status: "success" | "failed" | "unavailable";
-  error?: string;
-}
-
-interface ExtendedResult extends AnalysisResult {
-  _providers?: ProviderMeta[];
-  _cached?: boolean;
-  ai_platform_coverage?: Record<string, string>;
-  citations?: CitationResult[];
-}
 
 const PLATFORM_ICONS: Record<string, string> = {
   chatgpt: "⬡", claude: "◈", perplexity: "◎", gemini: "✦",
@@ -314,7 +285,7 @@ function CitationsPanel({ citations, maxCitations, totalCitations }: {
   );
 }
 
-export default function ResultsSection({ result, onReset }: { result: ExtendedResult; onReset: () => void }) {
+export default function ResultsSection({ result, onReset }: { result: AnalysisResult; onReset: () => void }) {
   const scoreColor = getScoreColor(result.overall_score);
   const totalChecks =
     (result.stats?.checks_passed ?? 0) +
