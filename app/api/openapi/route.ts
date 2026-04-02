@@ -62,7 +62,7 @@ export async function GET() {
     openapi: "3.0.0",
     info: {
       title: "AiScope — AI Visibility Analyzer API",
-      version: "2.2.0",
+      version: "2.2.1",
       description:
         "Analyze any website's visibility to AI crawlers, language models, and search engines. " +
         "Returns deterministic scores, structured data checks, bot access rules, and live AI citation data " +
@@ -315,8 +315,9 @@ export async function GET() {
           properties: {
             provider: {
               type: "string",
-              enum: ["Gemini 2.0 Flash", "ChatGPT (GPT-4o)", "Perplexity Sonar"],
-              example: "Gemini 2.0 Flash",
+              description:
+                "Provider label (may vary by configuration/model alias).",
+              example: "Gemini",
             },
             query: { type: "string", description: "The question posed to the AI provider (filled prompt)" },
             systemPrompt: { type: "string", description: "System prompt used for the citation check" },
@@ -374,7 +375,7 @@ export async function GET() {
         ProviderMeta: {
           type: "object",
           properties: {
-            name: { type: "string", example: "Gemini 2.0 Flash" },
+            name: { type: "string", description: "Provider label", example: "Gemini" },
             status: { type: "string", enum: ["success", "failed"], example: "success" },
             score: { type: "integer", nullable: true, example: 72 },
             durationMs: { type: "integer", description: "Time taken in milliseconds", example: 1240 },
