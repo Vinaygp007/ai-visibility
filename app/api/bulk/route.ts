@@ -209,7 +209,6 @@ export async function POST(request: NextRequest) {
 
           send("result", {
             jobId,
-            url,
             ...row,
             completed,
             total: urls.length,
