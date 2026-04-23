@@ -26,13 +26,13 @@ export default function CitationsPanel({
   const [activeProvider, setActiveProvider] = useState<string>(
     citations[0]?.provider ?? ""
   );
-  const [activeTab, setActiveTab] = useState<ContentTab>("answer");
+  const [activeTab, setActiveTab] = useState<ContentTab>("prompt");
 
   // Reset when citations change (e.g. new scan result loaded into mounted component)
   useEffect(() => {
     if (citations.length > 0) {
       setActiveProvider(citations[0].provider);
-      setActiveTab("answer");
+      setActiveTab("prompt");
     }
   }, [citations]);
 
@@ -109,7 +109,7 @@ export default function CitationsPanel({
               key={c.provider}
               onClick={() => {
                 setActiveProvider(c.provider);
-                setActiveTab("answer");
+                setActiveTab("prompt");
               }}
               className="px-5 py-3 text-[12px] font-medium transition-all whitespace-nowrap flex items-center gap-2"
               style={{
@@ -174,8 +174,8 @@ export default function CitationsPanel({
       >
         {(
           [
-            { key: "answer", label: "← Raw Answer" },
-            { key: "prompt", label: "→ Prompt Used" },
+            { key: "prompt", label: "→ Prompt Sent" },
+            { key: "answer", label: "← Response Received" },
             {
               key: "urls",
               label: `⊞ Source URLs (${active?.allCitationUrls?.length ?? 0})`,
