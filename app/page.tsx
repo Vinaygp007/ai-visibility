@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import LoadingSection from "@/components/LoadingSection";
 import ResultsSection from "@/components/ResultsSection";
+import ReportsHistory from "@/components/ReportsHistory";
 import { AnalysisResult } from "@/types";
 
 type AppState = "idle" | "loading" | "results" | "error";
@@ -54,7 +55,6 @@ export default function HomePage() {
   const [state, setState] = useState<AppState>("idle");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [analyzingUrl, setAnalyzingUrl] = useState("");
-  // Store citations flag so retries always use the same value as the original call
   const [analyzingCitations, setAnalyzingCitations] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [errorCode, setErrorCode] = useState("UNKNOWN");
@@ -79,7 +79,6 @@ export default function HomePage() {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, [state, errorCode]);
 
-  // Auto-fire retry when countdown hits 0 — reuses same citations flag
   useEffect(() => {
     if (countdown === 0 && state === "error" && errorCode === "QUOTA_EXCEEDED" && analyzingUrl) {
       const timer = setTimeout(() => handleAnalyze(analyzingUrl, analyzingCitations), 300);
@@ -89,13 +88,12 @@ export default function HomePage() {
   }, [countdown]);
 
   const handleAnalyze = async (url: string, runCitations = true) => {
-    // Strict boolean coercion — never let a truthy non-boolean slip through
     const shouldRunCitations = runCitations === true;
 
     if (countdownRef.current) clearInterval(countdownRef.current);
     setCountdown(0);
     setAnalyzingUrl(url);
-    setAnalyzingCitations(shouldRunCitations); // remember for retries
+    setAnalyzingCitations(shouldRunCitations);
     setState("loading");
     setResult(null);
     setErrorMsg("");
@@ -142,6 +140,13 @@ export default function HomePage() {
         isLoading={state === "loading"}
       />
 
+      {/* ── Previous reports (shown only in idle/error state) ──────────── */}
+      {(state === "idle" || state === "error") && (
+        <div className="max-w-[900px] mx-auto px-6 pb-6">
+          <ReportsHistory onLoadReport={(url) => handleAnalyze(url, true)} />
+        </div>
+      )}
+
       <main ref={mainRef} className="max-w-[900px] mx-auto px-6 pb-20">
         {state === "loading" && <LoadingSection url={analyzingUrl} />}
 
@@ -160,21 +165,15 @@ export default function HomePage() {
               <p className="text-sm max-w-sm mx-auto" style={{ color: "#8b8d9e" }}>{hint.detail}</p>
             </div>
 
-            {/* Countdown ring for rate limit */}
             {isRateLimit && countdown > 0 && (
               <div className="flex flex-col items-center mb-6">
-                <div
-                  className="relative w-20 h-20 mb-3"
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
+                <div className="relative w-20 h-20 mb-3"
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg className="absolute inset-0" width="80" height="80" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
                     <circle
                       cx="40" cy="40" r="34"
-                      fill="none"
-                      stroke="#4285f4"
-                      strokeWidth="5"
-                      strokeLinecap="round"
+                      fill="none" stroke="#4285f4" strokeWidth="5" strokeLinecap="round"
                       strokeDasharray={`${2 * Math.PI * 34}`}
                       strokeDashoffset={`${2 * Math.PI * 34 * (1 - countdown / AUTO_RETRY_SECONDS)}`}
                       transform="rotate(-90 40 40)"
@@ -187,14 +186,12 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Fired: show auto-retrying message */}
             {isRateLimit && countdown === 0 && state === "error" && (
               <div className="flex justify-center mb-6">
                 <span className="text-xs font-mono" style={{ color: "#4285f4" }}>Retrying now...</span>
               </div>
             )}
 
-            {/* Error pill */}
             {!isRateLimit && (
               <div className="flex justify-center mb-6">
                 <span
@@ -206,7 +203,6 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Action buttons — all retries preserve the original citations flag */}
             <div className="flex flex-wrap gap-3 justify-center mb-6">
               {isRateLimit && countdown > 0 ? (
                 <button
@@ -237,7 +233,6 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* Help box */}
             {(isRateLimit || errorCode === "MISSING_KEY" || errorCode === "INVALID_KEY") && (
               <div
                 className="rounded-xl p-4 text-sm text-center"
@@ -248,8 +243,7 @@ export default function HomePage() {
                     To avoid rate limits, upgrade to a{" "}
                     <a href="https://ai.google.dev/pricing" target="_blank" rel="noreferrer" style={{ color: "#4285f4" }}>
                       paid Gemini API plan
-                    </a>
-                    {" "}for higher quotas.
+                    </a>{" "}for higher quotas.
                   </p>
                 ) : (
                   <p style={{ color: "#8b8d9e" }}>
