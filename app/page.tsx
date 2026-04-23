@@ -5,7 +5,6 @@ import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import LoadingSection from "@/components/LoadingSection";
 import ResultsSection from "@/components/ResultsSection";
-import ReportsHistory from "@/components/ReportsHistory";
 import { AnalysisResult } from "@/types";
 
 type AppState = "idle" | "loading" | "results" | "error";
@@ -133,19 +132,12 @@ export default function HomePage() {
   const isRateLimit = errorCode === "QUOTA_EXCEEDED";
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0b10" }}>
+    <div className="min-h-screen pl-64" style={{ background: "#0a0b10" }}>
       <Navbar />
       <HeroSection
         onAnalyze={(url, citations) => handleAnalyze(url, citations === true)}
         isLoading={state === "loading"}
       />
-
-      {/* ── Previous reports (shown only in idle/error state) ──────────── */}
-      {(state === "idle" || state === "error") && (
-        <div className="max-w-[900px] mx-auto px-6 pb-6">
-          <ReportsHistory onLoadReport={(url) => handleAnalyze(url, true)} />
-        </div>
-      )}
 
       <main ref={mainRef} className="max-w-[900px] mx-auto px-6 pb-20">
         {state === "loading" && <LoadingSection url={analyzingUrl} />}

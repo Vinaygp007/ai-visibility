@@ -5,6 +5,7 @@ import { AnalysisResult, CitationResult } from "@/types";
 import CategoryCard from "./CategoryCard";
 import Recommendations from "./Recommendations";
 import ScoreGauge from "./ScoreGauge";
+import PromptResponsePanel from "./PromptResponsePanel";
 
 const PLATFORM_ICONS: Record<string, string> = {
   chatgpt: "⬡", claude: "◈", perplexity: "◎", gemini: "✦",
@@ -329,6 +330,11 @@ export default function ResultsSection({ result, onReset }: { result: AnalysisRe
           <ScoreGauge value={result.grade} label="GRADE" color={scoreColor} fillPercent={100} />
         </div>
       </div>
+
+      {/* ── Prompts & Responses (Ahrefs-style) ─────────────────────────── */}
+      {providers.length > 0 && (
+        <PromptResponsePanel providers={providers} />
+      )}
 
       {/* ── Provider results ────────────────────────────────────────────── */}
       {providers.length > 0 && (

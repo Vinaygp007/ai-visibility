@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import crypto from "crypto";
 import { getDb } from "@/lib/firebase";
 import { GET as openaiGET, OPTIONS as openaiOPTIONS } from "../openapi/route";
+import type { AppSettings, AIProvider } from "@/types";
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -121,6 +123,20 @@ async function safeFetch(url: string, ms = 7000): Promise<{ text: string; status
     return { text: res.ok ? await res.text() : "", status: res.status };
   } catch { return { text: "", status: 0 }; }
   finally { clearTimeout(t); }
+}
+
+// ── Settings Loader ────────────────────────────────────────────────────────
+async function loadSettings(): Promise<AppSettings | null> {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const doc = await db.collection("settings").doc("config").get();
+    if (!doc.exists) return null;
+    return doc.data() as AppSettings;
+  } catch (e) {
+    console.warn("[settings] load error:", e);
+    return null;
+  }
 }
 
 // ── AI Bots ────────────────────────────────────────────────────────────────
@@ -344,7 +360,8 @@ function computeScores(t: Tech): {
 
 
 // ── Build prompt (AI writes text only — scores computed in code) ──────────
-function buildPrompt(url: string, t: Tech): string {
+// ── Build prompt (AI writes text only — scores computed in code) ──────────
+function buildPrompt(url: string, t: Tech, customTemplate?: string): string {
   const facts =
     "SITE: " + url + "\n" +
     "ROBOTS.TXT: " + (t.robotsFound ? "found" : "not found") + "\n" +
@@ -360,6 +377,12 @@ function buildPrompt(url: string, t: Tech): string {
     "CANONICAL: " + (t.canonical ? "present" : "missing") + "\n" +
     "H1 COUNT: " + t.h1Count + " | H2 COUNT: " + t.h2Count;
 
+  // If custom template provided, use it with variable substitution
+  if (customTemplate) {
+    return customTemplate.replace(/\{url\}/g, url).replace(/\{facts\}/g, facts);
+  }
+
+  // Default prompt
   return (
     "You are an AI Visibility Auditor. Based on this real data from " + url + ":\n\n" +
     facts + "\n\n" +
@@ -476,10 +499,10 @@ async function callGemini(prompt: string): Promise<object> {
   );
 }
 
-async function callOpenAI(prompt: string): Promise<object> {
+async function callOpenAI(prompt: string, model = "gpt-4o-mini"): Promise<object> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const res = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model,
     messages: [
       {
         role: "system",
@@ -535,38 +558,162 @@ async function callPerplexity(prompt: string): Promise<object> {
   }
 }
 
+async function callClaude(prompt: string, model = "claude-3-5-sonnet-20241022"): Promise<object> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+
+  const client = new Anthropic({ apiKey });
+  const response = await client.messages.create({
+    model,
+    max_tokens: 2000,
+    temperature: 0.1,
+    system: "You are an AI Visibility Auditor. Return ONLY a valid JSON object. No markdown. No explanation. Start with { and end with }.",
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  });
+
+  const content = response.content[0];
+  if (content.type !== "text") {
+    throw new Error("Claude returned non-text content");
+  }
+
+  return parseJSON(content.text);
+}
+
+async function callCopilot(prompt: string, model: string = "gpt-4o"): Promise<object> {
+  const apiKey = process.env.AZURE_OPENAI_KEY;
+  const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+  const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT || model;
+  
+  if (!apiKey || !endpoint) throw new Error("Azure OpenAI not configured");
+
+  // Microsoft Copilot uses Azure OpenAI
+  const url = `${endpoint}/openai/deployments/${deploymentName}/chat/completions?api-version=2024-02-15-preview`;
+  
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: JSON.stringify({
+      messages: [
+        {
+          role: "system",
+          content: "You are an AI Visibility Auditor. Return ONLY a valid JSON object. No markdown. No explanation. Start with { and end with }.",
+        },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 2000,
+      temperature: 0.1,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error("Microsoft Copilot " + res.status + ": " + errText.slice(0, 200));
+  }
+
+  const data = await res.json();
+  const raw: string = data.choices?.[0]?.message?.content || "{}";
+  return parseJSON(raw);
+}
+
 // ── Run all providers in parallel ─────────────────────────────────────────
 interface ProviderResult {
   name: string;
   data: Record<string, unknown> | null;
   error: string | null;
   durationMs: number;
+  prompt: string;
+  rawResponse: string;
 }
 
-async function runAllProviders(prompt: string): Promise<ProviderResult[]> {
-  const providers = [
-    { name: "Gemini 2.0 Flash", fn: () => callGemini(prompt),     enabled: !!process.env.GEMINI_API_KEY     },
-    { name: "ChatGPT (GPT-4o)", fn: () => callOpenAI(prompt),     enabled: !!process.env.OPENAI_API_KEY     },
-    { name: "Perplexity Sonar", fn: () => callPerplexity(prompt),  enabled: !!process.env.PERPLEXITY_API_KEY },
-  ];
-  const active = providers.filter(p => p.enabled);
-  if (active.length === 0) throw new Error("No AI provider configured. Add at least one API key.");
+async function runAllProviders(
+  prompt: string,
+  settings?: AppSettings | null
+): Promise<ProviderResult[]> {
+  // Always use settings-based configuration
+  if (!settings?.providers) {
+    throw new Error("Settings not configured. Please configure providers in /settings");
+  }
 
-  return Promise.all(
-    active.map(async (p): Promise<ProviderResult> => {
-      const t0 = Date.now();
-      try {
-        console.log("[AI] calling " + p.name + "...");
-        const data = await p.fn() as Record<string, unknown>;
-        console.log("[AI] " + p.name + " done in " + (Date.now() - t0) + "ms");
-        return { name: p.name, data, error: null, durationMs: Date.now() - t0 };
-      } catch (err) {
-        const msg = briefProviderError(err);
-        console.warn("[AI] " + p.name + " failed:", msg.slice(0, 200));
-        return { name: p.name, data: null, error: msg, durationMs: Date.now() - t0 };
-      }
-    })
-  );
+  const enabledProviders = settings.providers.filter(p => p.enabled && p.apiKey);
+  
+  if (enabledProviders.length === 0) {
+    throw new Error("No AI provider enabled. Please enable and configure at least one provider in /settings");
+  }
+
+    const providerFunctions: Record<string, (prompt: string, apiKey: string, model?: string) => Promise<object>> = {
+      gemini: async (prompt: string, apiKey: string) => {
+        process.env.GEMINI_API_KEY = apiKey;
+        return callGemini(prompt);
+      },
+      openai: async (prompt: string, apiKey: string, model?: string) => {
+        process.env.OPENAI_API_KEY = apiKey;
+        return callOpenAI(prompt, model);
+      },
+      perplexity: async (prompt: string, apiKey: string) => {
+        process.env.PERPLEXITY_API_KEY = apiKey;
+        return callPerplexity(prompt);
+      },
+      claude: async (prompt: string, apiKey: string, model?: string) => {
+        process.env.ANTHROPIC_API_KEY = apiKey;
+        return callClaude(prompt, model);
+      },
+      copilot: async (prompt: string, apiKey: string, model?: string) => {
+        process.env.AZURE_OPENAI_KEY = apiKey;
+        return callCopilot(prompt, model);
+      },
+    };
+
+    return Promise.all(
+      enabledProviders.map(async (provider): Promise<ProviderResult> => {
+        const t0 = Date.now();
+        const fn = providerFunctions[provider.id];
+        
+        if (!fn) {
+          return {
+            name: provider.name,
+            data: null,
+            error: `Provider ${provider.id} not implemented`,
+            durationMs: 0,
+            prompt,
+            rawResponse: "",
+          };
+        }
+
+        try {
+          console.log("[AI] calling " + provider.name + "...");
+          const data = await fn(prompt, provider.apiKey, provider.model) as Record<string, unknown>;
+          const rawResponse = JSON.stringify(data, null, 2);
+          console.log("[AI] " + provider.name + " done in " + (Date.now() - t0) + "ms");
+          return { 
+            name: provider.name, 
+            data, 
+            error: null, 
+            durationMs: Date.now() - t0,
+            prompt,
+            rawResponse
+          };
+        } catch (err) {
+          const msg = briefProviderError(err);
+          console.warn("[AI] " + provider.name + " failed:", msg.slice(0, 200));
+          return { 
+            name: provider.name, 
+            data: null, 
+            error: msg, 
+            durationMs: Date.now() - t0,
+            prompt,
+            rawResponse: ""
+          };
+        }
+      })
+    );
 }
 
 // ── Merge results ──────────────────────────────────────────────────────────
@@ -644,6 +791,8 @@ function mergeResults(
       score: r.error ? null : deterministicScores.overall_score,
       durationMs: r.durationMs,
       error: r.error,
+      prompt: r.prompt,
+      rawResponse: r.rawResponse,
     })),
   };
 }
@@ -663,7 +812,14 @@ export interface CitationResult {
   error?: string;
 }
 
-function citationQuery(companyName: string, companyUrl: string): string {
+function citationQuery(companyName: string, companyUrl: string, customTemplate?: string): string {
+  // If custom template provided, use it with variable substitution
+  if (customTemplate) {
+    return customTemplate
+      .replace(/\{company_name\}/g, companyName)
+      .replace(/\{company_url\}/g, companyUrl);
+  }
+
   // Client-provided prompt — keep structure and wording intact.
   // Fill {company_name} and {domain} with discovered site name + URL.
   return (
@@ -904,12 +1060,17 @@ async function getPerplexityCitations(siteUrl: string, companyName: string): Pro
 }
 
 // ── Run citation checks (after main analysis) ──────────────────────────────
-async function runCitationChecks(siteUrl: string, companyName: string, skipGemini = false): Promise<CitationResult[]> {
+async function runCitationChecks(
+  siteUrl: string,
+  companyName: string,
+  skipGemini = false,
+  settings?: AppSettings | null
+): Promise<CitationResult[]> {
   const tasks: Promise<CitationResult>[] = [];
   const urlObj = new URL(siteUrl);
   const domain = urlObj.hostname.replace("www.", "");
   const companyUrl = urlObj.origin;
-  const query = citationQuery(companyName || domain, companyUrl);
+  const query = citationQuery(companyName || domain, companyUrl, settings?.prompts?.citation);
   const sysPrompt = citationSystemPrompt();
 
   const unavailable = (provider: CitationResult["provider"], reason: string): CitationResult => ({
@@ -943,29 +1104,39 @@ async function runCitationChecks(siteUrl: string, companyName: string, skipGemin
 
   // Always return a stable set of providers so integrators can rely on a consistent shape.
   // Each provider is either executed (success/failed) or marked unavailable with a reason.
-  if (process.env.GEMINI_API_KEY && !skipGemini) {
+  
+  // Check settings for configured providers
+  const geminiProvider = settings?.providers?.find(p => p.id === "gemini" && p.enabled && p.apiKey);
+  const openaiProvider = settings?.providers?.find(p => p.id === "openai" && p.enabled && p.apiKey);
+  const perplexityProvider = settings?.providers?.find(p => p.id === "perplexity" && p.enabled && p.apiKey);
+  
+  if (geminiProvider && !skipGemini) {
+    // Temporarily set env var for citation function
+    process.env.GEMINI_API_KEY = geminiProvider.apiKey;
     tasks.push(wrap("Gemini 2.0 Flash", () => getGeminiCitations(siteUrl, companyName)));
   } else {
     tasks.push(Promise.resolve(
       unavailable(
         "Gemini 2.0 Flash",
-        !process.env.GEMINI_API_KEY
-          ? "GEMINI_API_KEY not configured"
+        !geminiProvider
+          ? "Gemini not configured or disabled in settings"
           : "Skipped because Gemini failed during main analysis"
       )
     ));
   }
 
-  if (process.env.OPENAI_API_KEY) {
+  if (openaiProvider) {
+    process.env.OPENAI_API_KEY = openaiProvider.apiKey;
     tasks.push(wrap("ChatGPT (GPT-4o)", () => getOpenAICitations(siteUrl, companyName)));
   } else {
-    tasks.push(Promise.resolve(unavailable("ChatGPT (GPT-4o)", "OPENAI_API_KEY not configured")));
+    tasks.push(Promise.resolve(unavailable("ChatGPT (GPT-4o)", "ChatGPT not configured or disabled in settings")));
   }
 
-  if (process.env.PERPLEXITY_API_KEY) {
+  if (perplexityProvider) {
+    process.env.PERPLEXITY_API_KEY = perplexityProvider.apiKey;
     tasks.push(wrap("Perplexity Sonar", () => getPerplexityCitations(siteUrl, companyName)));
   } else {
-    tasks.push(Promise.resolve(unavailable("Perplexity Sonar", "PERPLEXITY_API_KEY not configured")));
+    tasks.push(Promise.resolve(unavailable("Perplexity Sonar", "Perplexity not configured or disabled in settings")));
   }
 
   const results = await Promise.all(tasks);
@@ -991,16 +1162,26 @@ export async function POST(request: NextRequest) {
     const runCitations = body?.runCitations === false ? false : true;
     if (!url) return NextResponse.json({ error: "URL is required", errorCode: "MISSING_URL" }, { status: 400, headers: CORS_HEADERS });
 
-    if (!process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY && !process.env.PERPLEXITY_API_KEY) {
+    // Load settings from Firebase
+    const settings = await loadSettings();
+    
+    // Check if any provider is configured in settings
+    const hasConfiguredProviders = settings?.providers?.some(p => p.enabled && p.apiKey);
+    
+    if (!settings || !hasConfiguredProviders) {
       return NextResponse.json({
-        error: "No AI provider configured. Add GEMINI_API_KEY, OPENAI_API_KEY, or PERPLEXITY_API_KEY to .env.local",
-        errorCode: "MISSING_KEY",
+        error: "No AI provider configured. Please configure at least one provider in /settings",
+        errorCode: "MISSING_PROVIDER_CONFIG",
       }, { status: 500, headers: CORS_HEADERS });
     }
 
-    if (!bustCache) {
+    const enableCache = settings?.features?.enableCache ?? true;
+    const enableCitationsFromSettings = settings?.features?.enableCitations ?? true;
+    const shouldRunCitations = runCitations && enableCitationsFromSettings;
+
+    if (!bustCache && enableCache) {
       // Always use a single cache key per URL — include citations flag
-      const cacheKey = url + (runCitations ? "|citations" : "|basic");
+      const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic");
       const cached = await readCache(cacheKey) as Record<string, unknown> | null;
       if (cached) {
         console.log("[cache] serving cached result for", cacheKey);
@@ -1019,37 +1200,43 @@ export async function POST(request: NextRequest) {
     ]);
 
     const tech = buildTechData(url, robots.text, homepage.text, llms.text, llmsFull.text, sitemap.status === 200 && sitemap.text.includes("<url"));
-    const prompt = buildPrompt(url, tech);
+    
+    // Use custom analysis prompt if provided in settings
+    const prompt = buildPrompt(url, tech, settings?.prompts?.analysis);
 
     // Run main analysis first, then citations (sequential = avoids Gemini double-quota)
     console.log("[analysis] running main analysis...");
-    const providerResults = await runAllProviders(prompt);
+    const providerResults = await runAllProviders(prompt, settings);
 
     // Check if Gemini succeeded in main analysis
-    const geminiSucceededInMain = providerResults.some(r => r.name === "Gemini 2.0 Flash" && r.error === null);
+    const geminiSucceededInMain = providerResults.some(r => r.name.toLowerCase().includes("gemini") && r.error === null);
 
     // If Gemini was used, wait for quota recovery before citations
-    if (process.env.GEMINI_API_KEY && geminiSucceededInMain) {
+    if (geminiSucceededInMain) {
       console.log("[citations] waiting 10s for Gemini quota recovery...");
       await new Promise(r => setTimeout(r, 10000));
-    } else if (process.env.GEMINI_API_KEY && !geminiSucceededInMain) {
+    } else if (providerResults.some(r => r.name.toLowerCase().includes("gemini"))) {
       console.log("[citations] Gemini failed in main analysis — skipping Gemini citations to avoid further quota waste");
     }
 
     let citationResults: CitationResult[] = [];
-    if (runCitations) {
+    if (shouldRunCitations) {
       console.log("[citations] running citation checks...");
-      citationResults = await runCitationChecks(url, tech.siteName, !geminiSucceededInMain);
+      citationResults = await runCitationChecks(url, tech.siteName, !geminiSucceededInMain, settings);
     } else {
-      console.log("[citations] skipped (runCitations=false)");
+      console.log("[citations] skipped (disabled in settings or request)");
     }
 
     // Compute deterministic scores from real fetched data
     const deterministicScores = computeScores(tech);
     const merged = mergeResults(providerResults, deterministicScores, tech.siteName, url);
     const final = { ...merged, citations: citationResults };
-    const cacheKey = url + (runCitations ? "|citations" : "|basic");
-    writeCache(cacheKey, final); // async, non-blocking
+    const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic");
+    
+    if (enableCache) {
+      writeCache(cacheKey, final); // async, non-blocking
+    }
+    
     return NextResponse.json(final, { headers: CORS_HEADERS });
   } catch (error) {
     console.error("Analysis error:", error);

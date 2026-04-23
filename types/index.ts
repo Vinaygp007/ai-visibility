@@ -50,6 +50,8 @@ export interface ProviderMeta {
   score: number | null;
   durationMs: number;
   error?: string | null;
+  prompt: string;
+  rawResponse: string;
 }
 
 export interface AIPlatformCoverage {
@@ -77,4 +79,27 @@ export interface AnalysisResult {
   citations?: CitationResult[];
   _providers?: ProviderMeta[];
   _cached?: boolean;
+  createdAt?: number | null;
+}
+
+// ── Settings Types ────────────────────────────────────────────────────────
+
+export interface AIProvider {
+  id: string;
+  name: string;
+  enabled: boolean;
+  apiKey: string;
+  model: string;
+}
+
+export interface AppSettings {
+  providers: AIProvider[];
+  prompts: {
+    analysis: string;
+    citation: string;
+  };
+  features: {
+    enableCache: boolean;
+    enableCitations: boolean;
+  };
 }
