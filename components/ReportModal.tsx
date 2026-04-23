@@ -298,46 +298,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
 
             
 
-            {/* AI Prompts & Responses */}
-            {report._providers && report._providers.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">AI Prompts & Responses</h3>
-                <div className="space-y-3">
-                  {report._providers.map((provider, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-xl p-4"
-                      style={{
-                        background: "rgba(255,255,255,0.02)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                      }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-semibold text-white">{provider.name}</span>
-                          <span className="text-xs font-mono px-2 py-0.5 rounded-full" style={{ background: provider.status === "success" ? "rgba(0,232,122,0.1)" : "rgba(255,90,90,0.1)", color: provider.status === "success" ? "#00e87a" : "#ff5a5a" }}>{provider.status}</span>
-                        </div>
-                        <div className="text-xs font-mono" style={{ color: "#8b8d9e" }}>{(provider.durationMs / 1000).toFixed(1)}s</div>
-                      </div>
-
-                      {provider.prompt && (
-                        <div className="mt-2">
-                          <div className="text-xs font-medium text-white mb-1">Prompt</div>
-                          <pre className="text-xs p-3 rounded" style={{ background: "rgba(255,255,255,0.02)", color: "#f0f0f5" }}>{provider.prompt}</pre>
-                        </div>
-                      )}
-
-                      {provider.rawResponse && (
-                        <div className="mt-2">
-                          <div className="text-xs font-medium text-white mb-1">Raw Response</div>
-                          <pre className="text-xs p-3 rounded" style={{ background: "rgba(255,255,255,0.02)", color: "#f0f0f5" }}>{provider.rawResponse}</pre>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            
 
             {/* Recommendations */}
             <div>
@@ -345,53 +306,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
               <Recommendations recommendations={report.recommendations} />
             </div>
 
-            {/* Providers Debug Info */}
-            {report._providers && report._providers.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Provider Analysis</h3>
-                <div className="space-y-2">
-                  {report._providers.map((provider, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between px-4 py-3 rounded-xl"
-                      style={{
-                        background: "rgba(255,255,255,0.02)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-white">
-                          {provider.name}
-                        </span>
-                        <span
-                          className="text-xs font-mono px-2 py-0.5 rounded-full"
-                          style={{
-                            background:
-                              provider.status === "success"
-                                ? "rgba(0,232,122,0.1)"
-                                : "rgba(255,90,90,0.1)",
-                            color:
-                              provider.status === "success" ? "#00e87a" : "#ff5a5a",
-                          }}
-                        >
-                          {provider.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {provider.score !== null && (
-                          <span className="text-sm font-semibold" style={{ color: getScoreColor(provider.score) }}>
-                            {provider.score}
-                          </span>
-                        )}
-                        <span className="text-xs font-mono" style={{ color: "#8b8d9e" }}>
-                          {(provider.durationMs / 1000).toFixed(1)}s
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            
           </div>
 
           {/* Footer */}
