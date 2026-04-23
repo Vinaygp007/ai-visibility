@@ -3,32 +3,79 @@
 import { useState, useEffect } from "react";
 import type { AppSettings } from "@/types";
 
+// Available models per provider
+const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
+  gemini: [
+    { label: "Gemini 3.1 Pro", value: "gemini-3.1-pro" },
+    { label: "Gemini 3.1 Flash", value: "gemini-3.1-flash" },
+    { label: "Gemini 3.0 Pro", value: "gemini-3.0-pro" },
+    { label: "Gemini 3.0 Flash", value: "gemini-3.0-flash" },
+    { label: "Gemini 2.0 Flash (Exp)", value: "gemini-2.0-flash-exp" },
+    { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
+    { label: "Gemini 1.5 Pro", value: "gemini-1.5-pro" },
+    { label: "Gemini 1.5 Flash", value: "gemini-1.5-flash" },
+    { label: "Gemini 1.0 Pro", value: "gemini-1.0-pro" },
+  ],
+  openai: [
+    { label: "GPT-4o", value: "gpt-4o" },
+    { label: "GPT-4o Mini", value: "gpt-4o-mini" },
+    { label: "GPT-4 Turbo", value: "gpt-4-turbo" },
+    { label: "GPT-4", value: "gpt-4" },
+    { label: "GPT-3.5 Turbo", value: "gpt-3.5-turbo" },
+    { label: "o1", value: "o1" },
+    { label: "o1 Mini", value: "o1-mini" },
+    { label: "o3 Mini", value: "o3-mini" },
+  ],
+  perplexity: [
+    { label: "Sonar", value: "sonar" },
+    { label: "Sonar Pro", value: "sonar-pro" },
+    { label: "Sonar Reasoning", value: "sonar-reasoning" },
+    { label: "Sonar Reasoning Pro", value: "sonar-reasoning-pro" },
+    { label: "Sonar Deep Research", value: "sonar-deep-research" },
+  ],
+  claude: [
+    { label: "Claude 3.5 Sonnet", value: "claude-3-5-sonnet-20241022" },
+    { label: "Claude 3.5 Haiku", value: "claude-3-5-haiku-20241022" },
+    { label: "Claude 3 Opus", value: "claude-3-opus-20240229" },
+    { label: "Claude 3 Sonnet", value: "claude-3-sonnet-20240229" },
+    { label: "Claude 3 Haiku", value: "claude-3-haiku-20240307" },
+  ],
+  copilot: [
+    { label: "GPT-4o", value: "gpt-4o" },
+    { label: "GPT-4o Mini", value: "gpt-4o-mini" },
+    { label: "GPT-4 Turbo", value: "gpt-4-turbo" },
+    { label: "o1", value: "o1" },
+    { label: "o1 Mini", value: "o1-mini" },
+    { label: "o3 Mini", value: "o3-mini" },
+  ],
+};
+
 const DEFAULT_SETTINGS: AppSettings = {
   providers: [
     {
       id: "gemini",
-      name: "Gemini 2.0 Flash",
+      name: "Gemini",
       enabled: true,
       apiKey: "",
       model: "gemini-2.0-flash-exp",
     },
     {
       id: "openai",
-      name: "ChatGPT (GPT-4o-mini)",
+      name: "ChatGPT (OpenAI)",
       enabled: true,
       apiKey: "",
       model: "gpt-4o-mini",
     },
     {
       id: "perplexity",
-      name: "Perplexity Sonar",
+      name: "Perplexity",
       enabled: true,
       apiKey: "",
       model: "sonar",
     },
     {
       id: "claude",
-      name: "Claude 3.5 Sonnet",
+      name: "Claude (Anthropic)",
       enabled: false,
       apiKey: "",
       model: "claude-3-5-sonnet-20241022",
@@ -210,7 +257,7 @@ export default function SettingsPage() {
             {settings.providers.map((provider) => (
               <div
                 key={provider.id}
-                className="rounded-2xl border p-6"
+                className="rounded-2xl border p-6 transition-all"
                 style={{
                   background: "rgba(255,255,255,0.02)",
                   borderColor: provider.enabled ? "rgba(0, 229, 255, 0.2)" : "rgba(255,255,255,0.07)",
@@ -240,6 +287,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-3">
+                  {/* API Key */}
                   <div>
                     <label className="block text-xs font-medium text-white mb-2">
                       API Key {provider.enabled && <span style={{ color: "#ff5757" }}>*</span>}
@@ -258,20 +306,50 @@ export default function SettingsPage() {
                     />
                   </div>
 
+                  {/* Model Dropdown */}
                   <div>
                     <label className="block text-xs font-medium text-white mb-2">Model</label>
-                    <input
-                      type="text"
-                      value={provider.model}
-                      onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
-                      placeholder="Model name..."
-                      className="w-full px-4 py-2 rounded-xl border text-sm"
-                      style={{
-                        background: "rgba(255,255,255,0.03)",
-                        borderColor: "rgba(255,255,255,0.1)",
-                        color: "#f0f0f5",
-                      }}
-                    />
+                    <div className="relative">
+                      <select
+                        value={provider.model}
+                        onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl border text-sm appearance-none cursor-pointer"
+                        style={{
+                          background: "rgba(255,255,255,0.03)",
+                          borderColor: "rgba(255,255,255,0.1)",
+                          color: "#f0f0f5",
+                          paddingRight: "2.5rem",
+                        }}
+                      >
+                        {(PROVIDER_MODELS[provider.id] ?? []).map((m) => (
+                          <option
+                            key={m.value}
+                            value={m.value}
+                            style={{ background: "#1a1b26", color: "#f0f0f5" }}
+                          >
+                            {m.label}
+                          </option>
+                        ))}
+                        {/* Fallback: if the current model isn't in the list, show it */}
+                        {!(PROVIDER_MODELS[provider.id] ?? []).some((m) => m.value === provider.model) && (
+                          <option
+                            value={provider.model}
+                            style={{ background: "#1a1b26", color: "#f0f0f5" }}
+                          >
+                            {provider.model} (custom)
+                          </option>
+                        )}
+                      </select>
+                      {/* Chevron icon */}
+                      <div
+                        className="pointer-events-none absolute inset-y-0 right-3 flex items-center"
+                        style={{ color: "#8b8d9e" }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -416,7 +494,7 @@ export default function SettingsPage() {
           }}
         >
           <p className="text-xs" style={{ color: "#8b8d9e" }}>
-            <strong className="text-white">💡 Tip:</strong> Enable at least one AI provider with a valid API key. 
+            <strong className="text-white">💡 Tip:</strong> Enable at least one AI provider with a valid API key.
             Settings are stored in Firebase and apply to all future scans.
           </p>
         </div>
