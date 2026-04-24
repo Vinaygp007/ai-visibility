@@ -192,14 +192,16 @@ export async function POST(request: NextRequest) {
           const duration = Date.now() - start;
           completed++;
 
+          const d = result.data as Record<string, unknown> | undefined;
+
           const row = result.success
             ? {
                 url,
                 status: "success" as const,
-                score: (result.data as Record<string, unknown>)?.overall_score as number,
-                grade: (result.data as Record<string, unknown>)?.grade as string,
-                site_name: (result.data as Record<string, unknown>)?.site_name as string,
-                summary: (result.data as Record<string, unknown>)?.summary as string,
+                score: d?.overall_score as number,
+                grade: d?.grade as string,
+                site_name: d?.site_name as string,
+                summary: d?.summary as string,
                 duration,
               }
             : { url, status: "failed" as const, error: result.error, duration };
@@ -207,6 +209,7 @@ export async function POST(request: NextRequest) {
           if (result.success) passed++; else failed++;
           allResults.push(row);
 
+          // ── Send full analysis data alongside summary fields ──
           send("result", {
             jobId,
             ...row,
@@ -214,6 +217,8 @@ export async function POST(request: NextRequest) {
             total: urls.length,
             passed,
             failed,
+            // Full AnalysisResult so the UI can render detail panels
+            fullData: result.success ? result.data : null,
           });
 
           return row;
