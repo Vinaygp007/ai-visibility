@@ -464,11 +464,13 @@ function attemptJSONRecovery(raw: string): object | null {
 }
 
 // ── AI providers ───────────────────────────────────────────────────────────
-async function callGemini(prompt: string): Promise<object> {
+async function callGemini(prompt: string, preferredModel?: string): Promise<object> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
-  const models = getGeminiModelCandidates();
+  const models = preferredModel
+    ? [normalizeGeminiModelName(String(preferredModel))]
+    : getGeminiModelCandidates();
 
   const errors: string[] = [];
   for (const modelName of models) {
@@ -517,7 +519,7 @@ async function callOpenAI(prompt: string, model = "gpt-4o-mini"): Promise<object
   return parseJSON(res.choices[0]?.message?.content || "{}");
 }
 
-async function callPerplexity(prompt: string): Promise<object> {
+async function callPerplexity(prompt: string, model = "sonar"): Promise<object> {
   const res = await fetch("https://api.perplexity.ai/chat/completions", {
     method: "POST",
     headers: {
@@ -525,7 +527,7 @@ async function callPerplexity(prompt: string): Promise<object> {
       Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "sonar",
+      model,
       messages: [
         {
           role: "system",
@@ -649,17 +651,17 @@ async function runAllProviders(
   }
 
     const providerFunctions: Record<string, (prompt: string, apiKey: string, model?: string) => Promise<object>> = {
-      gemini: async (prompt: string, apiKey: string) => {
+      gemini: async (prompt: string, apiKey: string, model?: string) => {
         process.env.GEMINI_API_KEY = apiKey;
-        return callGemini(prompt);
+        return callGemini(prompt, model);
       },
       openai: async (prompt: string, apiKey: string, model?: string) => {
         process.env.OPENAI_API_KEY = apiKey;
         return callOpenAI(prompt, model);
       },
-      perplexity: async (prompt: string, apiKey: string) => {
+      perplexity: async (prompt: string, apiKey: string, model?: string) => {
         process.env.PERPLEXITY_API_KEY = apiKey;
-        return callPerplexity(prompt);
+        return callPerplexity(prompt, model);
       },
       claude: async (prompt: string, apiKey: string, model?: string) => {
         process.env.ANTHROPIC_API_KEY = apiKey;

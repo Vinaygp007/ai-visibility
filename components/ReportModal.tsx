@@ -5,6 +5,8 @@ import { AnalysisResult } from "@/types";
 import ScoreGauge from "./ScoreGauge";
 import CategoryCard from "./CategoryCard";
 import Recommendations from "./Recommendations";
+import PromptResponsePanel from "./PromptResponsePanel";
+import CitationsPanel from "./CitationsPanel";
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -56,6 +58,23 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
   console.log("📊 Citations:", report.citations);
   console.log("📊 AI Platform Coverage:", report.ai_platform_coverage);
   console.log("📊 Providers:", report._providers);
+
+  // Normalize providers & citations to match ResultsSection behavior
+  const providers = report._providers ?? [];
+  const normName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const enabledKeys = new Set(providers.map((p) => normName(p.name)));
+  const isCitationEnabled = (citProvider: string) => {
+    const citKey = normName(citProvider);
+    for (const key of enabledKeys) {
+      const minLen = Math.min(key.length, citKey.length, 6);
+      if (key.slice(0, minLen) === citKey.slice(0, minLen)) return true;
+    }
+    return false;
+  };
+
+  const citations = (report.citations ?? []).filter((c) => isCitationEnabled(c.provider));
+  const maxCitations = Math.max(...citations.map((c) => c.count), 1);
+  const totalCitations = citations.reduce((sum, c) => sum + c.count, 0);
 
   return (
     <div
@@ -194,6 +213,34 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
               </div>
             </div>
 
+            {/* Prompts & Responses (reuse Results styling) */}
+            {providers.length > 0 && <PromptResponsePanel providers={providers} />}
+
+            {/* Citations (reuse Results styling) */}
+            {citations.length > 0 ? (
+              <CitationsPanel
+                citations={citations}
+                maxCitations={maxCitations}
+                totalCitations={totalCitations}
+              />
+            ) : (
+              <div
+                className="rounded-2xl border p-6 text-center mb-6"
+                style={{
+                  background: "rgba(0,229,255,0.03)",
+                  borderColor: "rgba(0,229,255,0.12)",
+                  borderStyle: "dashed",
+                }}
+              >
+                <p className="text-sm font-medium mb-1" style={{ color: "#00e5ff" }}>
+                  AI Citations not included
+                </p>
+                <p className="text-[12px]" style={{ color: "#8b8d9e" }}>
+                  Re-scan with the <span style={{ color: "#00e5ff" }}>&ldquo;Include AI Citations&rdquo;</span> toggle on to see how many times each AI agent cites this site.
+                </p>
+              </div>
+            )}
+
             {/* Categories */}
             <div>
               <h3 className="text-lg font-semibold text-white mb-4">Detailed Analysis</h3>
@@ -249,90 +296,9 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
               </div>
             )}
 
-            {/* Citations */}
-            {report.citations && report.citations.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Citation Analysis</h3>
-                <div className="space-y-3">
-                  {report.citations.map((citation, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-xl p-4"
-                      style={{
-                        background: "rgba(255,255,255,0.02)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                      }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-semibold text-white">
-                            {citation.provider}
-                          </span>
-                          <span
-                            className="text-xs font-mono px-2 py-0.5 rounded-full"
-                            style={{
-                              background:
-                                citation.status === "success"
-                                  ? "rgba(0,232,122,0.1)"
-                                  : citation.status === "failed"
-                                  ? "rgba(255,90,90,0.1)"
-                                  : "rgba(255,255,255,0.1)",
-                              color:
-                                citation.status === "success"
-                                  ? "#00e87a"
-                                  : citation.status === "failed"
-                                  ? "#ff5a5a"
-                                  : "#8b8d9e",
-                            }}
-                          >
-                            {citation.status}
-                          </span>
-                        </div>
-                        {citation.count > 0 && (
-                          <span
-                            className="text-xs font-mono px-2 py-0.5 rounded-full"
-                            style={{
-                              background: "rgba(66,133,244,0.1)",
-                              color: "#4285f4",
-                            }}
-                          >
-                            {citation.count} citations
-                          </span>
-                        )}
-                      </div>
+            
 
-                      {citation.error && (
-                        <p className="text-xs mb-2" style={{ color: "#ff5a5a" }}>
-                          {citation.error}
-                        </p>
-                      )}
-
-                      {citation.urls.length > 0 && (
-                        <div className="space-y-1">
-                          {citation.urls.slice(0, 3).map((url, i) => (
-                            <a
-                              key={i}
-                              href={url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="block text-xs font-mono truncate hover:underline"
-                              style={{ color: "#4285f4" }}
-                            >
-                              {url}
-                            </a>
-                          ))}
-                          {citation.urls.length > 3 && (
-                            <p className="text-xs" style={{ color: "#8b8d9e" }}>
-                              +{citation.urls.length - 3} more
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            
 
             {/* Recommendations */}
             <div>
@@ -340,53 +306,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
               <Recommendations recommendations={report.recommendations} />
             </div>
 
-            {/* Providers Debug Info */}
-            {report._providers && report._providers.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Provider Analysis</h3>
-                <div className="space-y-2">
-                  {report._providers.map((provider, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between px-4 py-3 rounded-xl"
-                      style={{
-                        background: "rgba(255,255,255,0.02)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-white">
-                          {provider.name}
-                        </span>
-                        <span
-                          className="text-xs font-mono px-2 py-0.5 rounded-full"
-                          style={{
-                            background:
-                              provider.status === "success"
-                                ? "rgba(0,232,122,0.1)"
-                                : "rgba(255,90,90,0.1)",
-                            color:
-                              provider.status === "success" ? "#00e87a" : "#ff5a5a",
-                          }}
-                        >
-                          {provider.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {provider.score !== null && (
-                          <span className="text-sm font-semibold" style={{ color: getScoreColor(provider.score) }}>
-                            {provider.score}
-                          </span>
-                        )}
-                        <span className="text-xs font-mono" style={{ color: "#8b8d9e" }}>
-                          {(provider.durationMs / 1000).toFixed(1)}s
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            
           </div>
 
           {/* Footer */}
