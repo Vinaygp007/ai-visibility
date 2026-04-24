@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.90.0",
     "@google/generative-ai": "^0.21.0",
     "autoprefixer": "^10.4.27",
+    "docx": "^9.6.1",
     "firebase": "^12.10.0",
     "firebase-admin": "^12.0.0",
     "next": "^16.2.1",

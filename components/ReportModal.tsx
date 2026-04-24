@@ -8,6 +8,227 @@ import Recommendations from "./Recommendations";
 import PromptResponsePanel from "./PromptResponsePanel";
 import CitationsPanel from "./CitationsPanel";
 
+function extractResponseText(rawResponse: string): string {
+  try {
+    const json = JSON.parse(rawResponse);
+    if (json?.candidates?.[0]?.content?.parts?.[0]?.text) return json.candidates[0].content.parts[0].text;
+    if (json?.choices?.[0]?.message?.content) return json.choices[0].message.content;
+    if (json?.content?.[0]?.text) return json.content[0].text;
+    return JSON.stringify(json, null, 2);
+  } catch {
+    return rawResponse;
+  }
+}
+
+async function exportDocx(report: AnalysisResult) {
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, TableRow, TableCell, Table, WidthType, ShadingType } = await import("docx");
+
+  const scannedAt = report.createdAt ? new Date(report.createdAt).toLocaleString() : "Unknown";
+
+  const h1 = (text: string) =>
+    new Paragraph({ text, heading: HeadingLevel.HEADING_1, spacing: { before: 320, after: 120 } });
+
+  const h2 = (text: string) =>
+    new Paragraph({ text, heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 80 } });
+
+  const body = (text: string) =>
+    new Paragraph({ children: [new TextRun({ text, size: 22 })], spacing: { after: 80 } });
+
+  const label = (lbl: string, val: string) =>
+    new Paragraph({
+      spacing: { after: 60 },
+      children: [
+        new TextRun({ text: `${lbl}  `, bold: true, size: 22 }),
+        new TextRun({ text: val, size: 22 }),
+      ],
+    });
+
+  const mono = (text: string) =>
+    new Paragraph({
+      children: [new TextRun({ text, font: "Courier New", size: 20, color: "444466" })],
+      spacing: { after: 60 },
+      shading: { type: ShadingType.SOLID, color: "F4F4F8", fill: "F4F4F8" },
+      indent: { left: 360 },
+    });
+
+  const checkRow = (status: string, lbl: string, detail?: string) => {
+    const icon = status === "pass" ? "✓" : status === "warn" ? "⚠" : "✗";
+    const color = status === "pass" ? "1a7f4b" : status === "warn" ? "b45309" : "b91c1c";
+    return new Paragraph({
+      spacing: { after: 50 },
+      indent: { left: 360 },
+      children: [
+        new TextRun({ text: `${icon}  `, bold: true, color, size: 21 }),
+        new TextRun({ text: lbl, size: 21 }),
+        ...(detail ? [new TextRun({ text: `  — ${detail}`, color: "888888", size: 20 })] : []),
+      ],
+    });
+  };
+
+  const divider = () =>
+    new Paragraph({
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "DDDDEE" } },
+      spacing: { before: 120, after: 120 },
+      children: [],
+    });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const children: any[] = [];
+
+  // ── Title ──
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "AI Visibility Report", bold: true, size: 52, color: "1a1a2e" })],
+      alignment: AlignmentType.LEFT,
+      spacing: { after: 160 },
+    })
+  );
+
+  // ── Meta ──
+  children.push(label("Site:", report.site_name));
+  children.push(label("URL:", report.url));
+  children.push(label("Score:", `${report.overall_score} / 100  —  Grade: ${report.grade}`));
+  children.push(label("Scanned:", scannedAt));
+  children.push(divider());
+
+  // ── Summary ──
+  children.push(h1("Summary"));
+  children.push(body(report.summary));
+  children.push(divider());
+
+  // ── Checks stats ──
+  if (report.stats) {
+    children.push(h1("Checks Overview"));
+    children.push(label("Passed:", String(report.stats.checks_passed)));
+    children.push(label("Warnings:", String(report.stats.checks_warned)));
+    children.push(label("Failed:", String(report.stats.checks_failed)));
+    children.push(divider());
+  }
+
+  // ── AI Platform Coverage ──
+  if (report.ai_platform_coverage) {
+    children.push(h1("AI Platform Coverage"));
+    for (const [platform, status] of Object.entries(report.ai_platform_coverage)) {
+      const icon = status === "indexed" ? "✓" : "✗";
+      const color = status === "indexed" ? "1a7f4b" : "b91c1c";
+      children.push(
+        new Paragraph({
+          spacing: { after: 60 },
+          children: [
+            new TextRun({ text: `${icon}  `, bold: true, color, size: 21 }),
+            new TextRun({ text: platform.replace(/_/g, " "), size: 21, bold: true }),
+            new TextRun({ text: `  —  ${status}`, size: 21, color: "888888" }),
+          ],
+        })
+      );
+    }
+    children.push(divider());
+  }
+
+  // ── Detailed Analysis ──
+  if (report.categories?.length) {
+    children.push(h1("Detailed Analysis"));
+    for (const cat of report.categories) {
+      children.push(h2(`${cat.icon ?? ""} ${cat.name}  —  ${cat.score}/100`));
+      for (const chk of cat.checks ?? []) {
+        children.push(checkRow(chk.status, chk.label, chk.detail));
+      }
+      children.push(new Paragraph({ spacing: { after: 80 }, children: [] }));
+    }
+    children.push(divider());
+  }
+
+  // ── Recommendations ──
+  if (report.recommendations?.length) {
+    children.push(h1("Recommendations"));
+    for (const rec of report.recommendations) {
+      const priorityColor = rec.priority === "high" ? "b91c1c" : rec.priority === "medium" ? "b45309" : "1a7f4b";
+      children.push(
+        new Paragraph({
+          spacing: { before: 140, after: 60 },
+          children: [
+            new TextRun({ text: `[${rec.priority.toUpperCase()}]  `, bold: true, color: priorityColor, size: 21 }),
+            new TextRun({ text: rec.title, bold: true, size: 22 }),
+          ],
+        })
+      );
+      children.push(body(rec.description));
+      if (rec.impact) children.push(label("Impact:", rec.impact));
+    }
+    children.push(divider());
+  }
+
+  // ── AI Prompts & Responses ──
+  if (report._providers?.length) {
+    children.push(h1("AI Analysis Prompts & Responses"));
+    for (const p of report._providers) {
+      children.push(h2(`${p.name}  (${p.durationMs}ms)`));
+      children.push(new Paragraph({ children: [new TextRun({ text: "Prompt", bold: true, size: 20, color: "555577" })], spacing: { after: 40 } }));
+      for (const line of p.prompt.split("\n")) children.push(mono(line));
+      children.push(new Paragraph({ spacing: { after: 80 }, children: [] }));
+      if (p.status === "success") {
+        children.push(new Paragraph({ children: [new TextRun({ text: "Response", bold: true, size: 20, color: "555577" })], spacing: { after: 40 } }));
+        for (const line of extractResponseText(p.rawResponse).split("\n")) children.push(body(line));
+      } else {
+        children.push(new Paragraph({ children: [new TextRun({ text: `✗ Failed: ${p.error ?? "Unknown error"}`, color: "b91c1c", size: 21 })], spacing: { after: 80 } }));
+      }
+    }
+    children.push(divider());
+  }
+
+  // ── Citation Queries ──
+  if (report.citations?.length) {
+    children.push(h1("AI Citation Queries"));
+    for (const c of report.citations) {
+      children.push(h2(`${c.provider}  —  ${c.count} citation${c.count !== 1 ? "s" : ""}`));
+      if (c.systemPrompt) {
+        children.push(new Paragraph({ children: [new TextRun({ text: "System Prompt", bold: true, size: 20, color: "555577" })], spacing: { after: 40 } }));
+        for (const line of c.systemPrompt.split("\n")) children.push(mono(line));
+        children.push(new Paragraph({ spacing: { after: 80 }, children: [] }));
+      }
+      children.push(new Paragraph({ children: [new TextRun({ text: "Query", bold: true, size: 20, color: "555577" })], spacing: { after: 40 } }));
+      children.push(body(c.query));
+      children.push(new Paragraph({ children: [new TextRun({ text: "Response", bold: true, size: 20, color: "555577" })], spacing: { after: 40 } }));
+      for (const line of c.rawAnswer.split("\n")) children.push(body(line));
+      if (c.allCitationUrls?.length) {
+        children.push(new Paragraph({ children: [new TextRun({ text: `Cited URLs (${c.allCitationUrls.length})`, bold: true, size: 20, color: "555577" })], spacing: { before: 100, after: 40 } }));
+        c.allCitationUrls.forEach((url, i) => {
+          children.push(new Paragraph({ spacing: { after: 40 }, indent: { left: 360 }, children: [new TextRun({ text: `${i + 1}.  ${url}`, size: 20, color: "1a56db" })] }));
+        });
+      }
+      children.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
+    }
+  }
+
+  // ── Footer ──
+  children.push(divider());
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: `Generated by AI Visibility Scope  ·  ${new Date().toLocaleDateString()}`, size: 18, color: "aaaaaa" })],
+    })
+  );
+
+  const doc = new Document({
+    styles: {
+      default: {
+        heading1: { run: { bold: true, size: 28, color: "1a1a2e" }, paragraph: { spacing: { before: 280, after: 100 } } },
+        heading2: { run: { bold: true, size: 24, color: "333355" }, paragraph: { spacing: { before: 180, after: 60 } } },
+      },
+    },
+    sections: [{ children }],
+  });
+
+  const buffer = await Packer.toBlob(doc);
+  const url = URL.createObjectURL(buffer);
+  const a = document.createElement("a");
+  a.href = url;
+  const slug = report.site_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+  a.download = `ai-visibility-${slug}.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 interface ReportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -213,8 +434,10 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
               </div>
             </div>
 
-            {/* Prompts & Responses (reuse Results styling) */}
-            {providers.length > 0 && <PromptResponsePanel providers={providers} />}
+            {/* Prompts & Responses */}
+            {(providers.length > 0 || citations.length > 0) && (
+              <PromptResponsePanel providers={providers} citations={citations} />
+            )}
 
             {/* Citations (reuse Results styling) */}
             {citations.length > 0 ? (
@@ -325,15 +548,32 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
             >
               Close
             </button>
-            <a
-              href={report.url}
-              target="_blank"
-              rel="noreferrer"
-              className="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-              style={{ background: "#00e5ff", color: "#000" }}
-            >
-              Visit Site →
-            </a>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => exportDocx(report)}
+                className="px-5 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-white/30 flex items-center gap-2"
+                style={{
+                  borderColor: "rgba(255,255,255,0.13)",
+                  color: "#c9cdd4",
+                  background: "transparent",
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M6.5 1v7M3.5 5.5L6.5 9l3-3.5M1.5 11h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Export .docx
+              </button>
+              <a
+                href={report.url}
+                target="_blank"
+                rel="noreferrer"
+                className="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
+                style={{ background: "#00e5ff", color: "#000" }}
+              >
+                Visit Site →
+              </a>
+            </div>
           </div>
         </div>
       </div>
