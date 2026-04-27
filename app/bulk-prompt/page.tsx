@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────
 interface ProviderResponse {
   provider: string;
   response: string;
@@ -10,20 +10,34 @@ interface ProviderResponse {
   error?: string;
 }
 
-interface PromptResult {
-  url: string;
-  status: "pending" | "running" | "done" | "failed";
-  // backwards-compatible primary fields
-  response: string;
-  provider?: string;
-  durationMs?: number;
+interface CitationResult {
+  provider: string;
+  status: "success" | "failed";
+  count: number;
+  rawAnswer: string;
+  query: string;
+  allCitationUrls: string[];
   error?: string;
-  // new: multiple provider responses and which one is selected
-  responses?: ProviderResponse[];
-  selectedResponseIndex?: number;
 }
 
-// ── Default prompt template ────────────────────────────────────────────────
+interface RunResult {
+  url: string | null;
+  hasUrl: boolean;
+  topic: string;
+  responses: ProviderResponse[];
+  citations: CitationResult[];
+}
+
+// ── Provider colours (matches rest of app) ────────────────────────────────
+const PROVIDER_CONFIG: Record<string, { color: string; bg: string; border: string; icon: string }> = {
+  "Gemini 2.0 Flash":      { color: "#4285f4", bg: "rgba(66,133,244,0.1)",  border: "rgba(66,133,244,0.28)", icon: "✦" },
+  "ChatGPT (GPT-4o-mini)": { color: "#10a37f", bg: "rgba(16,163,127,0.1)", border: "rgba(16,163,127,0.28)", icon: "⬡" },
+  "ChatGPT (GPT-4o)":      { color: "#10a37f", bg: "rgba(16,163,127,0.1)", border: "rgba(16,163,127,0.28)", icon: "⬡" },
+  "Perplexity Sonar":      { color: "#20b2aa", bg: "rgba(32,178,170,0.1)",  border: "rgba(32,178,170,0.28)", icon: "◎" },
+  "Claude 3.5 Sonnet":     { color: "#c17c4e", bg: "rgba(193,124,78,0.1)",  border: "rgba(193,124,78,0.28)", icon: "◈" },
+  "Microsoft Copilot":     { color: "#0078d4", bg: "rgba(0,120,212,0.1)",   border: "rgba(0,120,212,0.28)", icon: "⊞" },
+};
+
 const DEFAULT_PROMPT = `You are an AI Visibility Auditor. Analyse the website at {url} and answer the following:
 
 1. Is this website likely to be cited or referenced by AI assistants (ChatGPT, Gemini, Perplexity)?
@@ -33,23 +47,615 @@ const DEFAULT_PROMPT = `You are an AI Visibility Auditor. Analyse the website at
 
 Be concise but specific. Format your response clearly with numbered sections.`;
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-function parseUrls(raw: string): string[] {
-  return raw
-    .split(/[\n,]+/)
-    .map((u) => u.trim())
-    .filter(Boolean)
-    .map((u) => (u.startsWith("http") ? u : "https://" + u));
+const DEFAULT_PROMPT_NO_URL = `You are a market research expert. Answer the following clearly and specifically:
+
+Best 5 selling booking platforms — rank them, explain what makes each one stand out, who they are best for, and provide their website URL.`;
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function dotColor(count: number) {
+  if (count === 0) return "#ff5a5a";
+  if (count < 3) return "#ffb830";
+  return "#00e87a";
 }
 
-function msToSec(ms?: number) {
-  return ms ? `${(ms / 1000).toFixed(1)}s` : "";
+function parseDomain(url: string) {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return url.slice(0, 30);
+  }
 }
 
-// ── PDF Export — plain text written with jsPDF, no HTML rendering ────────────
-async function exportToPdf(results: PromptResult[], prompt: string) {
-  // Load jsPDF from CDN once
-  if (!(window as { jspdf?: unknown }).jspdf) {
+function renderMarkdown(text: string) {
+  return text.split("\n").map((line, i) => {
+    const h2 = line.match(/^## (.+)/);
+    const h3 = line.match(/^### (.+)/);
+    const bullet = line.match(/^[*-] (.+)/);
+    const numbered = line.match(/^(\d+)\. (.+)/);
+    const bold = (t: string) =>
+      t.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#e0e0e8">$1</strong>');
+
+    if (h2) return <h2 key={i} style={{ color: "#fff", fontSize: 14, fontWeight: 700, margin: "12px 0 4px" }} dangerouslySetInnerHTML={{ __html: bold(h2[1]) }} />;
+    if (h3) return <h3 key={i} style={{ color: "#e0e0ea", fontSize: 13, fontWeight: 600, margin: "10px 0 3px" }} dangerouslySetInnerHTML={{ __html: bold(h3[1]) }} />;
+    if (bullet) return (
+      <div key={i} style={{ display: "flex", gap: 6, margin: "2px 0" }}>
+        <span style={{ color: "#00e5ff", flexShrink: 0 }}>•</span>
+        <span style={{ color: "#c9cdd4", fontSize: 13 }} dangerouslySetInnerHTML={{ __html: bold(bullet[1]) }} />
+      </div>
+    );
+    if (numbered) return (
+      <div key={i} style={{ display: "flex", gap: 6, margin: "3px 0" }}>
+        <span style={{ color: "#00e5ff", flexShrink: 0, minWidth: 18, fontSize: 13 }}>{numbered[1]}.</span>
+        <span style={{ color: "#c9cdd4", fontSize: 13 }} dangerouslySetInnerHTML={{ __html: bold(numbered[2]) }} />
+      </div>
+    );
+    if (line.trim() === "") return <br key={i} />;
+    return <p key={i} style={{ color: "#c9cdd4", fontSize: 13, margin: "2px 0" }} dangerouslySetInnerHTML={{ __html: bold(line) }} />;
+  });
+}
+
+// ── Single result card ────────────────────────────────────────────────────
+function ResultCard({ result }: { result: RunResult }) {
+  const [tab, setTab] = useState<"responses" | "citations">("responses");
+  const [activeResp, setActiveResp] = useState(result.responses[0]?.provider ?? "");
+  const [activeCit, setActiveCit] = useState(result.citations[0]?.provider ?? "");
+
+  const respData = result.responses.find((r) => r.provider === activeResp);
+  const citData = result.citations.find((c) => c.provider === activeCit);
+  const hasCitations = result.citations.length > 0;
+
+  const cfg = PROVIDER_CONFIG[activeResp] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
+  const citCfg = PROVIDER_CONFIG[activeCit] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
+
+  return (
+    <div className="rounded-2xl border overflow-hidden mb-4" style={{ background: "#111219", borderColor: "rgba(255,255,255,0.08)" }}>
+      {/* Card header */}
+      <div className="px-5 py-3.5 border-b flex items-center justify-between flex-wrap gap-3"
+        style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
+        <div className="flex items-center gap-3">
+          {result.hasUrl ? (
+            <>
+              <span className="text-sm font-semibold text-white">{parseDomain(result.url!)}</span>
+              <a href={result.url!} target="_blank" rel="noreferrer"
+                className="text-[11px] font-mono hover:underline" style={{ color: "#4285f4" }}>
+                {result.url}
+              </a>
+            </>
+          ) : (
+            <span className="text-sm font-semibold text-white truncate max-w-xs" title={result.topic}>
+              {result.topic.length > 60 ? result.topic.slice(0, 60) + "…" : result.topic}
+            </span>
+          )}
+        </div>
+
+        {/* Tab toggle */}
+        {hasCitations && (
+          <div className="flex items-center gap-1 rounded-lg p-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            {(["responses", "citations"] as const).map((t) => (
+              <button key={t} onClick={() => setTab(t)}
+                className="px-3 py-1 rounded-md text-[11px] font-medium transition-all"
+                style={{
+                  background: tab === t ? "rgba(0,229,255,0.12)" : "transparent",
+                  color: tab === t ? "#00e5ff" : "#6f7280",
+                  border: tab === t ? "1px solid rgba(0,229,255,0.2)" : "1px solid transparent",
+                }}>
+                {t === "responses" ? `Responses (${result.responses.length})` : `Citations (${result.citations.length})`}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── RESPONSES TAB ── */}
+      {tab === "responses" && (
+        <>
+          {/* Provider tabs */}
+          <div className="flex flex-wrap gap-2 px-5 pt-4">
+            {result.responses.map((r) => {
+              const pCfg = PROVIDER_CONFIG[r.provider] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
+              const isActive = activeResp === r.provider;
+              return (
+                <button key={r.provider} onClick={() => setActiveResp(r.provider)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border"
+                  style={{
+                    color: isActive ? pCfg.color : "#6f7280",
+                    background: isActive ? pCfg.bg : "transparent",
+                    borderColor: isActive ? pCfg.border : "rgba(255,255,255,0.07)",
+                  }}>
+                  <span style={{ fontSize: 10 }}>{pCfg.icon}</span>
+                  {r.provider}
+                  {r.error && <span className="text-[9px] font-mono px-1 rounded ml-0.5" style={{ color: "#ff5a5a", background: "rgba(255,90,90,0.12)" }}>✗</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-5 pt-4">
+            {respData?.error ? (
+              <div className="rounded-xl p-4" style={{ background: "rgba(255,90,90,0.05)", border: "1px solid rgba(255,90,90,0.18)" }}>
+                <p className="text-[13px] font-medium mb-1" style={{ color: "#ff5a5a" }}>✗ Request Failed</p>
+                <p className="text-[12px]" style={{ color: "#8b8d9e" }}>{respData.error}</p>
+              </div>
+            ) : respData ? (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "#8b8d9e" }}>Response</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono" style={{ color: "#4b5563" }}>{cfg.icon} {respData.durationMs}ms</span>
+                    <button onClick={() => navigator.clipboard.writeText(respData.response)}
+                      className="text-[10px] font-mono px-2.5 py-0.5 rounded-lg hover:opacity-80"
+                      style={{ color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                <div className="px-4 py-3 rounded-xl overflow-y-auto" style={{ background: "rgba(0,0,0,0.22)", border: `1px solid ${cfg.border}`, maxHeight: 400 }}>
+                  {renderMarkdown(respData.response)}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </>
+      )}
+
+      {/* ── CITATIONS TAB ── */}
+      {tab === "citations" && hasCitations && (
+        <>
+          <div className="flex flex-wrap gap-2 px-5 pt-4">
+            {result.citations.map((c) => {
+              const pCfg = PROVIDER_CONFIG[c.provider] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
+              const isActive = activeCit === c.provider;
+              return (
+                <button key={c.provider} onClick={() => setActiveCit(c.provider)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border"
+                  style={{
+                    color: isActive ? pCfg.color : "#6f7280",
+                    background: isActive ? pCfg.bg : "transparent",
+                    borderColor: isActive ? pCfg.border : "rgba(255,255,255,0.07)",
+                  }}>
+                  <span style={{ fontSize: 10 }}>{pCfg.icon}</span>
+                  {c.provider}
+                  {c.status === "success" && (
+                    <span className="text-[10px] font-mono ml-1" style={{ color: isActive ? pCfg.color : "#4b5563" }}>
+                      {c.count} URL{c.count !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-5 pt-4 space-y-4">
+            {citData?.status === "failed" ? (
+              <div className="rounded-xl p-4" style={{ background: "rgba(255,90,90,0.05)", border: "1px solid rgba(255,90,90,0.18)" }}>
+                <p className="text-[13px] font-medium" style={{ color: "#ff5a5a" }}>✗ Citation query failed</p>
+                <p className="text-[12px] mt-1" style={{ color: "#8b8d9e" }}>{citData.error}</p>
+              </div>
+            ) : citData ? (
+              <>
+                {/* Query shown */}
+                <div>
+                  <p className="text-[10px] font-mono uppercase tracking-wider mb-2" style={{ color: "#8b8d9e" }}>Citation query sent</p>
+                  <div className="text-[13px] px-4 py-3 rounded-xl leading-relaxed" style={{ color: "#e0e0ea", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    {citData.query}
+                  </div>
+                </div>
+
+                {/* Response */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "#8b8d9e" }}>
+                      Response
+                      <span className="ml-2 normal-case" style={{ color: dotColor(citData.count) }}>
+                        · {citData.count} URL{citData.count !== 1 ? "s" : ""} detected
+                      </span>
+                    </p>
+                    <button onClick={() => navigator.clipboard.writeText(citData.rawAnswer)}
+                      className="text-[10px] font-mono px-2.5 py-0.5 rounded-lg hover:opacity-80"
+                      style={{ color: citCfg.color, background: citCfg.bg, border: `1px solid ${citCfg.border}` }}>
+                      Copy
+                    </button>
+                  </div>
+                  <div className="px-4 py-3 rounded-xl overflow-y-auto" style={{ background: "rgba(0,0,0,0.22)", border: `1px solid ${citCfg.border}`, maxHeight: 360 }}>
+                    {renderMarkdown(citData.rawAnswer)}
+                  </div>
+                </div>
+
+                {/* Cited URLs */}
+                {citData.allCitationUrls.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-wider mb-2" style={{ color: "#8b8d9e" }}>
+                      Cited URLs ({citData.allCitationUrls.length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {citData.allCitationUrls.map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-mono hover:opacity-80 transition-opacity truncate"
+                          style={{ color: citCfg.color, background: citCfg.bg, border: `1px solid ${citCfg.border}` }}>
+                          <span style={{ color: "#4b5563" }}>{i + 1}.</span>
+                          {url}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Legend */}
+                <div className="flex items-center gap-5 pt-1">
+                  {[{ color: "#00e87a", label: "3+ = well sourced" }, { color: "#ffb830", label: "1–2 = partial" }, { color: "#ff5a5a", label: "0 = no URLs" }].map(({ color, label }) => (
+                    <div key={label} className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+                      <span className="text-[11px]" style={{ color: "#8b8d9e" }}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────
+export default function BulkPromptPage() {
+  const [mode, setMode] = useState<"single" | "bulk">("single");
+  const [urlMode, setUrlMode] = useState<"with-url" | "no-url">("with-url");
+  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
+  const [singleUrl, setSingleUrl] = useState("");
+  const [bulkUrls, setBulkUrls] = useState("");
+  const [runCitations, setRunCitations] = useState(true);
+  const [isRunning, setIsRunning] = useState(false);
+  const [results, setResults] = useState<RunResult[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  // When toggling URL mode, switch default prompt and clear stale results
+  const handleUrlModeChange = (next: "with-url" | "no-url") => {
+    setUrlMode(next);
+    setResults([]);
+    setError(null);
+    if (next === "no-url") {
+      setPrompt(DEFAULT_PROMPT_NO_URL);
+    } else {
+      setPrompt(DEFAULT_PROMPT);
+    }
+  };
+
+  const hasUrlPlaceholder = prompt.includes("{url}");
+  const charCount = prompt.length;
+  const wordCount = prompt.trim().split(/\s+/).filter(Boolean).length;
+
+  async function runPrompt() {
+    if (!prompt.trim()) return;
+
+    // Collect URLs
+    let urls: string[] = [];
+    if (urlMode === "with-url") {
+      if (mode === "single") {
+        if (!singleUrl.trim()) { setError("Please enter a URL"); return; }
+        urls = [singleUrl.trim()];
+      } else {
+        urls = bulkUrls
+          .split("\n")
+          .map((u) => u.trim())
+          .filter((u) => u.length > 0)
+          .slice(0, 50);
+        if (urls.length === 0) { setError("Please enter at least one URL"); return; }
+      }
+    } else {
+      // No-URL mode: single run
+      urls = [""]; // placeholder so we loop once
+    }
+
+    setIsRunning(true);
+    setError(null);
+    setResults([]);
+
+    try {
+      const newResults: RunResult[] = [];
+
+      for (const rawUrl of urls) {
+        const body: Record<string, unknown> = {
+          prompt,
+          runCitations,
+        };
+        if (urlMode === "with-url" && rawUrl) {
+          body.url = rawUrl.startsWith("http") ? rawUrl : "https://" + rawUrl;
+        }
+
+        const res = await fetch("/api/prompt-run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`);
+
+        newResults.push({
+          url: data.url ?? null,
+          hasUrl: data.hasUrl ?? false,
+          topic: data.topic ?? prompt.slice(0, 80),
+          responses: data.responses ?? [],
+          citations: data.citations ?? [],
+        });
+
+        // Stream results as they come
+        setResults([...newResults]);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setIsRunning(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen" style={{ background: "#0a0b10", color: "#f0f0f5" }}>
+      {/* Content offset for sidebar */}
+      <div className="pl-64">
+        <div className="max-w-5xl mx-auto px-8 py-10">
+
+          {/* Page header */}
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-[10px] font-mono px-2.5 py-1 rounded-full border tracking-widest"
+              style={{ color: "#00e5ff", background: "rgba(0,229,255,0.08)", borderColor: "rgba(0,229,255,0.2)" }}>
+              NEW
+            </span>
+            <h1 className="text-2xl font-bold tracking-tight">Bulk Prompt Runner</h1>
+          </div>
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-sm mb-8" style={{ color: "#8b8d9e" }}>
+              Write your own AI prompt · run it against one or many URLs, or without any URL · get AI citations
+            </p>
+            {results.length > 0 && (
+              <div className="mb-6">
+                <button
+                  onClick={() => void exportToPdf(results, prompt)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
+                  style={{ background: "#00e5ff", color: "#000" }}
+                >
+                  ↓ Export PDF
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-5 gap-6">
+            {/* ── Left panel: prompt + controls ── */}
+            <div className="col-span-3 space-y-4">
+
+              {/* URL mode toggle */}
+              <div className="flex items-center gap-2 p-1 rounded-xl w-fit"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                {(["with-url", "no-url"] as const).map((m) => (
+                  <button key={m} onClick={() => handleUrlModeChange(m)}
+                    className="px-4 py-2 rounded-lg text-[12px] font-semibold transition-all"
+                    style={{
+                      background: urlMode === m ? "rgba(0,229,255,0.12)" : "transparent",
+                      color: urlMode === m ? "#00e5ff" : "#6f7280",
+                      border: urlMode === m ? "1px solid rgba(0,229,255,0.2)" : "1px solid transparent",
+                    }}>
+                    {m === "with-url" ? "🔗 With URL" : "✦ No URL (general query)"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Prompt editor */}
+              <div className="rounded-2xl border overflow-hidden"
+                style={{ background: "#111219", borderColor: "rgba(255,255,255,0.09)" }}>
+                <div className="px-5 py-3 border-b flex items-center justify-between"
+                  style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "#8b8d9e" }}>
+                    CUSTOM PROMPT
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {urlMode === "with-url" && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded"
+                        style={{ color: "#00e5ff", background: "rgba(0,229,255,0.1)" }}>
+                        {"{url}"} = replaced with each website
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setPrompt(urlMode === "with-url" ? DEFAULT_PROMPT : DEFAULT_PROMPT_NO_URL)}
+                      className="text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all hover:border-white/20"
+                      style={{ color: "#8b8d9e", borderColor: "rgba(255,255,255,0.1)" }}>
+                      Reset default
+                    </button>
+                  </div>
+                </div>
+
+                <textarea
+                  ref={promptRef}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  rows={10}
+                  className="w-full bg-transparent outline-none resize-none px-5 py-4 text-[13px] leading-relaxed font-mono"
+                  style={{ color: "#e0e0ea", caretColor: "#00e5ff" }}
+                  placeholder={urlMode === "with-url"
+                    ? "Write your prompt here. Use {url} as a placeholder for each website."
+                    : "Write any question or prompt — no URL needed."
+                  }
+                />
+
+                <div className="px-5 py-2.5 border-t flex items-center justify-between"
+                  style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <span className="text-[11px] font-mono" style={{ color: "#4b5563" }}>
+                    {charCount} chars · {wordCount} words
+                  </span>
+                  {urlMode === "with-url" ? (
+                    hasUrlPlaceholder ? (
+                      <span className="text-[11px] font-mono" style={{ color: "#00e87a" }}>
+                        ✓ {"{url}"} placeholder found
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-mono" style={{ color: "#ffb830" }}>
+                        ⚠ No {"{url}"} placeholder — same prompt for all URLs
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-[11px] font-mono" style={{ color: "#8b8d9e" }}>
+                      ✦ General prompt mode
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* URL input area — only shown in with-url mode */}
+              {urlMode === "with-url" && (
+                <div className="rounded-2xl border overflow-hidden"
+                  style={{ background: "#111219", borderColor: "rgba(255,255,255,0.09)" }}>
+                  {/* Mode tabs */}
+                  <div className="flex border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                    {(["single", "bulk"] as const).map((m) => (
+                      <button key={m} onClick={() => setMode(m)}
+                        className="flex-1 py-3 text-[12px] font-semibold transition-all"
+                        style={{
+                          background: mode === m ? "rgba(0,229,255,0.06)" : "transparent",
+                          color: mode === m ? "#00e5ff" : "#6f7280",
+                          borderBottom: mode === m ? "2px solid #00e5ff" : "2px solid transparent",
+                        }}>
+                        {m === "single" ? "Single URL" : "Bulk URLs"}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="p-4">
+                    {mode === "single" ? (
+                      <div className="flex items-center gap-3 rounded-xl border px-4 py-2.5"
+                        style={{ background: "#0e0f17", borderColor: "rgba(255,255,255,0.09)" }}>
+                        <span style={{ color: "#8b8d9e", fontSize: 14 }}>🌐</span>
+                        <input
+                          type="text"
+                          value={singleUrl}
+                          onChange={(e) => setSingleUrl(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && runPrompt()}
+                          placeholder="https://yourwebsite.com"
+                          className="flex-1 bg-transparent outline-none text-[13px] text-white"
+                        />
+                      </div>
+                    ) : (
+                      <textarea
+                        value={bulkUrls}
+                        onChange={(e) => setBulkUrls(e.target.value)}
+                        rows={5}
+                        placeholder={"https://site1.com\nhttps://site2.com\nhttps://site3.com"}
+                        className="w-full bg-transparent outline-none resize-none text-[13px] font-mono leading-relaxed"
+                        style={{ color: "#e0e0ea", caretColor: "#00e5ff" }}
+                      />
+                    )}
+                  </div>
+
+                  {mode === "bulk" && (
+                    <div className="px-4 pb-3">
+                      <span className="text-[11px] font-mono" style={{ color: "#4b5563" }}>
+                        {bulkUrls.split("\n").filter((u) => u.trim()).length} URLs entered · max 50
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Options row */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={() => setRunCitations(!runCitations)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all"
+                  style={{
+                    background: runCitations ? "rgba(0,229,255,0.1)" : "transparent",
+                    borderColor: runCitations ? "rgba(0,229,255,0.4)" : "rgba(255,255,255,0.12)",
+                    color: runCitations ? "#00e5ff" : "#8b8d9e",
+                  }}>
+                  <span style={{ fontSize: 13 }}>{runCitations ? "✓" : "○"}</span>
+                  AI Citations
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                    style={{ background: runCitations ? "rgba(0,229,255,0.12)" : "rgba(255,184,48,0.15)", color: runCitations ? "#00e5ff" : "#ffb830" }}>
+                    {runCitations ? "ON" : "OFF"}
+                  </span>
+                </button>
+                <span className="text-[11px]" style={{ color: "#8b8d9e" }}>
+                  {runCitations ? "Citation sources will be listed per provider" : "Skip citation queries"}
+                </span>
+              </div>
+
+              {/* Run button */}
+              <button
+                onClick={runPrompt}
+                disabled={isRunning || !prompt.trim()}
+                className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-85 active:scale-[0.99]"
+                style={{ background: "linear-gradient(135deg, #00e5ff, #4285f4)", color: "#000" }}>
+                {isRunning
+                  ? "Running…"
+                  : urlMode === "no-url"
+                    ? "✦ Run Prompt →"
+                    : mode === "bulk"
+                      ? `⚡ Run on ${bulkUrls.split("\n").filter((u) => u.trim()).length || 1} URL${bulkUrls.split("\n").filter((u) => u.trim()).length !== 1 ? "s" : ""} →`
+                      : "Run Prompt →"
+                }
+              </button>
+
+              {error && (
+                <div className="rounded-xl p-4 text-[13px]"
+                  style={{ background: "rgba(255,90,90,0.06)", border: "1px solid rgba(255,90,90,0.2)", color: "#ff5a5a" }}>
+                  ⚠ {error}
+                </div>
+              )}
+            </div>
+
+            {/* ── Right panel: results ── */}
+            <div className="col-span-2">
+              {results.length === 0 && !isRunning ? (
+                <div className="flex flex-col items-center justify-center h-full min-h-64 text-center rounded-2xl border"
+                  style={{ background: "rgba(255,255,255,0.015)", borderColor: "rgba(255,255,255,0.06)", borderStyle: "dashed" }}>
+                  <div className="text-4xl mb-4">🔭</div>
+                  <p className="text-sm font-semibold text-white mb-1">Results will appear here</p>
+                  <p className="text-[12px]" style={{ color: "#8b8d9e" }}>
+                    {urlMode === "no-url"
+                      ? "Write a prompt, then hit Run"
+                      : "Write a prompt, add URLs, then hit Run"}
+                  </p>
+                </div>
+              ) : isRunning && results.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 rounded-2xl border"
+                  style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}>
+                  <div className="spinner w-10 h-10 rounded-full mb-4"
+                    style={{ border: "3px solid rgba(255,255,255,0.08)", borderTopColor: "#00e5ff" }} />
+                  <p className="text-sm font-medium text-white">Running prompt…</p>
+                  <p className="text-[12px] mt-1" style={{ color: "#8b8d9e" }}>Querying all enabled providers</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {isRunning && (
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border"
+                      style={{ background: "rgba(0,229,255,0.04)", borderColor: "rgba(0,229,255,0.15)" }}>
+                      <div className="spinner w-4 h-4 rounded-full flex-shrink-0"
+                        style={{ border: "2px solid rgba(0,229,255,0.2)", borderTopColor: "#00e5ff" }} />
+                      <span className="text-[12px]" style={{ color: "#00e5ff" }}>Still running…</span>
+                    </div>
+                  )}
+                  {results.map((r, i) => <ResultCard key={i} result={r} />)}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .spinner { animation: spin 0.9s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  );
+}
+
+// ── PDF Export (plain text) ───────────────────────────────────────────────
+async function exportToPdf(results: RunResult[], prompt: string) {
+  // Load jsPDF from CDN if not already present
+  if (!(window as any).jspdf) {
     await new Promise<void>((resolve, reject) => {
       const script = document.createElement("script");
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
@@ -69,15 +675,12 @@ async function exportToPdf(results: PromptResult[], prompt: string) {
   const ML = 15;
   const MR = 15;
   const TW = PW - ML - MR;
-  const LH = 5;   // line height mm
+  const LH = 5;
   let y = 15;
 
-  const doneCnt = results.filter((r) => r.status === "done").length;
-  const failCnt = results.filter((r) => r.status === "failed").length;
-  const sep  = "=".repeat(76);
+  const sep = "=".repeat(76);
   const thin = "-".repeat(76);
 
-  // ── write a wrapped block of plain text ───────────────────────────────────
   const writeLine = (text: string, size = 9, bold = false) => {
     doc.setFontSize(size);
     doc.setFont("courier", bold ? "bold" : "normal");
@@ -95,14 +698,13 @@ async function exportToPdf(results: PromptResult[], prompt: string) {
 
   const blankLine = () => { y += LH; };
 
-  // ── Header ────────────────────────────────────────────────────────────────
+  // Header
   writeLine("AISCOPE — BULK PROMPT REPORT", 11, true);
   writeLine(`Generated : ${new Date().toLocaleString()}`);
-  writeLine(`Total     : ${results.length}   Success: ${doneCnt}   Failed: ${failCnt}`);
+  writeLine(`Total     : ${results.length}`);
   writeLine(sep);
   blankLine();
 
-  // ── Prompt used ───────────────────────────────────────────────────────────
   writeLine("PROMPT USED", 9, true);
   writeLine(thin);
   writeLine(prompt.trim());
@@ -111,32 +713,43 @@ async function exportToPdf(results: PromptResult[], prompt: string) {
   writeLine("RESULTS", 9, true);
   writeLine(sep);
 
-  // ── Results ───────────────────────────────────────────────────────────────
   results.forEach((r, idx) => {
-    const isOk = r.status === "done";
     blankLine();
-    writeLine(`[${idx + 1}] ${r.url}`, 9, true);
+    writeLine(`[${idx + 1}] ${r.hasUrl ? (r.url ?? "(no url)") : (r.topic || "(general)")}`, 9, true);
 
-    // If there are multiple provider responses, write each under the site
+    // Responses
     if (r.responses && r.responses.length > 0) {
       r.responses.forEach((p) => {
-        const meta = [p.provider, p.durationMs ? msToSec(p.durationMs) : ""].filter(Boolean).join("  |  ");
+        const meta = [p.provider, p.durationMs ? `${(p.durationMs/1000).toFixed(1)}s` : ""].filter(Boolean).join("  |  ");
         if (meta) writeLine(`    ${meta}`);
         writeLine(thin);
         writeLine(p.response || "(no response)");
         blankLine();
       });
     } else {
-      const meta = [r.provider, r.durationMs ? msToSec(r.durationMs) : ""].filter(Boolean).join("  |  ");
-      if (meta) writeLine(`    ${meta}`);
       writeLine(thin);
-      writeLine(isOk ? (r.response || "(no response)") : `ERROR: ${r.error ?? "Unknown error"}`);
+      writeLine("(no provider responses)");
       blankLine();
     }
+
+    // Citations
+    if (r.citations && r.citations.length > 0) {
+      writeLine("CITATIONS", 9, true);
+      r.citations.forEach((c) => {
+        writeLine(`  Provider: ${c.provider}  ·  ${c.count} URLs`);
+        writeLine(thin);
+        writeLine(c.rawAnswer || "(no answer)");
+        if (c.allCitationUrls && c.allCitationUrls.length > 0) {
+          writeLine("  Cited URLs:");
+          c.allCitationUrls.forEach((u) => writeLine(`    - ${u}`));
+        }
+        blankLine();
+      });
+    }
+
+    writeLine(sep);
   });
 
-  // ── Footer ────────────────────────────────────────────────────────────────
-  writeLine(sep);
   writeLine("Generated by AiScope  ·  aiscope.io");
 
   // page numbers
@@ -150,552 +763,4 @@ async function exportToPdf(results: PromptResult[], prompt: string) {
   }
 
   doc.save(`aiscope-prompt-report-${new Date().toISOString().slice(0, 10)}.pdf`);
-}
-
-// ── Main Component ─────────────────────────────────────────────────────────
-export default function BulkPromptPage() {
-  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
-  const [urlsRaw, setUrlsRaw] = useState("");
-  const [singleUrl, setSingleUrl] = useState("");
-  const [mode, setMode] = useState<"single" | "bulk">("single");
-  const [results, setResults] = useState<PromptResult[]>([]);
-  const [running, setRunning] = useState(false);
-  const [activeResult, setActiveResult] = useState<number | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const updateResult = useCallback(
-    (index: number, patch: Partial<PromptResult>) => {
-      setResults((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], ...patch };
-        return next;
-      });
-    },
-    []
-  );
-
-  const handleRun = async () => {
-    const urls =
-      mode === "single"
-        ? parseUrls(singleUrl)
-        : parseUrls(urlsRaw);
-
-    if (!urls.length || !prompt.trim()) return;
-
-    abortRef.current = new AbortController();
-    setRunning(true);
-    setActiveResult(0);
-
-    const initial: PromptResult[] = urls.map((url) => ({
-      url,
-      status: "pending",
-      response: "",
-      responses: [],
-      selectedResponseIndex: 0,
-    }));
-    setResults(initial);
-
-    for (let i = 0; i < urls.length; i++) {
-      if (abortRef.current?.signal.aborted) break;
-
-      updateResult(i, { status: "running" });
-      const start = Date.now();
-
-      try {
-        const res = await fetch("/api/prompt-run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: urls[i], prompt }),
-          signal: abortRef.current?.signal,
-        });
-
-        // Safely parse — if route missing, Next.js returns HTML (not JSON)
-        const text = await res.text();
-        let data: Record<string, unknown> = {};
-        try { data = JSON.parse(text); } catch {
-          updateResult(i, {
-            status: "failed",
-            error: res.status === 404
-              ? "API route not found — ensure app/api/prompt-run/route.ts is deployed"
-              : `Server returned non-JSON (HTTP ${res.status})`,
-            durationMs: Date.now() - start,
-          });
-          continue;
-        }
-
-        if (!res.ok || data.error) {
-          updateResult(i, {
-            status: "failed",
-            error: (data.error as string) ?? `HTTP ${res.status}`,
-            durationMs: Date.now() - start,
-          });
-        } else {
-          // support new `responses` array from API; fallback to legacy fields
-          const provs = (data.responses as ProviderResponse[] | undefined) ?? (data.response ? [{ provider: data.provider ?? "", response: data.response as string ?? "", durationMs: data.durationMs as number | undefined }] : []);
-          updateResult(i, {
-            status: "done",
-            responses: provs,
-            response: provs[0]?.response ?? (data.response as string) ?? "",
-            provider: provs[0]?.provider ?? (data.provider as string | undefined),
-            durationMs: provs[0]?.durationMs ?? (data.durationMs as number | undefined) ?? Date.now() - start,
-            selectedResponseIndex: 0,
-          });
-        }
-      } catch (err: unknown) {
-        if ((err as Error).name === "AbortError") break;
-        updateResult(i, {
-          status: "failed",
-          error: String(err),
-          durationMs: Date.now() - start,
-        });
-      }
-
-      setActiveResult(Math.min(i + 1, urls.length - 1));
-    }
-
-    setRunning(false);
-  };
-
-  const handleStop = () => {
-    abortRef.current?.abort();
-    setRunning(false);
-  };
-
-  const doneCnt = results.filter((r) => r.status === "done").length;
-  const failCnt = results.filter((r) => r.status === "failed").length;
-  const progress = results.length
-    ? Math.round(((doneCnt + failCnt) / results.length) * 100)
-    : 0;
-
-  const canExport = results.some((r) => r.status === "done" || r.status === "failed");
-
-  // ── Render ───────────────────────────────────────────────────────────────
-  return (
-    <main
-      className="min-h-screen pl-64"
-      style={{ background: "#0a0b10", color: "#f0f0f5" }}
-    >
-      {/* ── Page Header ── */}
-      <div
-        className="border-b px-10 py-6"
-        style={{ borderColor: "rgba(255,255,255,0.07)" }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <span
-                className="text-[11px] font-mono px-2.5 py-1 rounded-full border tracking-widest"
-                style={{
-                  color: "#c17c4e",
-                  background: "rgba(193,124,78,0.08)",
-                  borderColor: "rgba(193,124,78,0.25)",
-                }}
-              >
-                NEW
-              </span>
-              <h1 className="text-2xl font-bold tracking-tight">
-                Bulk Prompt Runner
-              </h1>
-            </div>
-            <p className="text-sm" style={{ color: "#8b8d9e" }}>
-              Write your own AI prompt · run it against one or many URLs · export
-              results as PDF
-            </p>
-          </div>
-
-          {canExport && (
-            <button
-              onClick={() => void exportToPdf(results, prompt)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-              style={{ background: "#00e5ff", color: "#000" }}
-            >
-              ↓ Export PDF
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="px-10 py-8 grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-6">
-        {/* ── Left column ── */}
-        <div className="space-y-5">
-
-          {/* ── Prompt Editor ── */}
-          <div
-            className="rounded-2xl border overflow-hidden"
-            style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
-          >
-            {/* Editor toolbar */}
-            <div
-              className="flex items-center justify-between px-5 py-3 border-b"
-              style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.2)" }}
-            >
-              <span
-                className="text-[11px] font-mono tracking-widest uppercase"
-                style={{ color: "#8b8d9e" }}
-              >
-                Custom Prompt
-              </span>
-              <div className="flex items-center gap-2">
-                <span
-                  className="text-[10px] font-mono px-2 py-0.5 rounded"
-                  style={{ color: "#00e5ff", background: "rgba(0,229,255,0.08)" }}
-                >
-                  {"{url}"} = replaced with each website
-                </span>
-                <button
-                  onClick={() => setPrompt(DEFAULT_PROMPT)}
-                  className="text-[11px] font-mono px-3 py-1 rounded-lg border transition-all hover:opacity-80"
-                  style={{
-                    color: "#8b8d9e",
-                    borderColor: "rgba(255,255,255,0.1)",
-                    background: "transparent",
-                  }}
-                >
-                  Reset default
-                </button>
-              </div>
-            </div>
-
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              rows={12}
-              className="w-full bg-transparent border-none outline-none resize-none p-5 font-mono text-[13px] leading-relaxed"
-              style={{ color: "#c9cdd4" }}
-              placeholder="Write your custom prompt here. Use {url} where you want the website URL inserted…"
-            />
-
-            {/* Char count footer */}
-            <div
-              className="px-5 py-2.5 border-t flex items-center justify-between"
-              style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.15)" }}
-            >
-              <span className="text-[11px] font-mono" style={{ color: "#8b8d9e" }}>
-                {prompt.length} chars · {prompt.split(/\s+/).filter(Boolean).length} words
-              </span>
-              <span className="text-[11px] font-mono" style={{ color: prompt.includes("{url}") ? "#00e87a" : "#ffb830" }}>
-                {prompt.includes("{url}") ? "✓ {url} placeholder found" : "⚠ No {url} placeholder"}
-              </span>
-            </div>
-          </div>
-
-          {/* ── URL Input ── */}
-          <div
-            className="rounded-2xl border overflow-hidden"
-            style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
-          >
-            {/* Mode toggle */}
-            <div
-              className="flex items-center gap-1 px-5 py-3 border-b"
-              style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.2)" }}
-            >
-              {(["single", "bulk"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className="px-4 py-1.5 rounded-lg text-[12px] font-mono transition-all capitalize"
-                  style={{
-                    background: mode === m ? "rgba(0,229,255,0.12)" : "transparent",
-                    color: mode === m ? "#00e5ff" : "#8b8d9e",
-                    border: mode === m ? "1px solid rgba(0,229,255,0.3)" : "1px solid transparent",
-                  }}
-                >
-                  {m === "single" ? "Single URL" : "Bulk URLs"}
-                </button>
-              ))}
-            </div>
-
-            <div className="p-5">
-              {mode === "single" ? (
-                <div
-                  className="flex items-center rounded-xl border px-4 py-2"
-                  style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)" }}
-                >
-                  <span className="text-[13px] mr-3" style={{ color: "#8b8d9e" }}>🌐</span>
-                  <input
-                    type="text"
-                    value={singleUrl}
-                    onChange={(e) => setSingleUrl(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && !running && handleRun()}
-                    placeholder="https://yourwebsite.com"
-                    className="flex-1 bg-transparent border-none outline-none text-[14px] text-white py-1.5"
-                  />
-                </div>
-              ) : (
-                <>
-                  <textarea
-                    value={urlsRaw}
-                    onChange={(e) => setUrlsRaw(e.target.value)}
-                    rows={6}
-                    className="w-full bg-transparent border-none outline-none resize-none font-mono text-[13px] leading-relaxed"
-                    style={{
-                      color: "#c9cdd4",
-                      padding: "12px 14px",
-                      background: "rgba(0,0,0,0.2)",
-                      borderRadius: "12px",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                    }}
-                    placeholder={"https://site1.com\nhttps://site2.com\nhttps://site3.com\n\nOne URL per line or comma-separated · max 100"}
-                  />
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[11px] font-mono" style={{ color: "#8b8d9e" }}>
-                      {parseUrls(urlsRaw).length} valid URLs detected
-                    </span>
-                    <span className="text-[11px] font-mono" style={{ color: "#8b8d9e" }}>
-                      max 100
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* ── Run / Stop button ── */}
-          <div className="flex items-center gap-4">
-            {!running ? (
-              <button
-                onClick={handleRun}
-                disabled={
-                  !prompt.trim() ||
-                  (mode === "single" ? !singleUrl.trim() : !urlsRaw.trim())
-                }
-                className="flex-1 py-3.5 rounded-2xl text-sm font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-85 active:scale-[0.98]"
-                style={{ background: "#00e5ff", color: "#000" }}
-              >
-                ▶ Run Prompt
-              </button>
-            ) : (
-              <button
-                onClick={handleStop}
-                className="flex-1 py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-85"
-                style={{ background: "rgba(255,90,90,0.15)", color: "#ff5a5a", border: "1px solid rgba(255,90,90,0.3)" }}
-              >
-                ■ Stop
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ── Right column: Results ── */}
-        <div className="space-y-4">
-          {/* Progress bar (while running) */}
-          {running && results.length > 0 && (
-            <div
-              className="rounded-2xl border p-5"
-              style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-mono" style={{ color: "#8b8d9e" }}>
-                  PROGRESS
-                </span>
-                <span className="text-[12px] font-mono" style={{ color: "#00e5ff" }}>
-                  {doneCnt + failCnt} / {results.length}
-                </span>
-              </div>
-              <div
-                className="w-full h-1.5 rounded-full overflow-hidden"
-                style={{ background: "rgba(255,255,255,0.08)" }}
-              >
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${progress}%`, background: "linear-gradient(90deg, #4285f4, #00e5ff)" }}
-                />
-              </div>
-              <div className="flex gap-4 mt-3 text-[11px] font-mono">
-                <span style={{ color: "#00e87a" }}>✓ {doneCnt} done</span>
-                {failCnt > 0 && <span style={{ color: "#ff5a5a" }}>✕ {failCnt} failed</span>}
-                <span style={{ color: "#8b8d9e" }}>
-                  ◌ {results.filter((r) => r.status === "pending").length} pending
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Result cards */}
-          {results.length === 0 ? (
-            <div
-              className="rounded-2xl border p-8 text-center"
-              style={{
-                background: "rgba(0,229,255,0.02)",
-                borderColor: "rgba(0,229,255,0.1)",
-                borderStyle: "dashed",
-              }}
-            >
-              <div className="text-3xl mb-3">🔭</div>
-              <p className="text-sm font-medium mb-1" style={{ color: "#00e5ff" }}>
-                Results will appear here
-              </p>
-              <p className="text-[12px]" style={{ color: "#8b8d9e" }}>
-                Write a prompt, add URLs, then hit Run
-              </p>
-            </div>
-          ) : (
-            results.map((r, i) => {
-              const isActive = activeResult === i;
-              const isRunning = r.status === "running";
-              return (
-                <div
-                  key={r.url + i}
-                  onClick={() => setActiveResult(i)}
-                  className="rounded-2xl border overflow-hidden cursor-pointer transition-all"
-                  style={{
-                    background: "#111219",
-                    borderColor: isActive
-                      ? "rgba(0,229,255,0.35)"
-                      : "rgba(255,255,255,0.07)",
-                    boxShadow: isActive ? "0 0 0 1px rgba(0,229,255,0.15)" : "none",
-                  }}
-                >
-                  {/* Card header */}
-                  <div
-                    className="flex items-center gap-3 px-4 py-3 border-b"
-                    style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.15)" }}
-                  >
-                    {/* Status indicator */}
-                    <div className="flex-shrink-0">
-                      {r.status === "running" ? (
-                        <div
-                          className="w-2.5 h-2.5 rounded-full animate-pulse"
-                          style={{ background: "#00e5ff" }}
-                        />
-                      ) : r.status === "done" ? (
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#00e87a" }} />
-                      ) : r.status === "failed" ? (
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#ff5a5a" }} />
-                      ) : (
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
-                      )}
-                    </div>
-
-                    <span
-                      className="flex-1 truncate text-[12px] font-mono"
-                      style={{ color: "#c9cdd4" }}
-                    >
-                      {r.url}
-                    </span>
-
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {/* If multiple provider responses exist, show a selector */}
-                      {r.responses && r.responses.length > 1 ? (
-                        <select
-                          value={r.selectedResponseIndex ?? 0}
-                          onChange={(e) => updateResult(i, { selectedResponseIndex: Number(e.target.value) })}
-                          className="text-[10px] font-mono bg-transparent border-none"
-                          style={{ color: "#8b8d9e" }}
-                        >
-                          {r.responses.map((p, idx) => (
-                            <option key={p.provider + idx} value={idx}>
-                              {p.provider}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className="text-[10px] font-mono" style={{ color: "#8b8d9e" }}>
-                          {r.provider ?? r.responses?.[0]?.provider ?? ""}
-                        </span>
-                      )}
-
-                      {/* show duration for selected provider if present, otherwise top-level duration */}
-                      {((r.responses && r.responses[r.selectedResponseIndex ?? 0]?.durationMs) || r.durationMs) && (
-                        <span className="text-[10px] font-mono" style={{ color: "#8b8d9e" }}>
-                          {msToSec(r.responses?.[r.selectedResponseIndex ?? 0]?.durationMs ?? r.durationMs)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Card body */}
-                  <div className="px-4 py-3">
-                    {r.status === "pending" && (
-                      <p className="text-[12px] font-mono" style={{ color: "#4b5563" }}>
-                        Waiting…
-                      </p>
-                    )}
-                    {isRunning && (
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-1.5 h-1.5 rounded-full animate-ping"
-                          style={{ background: "#00e5ff" }}
-                        />
-                        <span className="text-[12px] font-mono" style={{ color: "#00e5ff" }}>
-                          Running prompt…
-                        </span>
-                      </div>
-                    )}
-                    {r.status === "failed" && (
-                      <p className="text-[12px]" style={{ color: "#ff5a5a" }}>
-                        ✕ {r.error ?? "Unknown error"}
-                      </p>
-                    )}
-                    {r.status === "done" && (
-                      <p
-                        className="text-[12px] leading-relaxed line-clamp-3"
-                        style={{ color: "#8b8d9e" }}
-                      >
-                        {(
-                          r.responses && r.responses[r.selectedResponseIndex ?? 0]
-                            ? r.responses[r.selectedResponseIndex ?? 0].response
-                            : r.response
-                        )?.slice(0, 200)}
-                        {((r.responses && r.responses[r.selectedResponseIndex ?? 0]
-                          ? r.responses[r.selectedResponseIndex ?? 0].response
-                          : r.response) || "").length > 200 ? "…" : ""}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-
-          {/* Full response viewer */}
-          {activeResult !== null &&
-            results[activeResult] &&
-            results[activeResult].status === "done" && (
-              <div
-                className="rounded-2xl border overflow-hidden"
-                style={{ background: "#111219", borderColor: "rgba(0,229,255,0.2)" }}
-              >
-                <div
-                  className="flex items-center justify-between px-5 py-3 border-b"
-                  style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.2)" }}
-                >
-                  <span className="text-[11px] font-mono tracking-widest uppercase" style={{ color: "#8b8d9e" }}>
-                    Full Response
-                  </span>
-                  <button
-                    onClick={() =>
-                      navigator.clipboard.writeText(
-                        results[activeResult!].responses && results[activeResult!].responses![results[activeResult!].selectedResponseIndex ?? 0]
-                          ? results[activeResult!].responses![results[activeResult!].selectedResponseIndex ?? 0].response
-                          : results[activeResult!].response
-                      )
-                    }
-                    className="text-[10px] font-mono px-2.5 py-1 rounded-md transition-opacity hover:opacity-70"
-                    style={{
-                      color: "#00e5ff",
-                      background: "rgba(0,229,255,0.08)",
-                      border: "1px solid rgba(0,229,255,0.2)",
-                    }}
-                  >
-                    Copy
-                  </button>
-                </div>
-                <pre
-                  className="p-5 text-[12px] leading-relaxed whitespace-pre-wrap font-mono overflow-y-auto"
-                  style={{
-                    color: "#c9cdd4",
-                    maxHeight: "420px",
-                  }}
-                >
-                  {results[activeResult].responses && results[activeResult].responses![results[activeResult].selectedResponseIndex ?? 0]
-                    ? results[activeResult].responses![results[activeResult].selectedResponseIndex ?? 0].response
-                    : results[activeResult].response}
-                </pre>
-              </div>
-            )}
-        </div>
-      </div>
-    </main>
-  );
 }
