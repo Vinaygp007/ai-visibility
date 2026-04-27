@@ -1,7 +1,7 @@
 // app/api/prompt-run/route.ts
 // POST /api/prompt-run
-// Accepts { url, prompt } — replaces {url} in prompt, calls ALL enabled
-// AI providers from settings in parallel, returns array of results
+// Accepts { url, prompt } — replaces {url} in prompt, calls the first enabled
+// AI provider from settings, returns { response, provider, durationMs }
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/firebase";
@@ -20,7 +20,7 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: CORS_HEADERS });
 }
 
-// ── Load settings ─────────────────────────────────────────────────────────
+// ── Load settings (same helper used across routes) ─────────────────────────
 async function loadSettings(): Promise<AppSettings | null> {
   const db = await getDb();
   if (!db) return null;
@@ -34,8 +34,12 @@ async function loadSettings(): Promise<AppSettings | null> {
   }
 }
 
-// ── Provider callers ──────────────────────────────────────────────────────
-async function callGemini(apiKey: string, model: string, prompt: string): Promise<string> {
+// ── Call Gemini ────────────────────────────────────────────────────────────
+async function callGemini(
+  apiKey: string,
+  model: string,
+  prompt: string
+): Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -52,6 +56,7 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
+// ── Call OpenAI-compatible (OpenAI / Perplexity / Copilot) ─────────────────
 async function callOpenAI(
   apiKey: string,
   model: string,
@@ -76,7 +81,12 @@ async function callOpenAI(
   return data?.choices?.[0]?.message?.content ?? "";
 }
 
-async function callClaude(apiKey: string, model: string, prompt: string): Promise<string> {
+// ── Call Anthropic Claude ──────────────────────────────────────────────────
+async function callClaude(
+  apiKey: string,
+  model: string,
+  prompt: string
+): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -95,60 +105,6 @@ async function callClaude(apiKey: string, model: string, prompt: string): Promis
   return data?.content?.[0]?.text ?? "";
 }
 
-// ── Call a single provider, returning a normalised result ─────────────────
-async function callProvider(
-  provider: AppSettings["providers"][number],
-  finalPrompt: string
-): Promise<{
-  providerId: string;
-  providerName: string;
-  model: string;
-  status: "success" | "failed";
-  response: string;
-  error?: string;
-  durationMs: number;
-}> {
-  const start = Date.now();
-  try {
-    let response = "";
-    switch (provider.id) {
-      case "gemini":
-        response = await callGemini(provider.apiKey, provider.model, finalPrompt);
-        break;
-      case "openai":
-      case "copilot":
-        response = await callOpenAI(provider.apiKey, provider.model, finalPrompt, "https://api.openai.com/v1");
-        break;
-      case "perplexity":
-        response = await callOpenAI(provider.apiKey, provider.model, finalPrompt, "https://api.perplexity.ai");
-        break;
-      case "claude":
-        response = await callClaude(provider.apiKey, provider.model, finalPrompt);
-        break;
-      default:
-        throw new Error(`Unknown provider id: ${provider.id}`);
-    }
-    return {
-      providerId: provider.id,
-      providerName: provider.name,
-      model: provider.model,
-      status: "success",
-      response,
-      durationMs: Date.now() - start,
-    };
-  } catch (err) {
-    return {
-      providerId: provider.id,
-      providerName: provider.name,
-      model: provider.model,
-      status: "failed",
-      response: "",
-      error: String(err),
-      durationMs: Date.now() - start,
-    };
-  }
-}
-
 // ── Route handler ──────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
@@ -163,34 +119,67 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Normalise URL
     const url = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+
+    // Replace placeholder
     const finalPrompt = customPrompt.replace(/\{url\}/g, url);
 
-    // Load settings & find ALL enabled providers
+    // Load settings & find first enabled provider
     const settings = await loadSettings();
-    const enabledProviders = settings?.providers?.filter((p) => p.enabled && p.apiKey) ?? [];
+    const provider = settings?.providers?.find((p) => p.enabled && p.apiKey);
 
-    if (enabledProviders.length === 0) {
+    if (!provider) {
       return NextResponse.json(
         { error: "No AI provider configured. Go to /settings to add API keys." },
         { status: 500, headers: CORS_HEADERS }
       );
     }
 
-    // Call all enabled providers in parallel
-    const results = await Promise.all(
-      enabledProviders.map((provider) => callProvider(provider, finalPrompt))
-    );
+    const start = Date.now();
+    let response = "";
 
-    const successCount = results.filter((r) => r.status === "success").length;
+    switch (provider.id) {
+      case "gemini":
+        response = await callGemini(provider.apiKey, provider.model, finalPrompt);
+        break;
+
+      case "openai":
+      case "copilot":
+        response = await callOpenAI(
+          provider.apiKey,
+          provider.model,
+          finalPrompt,
+          "https://api.openai.com/v1"
+        );
+        break;
+
+      case "perplexity":
+        response = await callOpenAI(
+          provider.apiKey,
+          provider.model,
+          finalPrompt,
+          "https://api.perplexity.ai"
+        );
+        break;
+
+      case "claude":
+        response = await callClaude(provider.apiKey, provider.model, finalPrompt);
+        break;
+
+      default:
+        return NextResponse.json(
+          { error: `Unknown provider id: ${provider.id}` },
+          { status: 500, headers: CORS_HEADERS }
+        );
+    }
 
     return NextResponse.json(
       {
-        results,          // array — one entry per enabled provider
+        response,
+        provider: provider.name,
+        durationMs: Date.now() - start,
         url,
-        prompt: finalPrompt,
-        totalProviders: results.length,
-        successCount,
       },
       { headers: CORS_HEADERS }
     );
