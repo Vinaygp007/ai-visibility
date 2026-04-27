@@ -3,13 +3,24 @@
 import { useState, useRef, useCallback } from "react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
+interface ProviderResponse {
+  provider: string;
+  response: string;
+  durationMs?: number;
+  error?: string;
+}
+
 interface PromptResult {
   url: string;
   status: "pending" | "running" | "done" | "failed";
+  // backwards-compatible primary fields
   response: string;
-  error?: string;
-  durationMs?: number;
   provider?: string;
+  durationMs?: number;
+  error?: string;
+  // new: multiple provider responses and which one is selected
+  responses?: ProviderResponse[];
+  selectedResponseIndex?: number;
 }
 
 // ── Default prompt template ────────────────────────────────────────────────
@@ -103,13 +114,25 @@ async function exportToPdf(results: PromptResult[], prompt: string) {
   // ── Results ───────────────────────────────────────────────────────────────
   results.forEach((r, idx) => {
     const isOk = r.status === "done";
-    const meta = [r.provider, r.durationMs ? msToSec(r.durationMs) : ""].filter(Boolean).join("  |  ");
     blankLine();
     writeLine(`[${idx + 1}] ${r.url}`, 9, true);
-    if (meta) writeLine(`    ${meta}`);
-    writeLine(thin);
-    writeLine(isOk ? (r.response || "(no response)") : `ERROR: ${r.error ?? "Unknown error"}`);
-    blankLine();
+
+    // If there are multiple provider responses, write each under the site
+    if (r.responses && r.responses.length > 0) {
+      r.responses.forEach((p) => {
+        const meta = [p.provider, p.durationMs ? msToSec(p.durationMs) : ""].filter(Boolean).join("  |  ");
+        if (meta) writeLine(`    ${meta}`);
+        writeLine(thin);
+        writeLine(p.response || "(no response)");
+        blankLine();
+      });
+    } else {
+      const meta = [r.provider, r.durationMs ? msToSec(r.durationMs) : ""].filter(Boolean).join("  |  ");
+      if (meta) writeLine(`    ${meta}`);
+      writeLine(thin);
+      writeLine(isOk ? (r.response || "(no response)") : `ERROR: ${r.error ?? "Unknown error"}`);
+      blankLine();
+    }
   });
 
   // ── Footer ────────────────────────────────────────────────────────────────
@@ -167,6 +190,8 @@ export default function BulkPromptPage() {
       url,
       status: "pending",
       response: "",
+      responses: [],
+      selectedResponseIndex: 0,
     }));
     setResults(initial);
 
@@ -205,11 +230,15 @@ export default function BulkPromptPage() {
             durationMs: Date.now() - start,
           });
         } else {
+          // support new `responses` array from API; fallback to legacy fields
+          const provs = (data.responses as ProviderResponse[] | undefined) ?? (data.response ? [{ provider: data.provider ?? "", response: data.response as string ?? "", durationMs: data.durationMs as number | undefined }] : []);
           updateResult(i, {
             status: "done",
-            response: (data.response as string) ?? "",
-            provider: data.provider as string | undefined,
-            durationMs: Date.now() - start,
+            responses: provs,
+            response: provs[0]?.response ?? (data.response as string) ?? "",
+            provider: provs[0]?.provider ?? (data.provider as string | undefined),
+            durationMs: provs[0]?.durationMs ?? (data.durationMs as number | undefined) ?? Date.now() - start,
+            selectedResponseIndex: 0,
           });
         }
       } catch (err: unknown) {
@@ -546,14 +575,30 @@ export default function BulkPromptPage() {
                     </span>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {r.provider && (
+                      {/* If multiple provider responses exist, show a selector */}
+                      {r.responses && r.responses.length > 1 ? (
+                        <select
+                          value={r.selectedResponseIndex ?? 0}
+                          onChange={(e) => updateResult(i, { selectedResponseIndex: Number(e.target.value) })}
+                          className="text-[10px] font-mono bg-transparent border-none"
+                          style={{ color: "#8b8d9e" }}
+                        >
+                          {r.responses.map((p, idx) => (
+                            <option key={p.provider + idx} value={idx}>
+                              {p.provider}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
                         <span className="text-[10px] font-mono" style={{ color: "#8b8d9e" }}>
-                          {r.provider}
+                          {r.provider ?? r.responses?.[0]?.provider ?? ""}
                         </span>
                       )}
-                      {r.durationMs && (
+
+                      {/* show duration for selected provider if present, otherwise top-level duration */}
+                      {((r.responses && r.responses[r.selectedResponseIndex ?? 0]?.durationMs) || r.durationMs) && (
                         <span className="text-[10px] font-mono" style={{ color: "#8b8d9e" }}>
-                          {msToSec(r.durationMs)}
+                          {msToSec(r.responses?.[r.selectedResponseIndex ?? 0]?.durationMs ?? r.durationMs)}
                         </span>
                       )}
                     </div>
@@ -587,8 +632,14 @@ export default function BulkPromptPage() {
                         className="text-[12px] leading-relaxed line-clamp-3"
                         style={{ color: "#8b8d9e" }}
                       >
-                        {r.response.slice(0, 200)}
-                        {r.response.length > 200 ? "…" : ""}
+                        {(
+                          r.responses && r.responses[r.selectedResponseIndex ?? 0]
+                            ? r.responses[r.selectedResponseIndex ?? 0].response
+                            : r.response
+                        )?.slice(0, 200)}
+                        {((r.responses && r.responses[r.selectedResponseIndex ?? 0]
+                          ? r.responses[r.selectedResponseIndex ?? 0].response
+                          : r.response) || "").length > 200 ? "…" : ""}
                       </p>
                     )}
                   </div>
@@ -614,7 +665,11 @@ export default function BulkPromptPage() {
                   </span>
                   <button
                     onClick={() =>
-                      navigator.clipboard.writeText(results[activeResult!].response)
+                      navigator.clipboard.writeText(
+                        results[activeResult!].responses && results[activeResult!].responses![results[activeResult!].selectedResponseIndex ?? 0]
+                          ? results[activeResult!].responses![results[activeResult!].selectedResponseIndex ?? 0].response
+                          : results[activeResult!].response
+                      )
                     }
                     className="text-[10px] font-mono px-2.5 py-1 rounded-md transition-opacity hover:opacity-70"
                     style={{
@@ -633,7 +688,9 @@ export default function BulkPromptPage() {
                     maxHeight: "420px",
                   }}
                 >
-                  {results[activeResult].response}
+                  {results[activeResult].responses && results[activeResult].responses![results[activeResult].selectedResponseIndex ?? 0]
+                    ? results[activeResult].responses![results[activeResult].selectedResponseIndex ?? 0].response
+                    : results[activeResult].response}
                 </pre>
               </div>
             )}

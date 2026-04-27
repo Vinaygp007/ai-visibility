@@ -125,60 +125,57 @@ export async function POST(request: NextRequest) {
     // Replace placeholder
     const finalPrompt = customPrompt.replace(/\{url\}/g, url);
 
-    // Load settings & find first enabled provider
+    // Load settings & collect enabled providers
     const settings = await loadSettings();
-    const provider = settings?.providers?.find((p) => p.enabled && p.apiKey);
+    const providers = settings?.providers?.filter((p) => p.enabled && p.apiKey) ?? [];
 
-    if (!provider) {
+    if (!providers.length) {
       return NextResponse.json(
         { error: "No AI provider configured. Go to /settings to add API keys." },
         { status: 500, headers: CORS_HEADERS }
       );
     }
 
-    const start = Date.now();
-    let response = "";
+    const responses: { provider: string; response: string; durationMs?: number; error?: string }[] = [];
 
-    switch (provider.id) {
-      case "gemini":
-        response = await callGemini(provider.apiKey, provider.model, finalPrompt);
-        break;
+    // Call each configured provider sequentially to avoid parallel quota spikes
+    for (const prov of providers) {
+      const start = Date.now();
+      try {
+        let text = "";
+        switch (prov.id) {
+          case "gemini":
+            text = await callGemini(prov.apiKey, prov.model, finalPrompt);
+            break;
+          case "openai":
+          case "copilot":
+            text = await callOpenAI(prov.apiKey, prov.model, finalPrompt, "https://api.openai.com/v1");
+            break;
+          case "perplexity":
+            text = await callOpenAI(prov.apiKey, prov.model, finalPrompt, "https://api.perplexity.ai");
+            break;
+          case "claude":
+            text = await callClaude(prov.apiKey, prov.model, finalPrompt);
+            break;
+          default:
+            throw new Error(`Unknown provider id: ${prov.id}`);
+        }
 
-      case "openai":
-      case "copilot":
-        response = await callOpenAI(
-          provider.apiKey,
-          provider.model,
-          finalPrompt,
-          "https://api.openai.com/v1"
-        );
-        break;
-
-      case "perplexity":
-        response = await callOpenAI(
-          provider.apiKey,
-          provider.model,
-          finalPrompt,
-          "https://api.perplexity.ai"
-        );
-        break;
-
-      case "claude":
-        response = await callClaude(provider.apiKey, provider.model, finalPrompt);
-        break;
-
-      default:
-        return NextResponse.json(
-          { error: `Unknown provider id: ${provider.id}` },
-          { status: 500, headers: CORS_HEADERS }
-        );
+        responses.push({ provider: prov.name, response: text, durationMs: Date.now() - start });
+      } catch (e) {
+        responses.push({ provider: prov.name, response: "", durationMs: Date.now() - start, error: String(e) });
+      }
     }
+
+    // For backward compatibility: include top-level response/provider/durationMs as the first successful
+    const firstSuccess = responses.find((r) => r.response && !r.error) ?? responses[0];
 
     return NextResponse.json(
       {
-        response,
-        provider: provider.name,
-        durationMs: Date.now() - start,
+        responses,
+        response: firstSuccess?.response ?? "",
+        provider: firstSuccess?.provider ?? null,
+        durationMs: firstSuccess?.durationMs ?? null,
         url,
       },
       { headers: CORS_HEADERS }
