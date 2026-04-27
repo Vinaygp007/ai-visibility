@@ -9,6 +9,7 @@ export default function Sidebar() {
   const links = [
     { href: "/", label: "Home", icon: "🏠" },
     { href: "/bulk", label: "Bulk Scanner", icon: "⚡" },
+    { href: "/bulk-prompt", label: "Prompt Runner", icon: "✦" },
     { href: "/reports", label: "Previous Reports", icon: "📋" },
     { href: "/settings", label: "Settings", icon: "⚙️" },
   ];
