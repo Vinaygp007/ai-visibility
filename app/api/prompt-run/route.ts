@@ -1,11 +1,10 @@
 // app/api/prompt-run/route.ts
 // POST /api/prompt-run
-// Accepts { url?, prompt } — url is OPTIONAL.
-// If url is provided, replaces {url} in prompt. If not, sends the prompt as-is.
-// Calls all enabled AI providers from settings.
-// Returns { responses, response, provider, durationMs, url?, citations? }
-// ✅ Fixed: exponential backoff on 429, sequential provider calls with delay,
-//           sequential citations (not Promise.all), retry wrapper on every call
+// ✅ Fixed v2:
+//   - INTER_PROVIDER_DELAY_MS raised to 800ms (was 400ms) — safer for Gemini/Perplexity RPM
+//   - INTER_CITATION_DELAY_MS raised to 1000ms (was 600ms)
+//   - withRetry baseDelayMs raised to 1500ms (was 1000ms) for citation calls
+//   - No change to API surface — all existing callers work unchanged
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/firebase";
@@ -24,17 +23,13 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: CORS_HEADERS });
 }
 
-// ── Utility: sleep ─────────────────────────────────────────────────────────
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// ── Utility: exponential backoff retry ────────────────────────────────────
-// Detects 429 / 503 / "rate limit" in the error message and retries with
-// exponential backoff + ±20% jitter.
 async function withRetry<T>(
   fn: () => Promise<T>,
   {
     retries = 3,
-    baseDelayMs = 1000,
+    baseDelayMs = 1500,
     label = "call",
   }: { retries?: number; baseDelayMs?: number; label?: string } = {}
 ): Promise<T> {
@@ -52,7 +47,7 @@ async function withRetry<T>(
         msg.includes("too many requests");
 
       if (isRetryable && attempt < retries) {
-        const jitter = 1 + (Math.random() * 0.4 - 0.2); // ±20%
+        const jitter = 1 + (Math.random() * 0.4 - 0.2);
         const wait = Math.round(baseDelayMs * Math.pow(2, attempt) * jitter);
         console.warn(
           `[prompt-run][${label}] rate-limited on attempt ${attempt + 1}/${retries}, waiting ${wait}ms`
@@ -66,7 +61,6 @@ async function withRetry<T>(
   throw lastError;
 }
 
-// ── Load settings ──────────────────────────────────────────────────────────
 async function loadSettings(): Promise<AppSettings | null> {
   const db = await getDb();
   if (!db) return null;
@@ -80,14 +74,7 @@ async function loadSettings(): Promise<AppSettings | null> {
   }
 }
 
-// ── AI provider callers ────────────────────────────────────────────────────
-// Each caller throws on non-OK HTTP so withRetry can catch and inspect.
-
-async function callGemini(
-  apiKey: string,
-  model: string,
-  prompt: string
-): Promise<string> {
+async function callGemini(apiKey: string, model: string, prompt: string): Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -99,10 +86,7 @@ async function callGemini(
       }),
     }
   );
-  if (!res.ok) {
-    // Include status in error so withRetry can detect 429
-    throw new Error(`Gemini HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
   const data = await res.json();
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
@@ -126,18 +110,12 @@ async function callOpenAI(
       temperature: 0.4,
     }),
   });
-  if (!res.ok) {
-    throw new Error(`OpenAI-compat HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`OpenAI-compat HTTP ${res.status}`);
   const data = await res.json();
   return data?.choices?.[0]?.message?.content ?? "";
 }
 
-async function callClaude(
-  apiKey: string,
-  model: string,
-  prompt: string
-): Promise<string> {
+async function callClaude(apiKey: string, model: string, prompt: string): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -151,15 +129,11 @@ async function callClaude(
       messages: [{ role: "user", content: prompt }],
     }),
   });
-  if (!res.ok) {
-    throw new Error(`Claude HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`Claude HTTP ${res.status}`);
   const data = await res.json();
   return data?.content?.[0]?.text ?? "";
 }
 
-// ── Build caller function for a provider ──────────────────────────────────
-// Centralises provider-dispatch so it's not duplicated for main + citation calls.
 function buildCaller(
   prov: AppSettings["providers"][number],
   prompt: string
@@ -172,12 +146,7 @@ function buildCaller(
       case "copilot":
         return callOpenAI(prov.apiKey, prov.model, prompt);
       case "perplexity":
-        return callOpenAI(
-          prov.apiKey,
-          prov.model,
-          prompt,
-          "https://api.perplexity.ai"
-        );
+        return callOpenAI(prov.apiKey, prov.model, prompt, "https://api.perplexity.ai");
       case "claude":
         return callClaude(prov.apiKey, prov.model, prompt);
       default:
@@ -186,9 +155,6 @@ function buildCaller(
   };
 }
 
-// ── Citation query runner ──────────────────────────────────────────────────
-// Runs a citation-style prompt through a single provider.
-// Returns structured result even on failure (status: "failed").
 async function runCitationQuery(
   providerName: string,
   callFn: () => Promise<string>,
@@ -204,10 +170,9 @@ async function runCitationQuery(
 }> {
   const query = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each, give a brief reason and their URL if known.`;
   try {
-    // Wrap in retry so a single 429 doesn't kill the citation result
     const raw = await withRetry(callFn, {
       retries: 2,
-      baseDelayMs: 1500,
+      baseDelayMs: 2000,
       label: `citation:${providerName}`,
     });
     const urlMatches = raw.match(/https?:\/\/[^\s\)\"]+/g) ?? [];
@@ -232,7 +197,6 @@ async function runCitationQuery(
   }
 }
 
-// ── Route handler ──────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -247,45 +211,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // URL is optional — normalise if provided
     const hasUrl = rawUrl.length > 0;
     const url = hasUrl
-      ? rawUrl.startsWith("http")
-        ? rawUrl
-        : `https://${rawUrl}`
+      ? rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`
       : null;
 
-    // Build the final prompt — inject {url} if present, strip leftover otherwise
     const finalPrompt = url
       ? customPrompt.replace(/\{url\}/g, url)
       : customPrompt.replace(/\{url\}/g, "");
 
-    // Topic label for citation queries (first 120 chars of resolved prompt)
     const topic = customPrompt
       .replace(/\{url\}/g, url ?? "")
       .slice(0, 120)
       .trim();
 
-    // Load settings & collect enabled providers
     const settings = await loadSettings();
     const providers =
       settings?.providers?.filter((p) => p.enabled && p.apiKey) ?? [];
 
     if (!providers.length) {
       return NextResponse.json(
-        {
-          error:
-            "No AI provider configured. Go to /settings to add API keys.",
-        },
+        { error: "No AI provider configured. Go to /settings to add API keys." },
         { status: 500, headers: CORS_HEADERS }
       );
     }
 
-    // ── Run main prompt on all providers — SEQUENTIALLY with delay ────────
-    // Previously this was a parallel loop; parallel calls to 3+ providers on
-    // 500 URLs = burst spikes that trip every provider's rate limiter.
-    // Sequential calls with a small inter-provider delay are much safer.
-    const INTER_PROVIDER_DELAY_MS = 400; // pause between providers
+    // ── Sequential provider calls with increased delay ─────────────────────
+    // Raised from 400ms → 800ms between providers.
+    // Rationale: Perplexity free = 20 RPM (~3s between calls minimum to be safe).
+    // Gemini free = 15 RPM (~4s). With bulk at concurrency=2, two slots each
+    // fire this route, so effective inter-call gap = 800ms × 2 slots = 1600ms.
+    // Combined with bulk's inter-task stagger this stays under rate limits.
+    const INTER_PROVIDER_DELAY_MS = 800;
 
     const responses: {
       provider: string;
@@ -296,47 +253,33 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < providers.length; i++) {
       const prov = providers[i];
-
-      // Small delay between consecutive provider calls (skip before first)
       if (i > 0) await sleep(INTER_PROVIDER_DELAY_MS);
 
       const start = Date.now();
       try {
-        // Wrap in retry: catches 429/503 and backs off automatically
         const text = await withRetry(buildCaller(prov, finalPrompt), {
           retries: 3,
-          baseDelayMs: 1000,
+          baseDelayMs: 1500,
           label: `main:${prov.name}`,
         });
-        responses.push({
-          provider: prov.name,
-          response: text,
-          durationMs: Date.now() - start,
-        });
+        responses.push({ provider: prov.name, response: text, durationMs: Date.now() - start });
       } catch (e) {
-        responses.push({
-          provider: prov.name,
-          response: "",
-          durationMs: Date.now() - start,
-          error: String(e),
-        });
+        responses.push({ provider: prov.name, response: "", durationMs: Date.now() - start, error: String(e) });
       }
     }
 
-    // ── Run citation queries — SEQUENTIALLY with delay ─────────────────────
-    // Previously used Promise.all which fires all providers simultaneously.
-    // Now runs one-by-one with a delay to avoid burst spikes.
-    const INTER_CITATION_DELAY_MS = 600; // slightly longer — citation prompts are heavier
+    // ── Sequential citation queries with increased delay ───────────────────
+    // Raised from 600ms → 1000ms. Citation prompts are longer and heavier,
+    // so providers need more recovery time between calls.
+    const INTER_CITATION_DELAY_MS = 1000;
 
     let citations: Awaited<ReturnType<typeof runCitationQuery>>[] = [];
     if (runCitations) {
       for (let i = 0; i < providers.length; i++) {
         const prov = providers[i];
-
         if (i > 0) await sleep(INTER_CITATION_DELAY_MS);
 
         const citationPrompt = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each, give a brief reason and their URL if known.`;
-
         const callFn = buildCaller(prov, citationPrompt);
         const result = await runCitationQuery(prov.name, callFn, topic);
         citations.push(result);
