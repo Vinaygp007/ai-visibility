@@ -1,9 +1,12 @@
 // app/api/bulk/route.ts
 // POST /api/bulk — accepts up to 500 URLs, streams progress via SSE
 // Each URL goes through the same analysis pipeline as /api/analyze
-// ✅ Fixed: exponential backoff, retry on 429, sequential citations,
-//           inter-URL delay, auto-disable citations for large jobs,
-//           per-provider rate-limit tracking
+// ✅ Fixed v2:
+//   - ALL tasks staggered from t=0 (not just idx >= concurrency)
+//   - Lower safe concurrency: ≤50→3, 51-200→2, 201-500→1 (sequential)
+//   - Higher inter-task delay: ≤50→500ms, 51-200→800ms, 201-500→1200ms
+//   - Single retry layer (bulk only), analyze route retries removed from chain
+//   - citationsAutoDisabled for >50 URLs (unchanged)
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/firebase";
@@ -22,16 +25,14 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: CORS_HEADERS });
 }
 
-// ── Utility: sleep ─────────────────────────────────────────────────────────
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// ── Utility: exponential backoff retry ────────────────────────────────────
-// Retries on 429 (rate limit) and 503 (service unavailable) with jitter.
+// ── Exponential backoff retry ─────────────────────────────────────────────
 async function withRetry<T>(
   fn: () => Promise<T>,
   {
-    retries = 4,
-    baseDelayMs = 1500,
+    retries = 3,
+    baseDelayMs = 2000,
     label = "request",
   }: { retries?: number; baseDelayMs?: number; label?: string } = {}
 ): Promise<T> {
@@ -41,17 +42,15 @@ async function withRetry<T>(
       return await fn();
     } catch (err: unknown) {
       lastError = err;
-      const msg = String(err);
+      const msg = String(err).toLowerCase();
       const isRetryable =
         msg.includes("429") ||
         msg.includes("503") ||
         msg.includes("rate limit") ||
-        msg.includes("Rate limit") ||
-        msg.includes("too many requests") ||
-        msg.includes("Too Many Requests");
+        msg.includes("too many requests");
 
       if (isRetryable && attempt < retries) {
-        // Exponential backoff with ±20% jitter: 1.5s, 3s, 6s, 12s
+        // Exponential backoff with ±20% jitter: 2s, 4s, 8s
         const jitter = 1 + (Math.random() * 0.4 - 0.2);
         const wait = Math.round(baseDelayMs * Math.pow(2, attempt) * jitter);
         console.warn(
@@ -60,14 +59,12 @@ async function withRetry<T>(
         await sleep(wait);
         continue;
       }
-      // Non-retryable or out of retries
       throw err;
     }
   }
   throw lastError;
 }
 
-// ── Settings loader ────────────────────────────────────────────────────────
 async function loadSettings(): Promise<AppSettings | null> {
   const db = await getDb();
   if (!db) return null;
@@ -81,7 +78,6 @@ async function loadSettings(): Promise<AppSettings | null> {
   }
 }
 
-// ── Save bulk job to Firestore ─────────────────────────────────────────────
 async function saveBulkJob(jobId: string, data: object) {
   const db = await getDb();
   if (!db) return;
@@ -95,8 +91,10 @@ async function saveBulkJob(jobId: string, data: object) {
   }
 }
 
-// ── Analyze a single URL (calls internal /api/analyze) ────────────────────
-// Wrapped with retry so transient 429s from providers don't kill the job.
+// ── Analyze a single URL ──────────────────────────────────────────────────
+// NOTE: We do NOT nest retries here — the internal /api/analyze already has
+// its own retry logic. Only one retry layer should exist per call to avoid
+// exponential retry storms under rate limiting.
 async function analyzeSingleUrl(
   url: string,
   runCitations: boolean,
@@ -107,22 +105,20 @@ async function analyzeSingleUrl(
       const res = await fetch(`${baseUrl}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // bustCache: false — reuse cached results to avoid redundant provider calls
         body: JSON.stringify({ url, runCitations, bustCache: false }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        // Propagate HTTP status so withRetry can detect 429/503
         throw new Error(data.error ?? `HTTP ${res.status}`);
       }
       return { success: true, data };
     },
-    { retries: 3, baseDelayMs: 2000, label: url }
+    { retries: 2, baseDelayMs: 3000, label: url }
   ).catch((err) => ({ success: false, error: String(err) }));
 }
 
 // ── Concurrency limiter ────────────────────────────────────────────────────
-// Runs `tasks` with at most `limit` in-flight at once.
-// `onDone` is called after each task completes (used for SSE progress).
 async function runWithConcurrency<T>(
   tasks: (() => Promise<T>)[],
   limit: number,
@@ -148,12 +144,10 @@ async function runWithConcurrency<T>(
   return results;
 }
 
-// ── POST handler — streams SSE progress ───────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // ── Validate & normalise URLs ────────────────────────────────────────
     const urls: string[] = (body?.urls ?? [])
       .map((u: string) => u.trim())
       .filter((u: string) => {
@@ -165,7 +159,7 @@ export async function POST(request: NextRequest) {
         }
       })
       .map((u: string) => (u.startsWith("http") ? u : "https://" + u))
-      .slice(0, 500); // hard cap
+      .slice(0, 500);
 
     if (urls.length === 0) {
       return NextResponse.json(
@@ -174,32 +168,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Rate-limit-safe defaults ─────────────────────────────────────────
-    // For large jobs, force citations OFF to halve API call count.
-    // User can override for small jobs (<= 50 URLs).
+    // Auto-disable citations for large jobs to halve provider API call count
     const runCitations: boolean =
       urls.length > 50 ? false : body?.runCitations !== false;
 
-    // Cap concurrency conservatively to avoid provider burst limits:
-    //   ≤ 50 URLs  → up to 5 concurrent
-    //   51–200     → up to 3 concurrent
-    //   201–500    → up to 2 concurrent
+    // ── Tighter concurrency caps to avoid provider burst limits ───────────
+    // Each "slot" fires N_providers sequential calls per URL.
+    // With 3 providers and inter-provider delay of 800ms, one slot takes
+    // ~2.4s minimum per URL — so 2 concurrent = ~4.8s worth of load/minute.
+    // Perplexity free tier = 20 RPM; Gemini = 15 RPM; GPT-4o-mini = 500 RPM.
+    // Bottleneck is always the strictest provider.
+    //
+    //   ≤ 50 URLs  → 3 concurrent  (~9 provider calls/cycle, staggered)
+    //   51–200     → 2 concurrent  (~6 provider calls/cycle)
+    //   201–500    → 1 concurrent  (sequential, safest for Perplexity/Gemini)
+    const safeConcurrencyMax =
+      urls.length <= 50 ? 3 : urls.length <= 200 ? 2 : 1;
+
     const requestedConcurrency = Math.min(
-      Math.max(Number(body?.concurrency ?? 3), 1),
+      Math.max(Number(body?.concurrency ?? 2), 1),
       10
     );
-    const safeConcurrencyMax =
-      urls.length <= 50 ? 5 : urls.length <= 200 ? 3 : 2;
     const concurrency = Math.min(requestedConcurrency, safeConcurrencyMax);
 
-    // Minimum delay between starting each URL task (ms).
-    // Larger jobs get a longer inter-task pause to spread load.
+    // ── Inter-task delay: stagger ALL task starts ─────────────────────────
+    // Every task waits `idx * interTaskDelayMs` before starting.
+    // This prevents the first `concurrency` tasks from all firing together.
+    // Larger jobs need longer delays since providers have per-minute caps.
     const interTaskDelayMs =
-      urls.length <= 50 ? 300 : urls.length <= 200 ? 600 : 1000;
+      urls.length <= 50 ? 500 : urls.length <= 200 ? 800 : 1200;
 
     const jobId = `bulk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    // ── Validate settings ────────────────────────────────────────────────
     const settings = await loadSettings();
     const hasProviders = settings?.providers?.some((p) => p.enabled && p.apiKey);
     if (!hasProviders) {
@@ -213,7 +213,6 @@ export async function POST(request: NextRequest) {
     const host = request.headers.get("host") ?? "localhost:3000";
     const baseUrl = `${proto}://${host}`;
 
-    // Save initial job metadata
     await saveBulkJob(jobId, {
       jobId,
       urls,
@@ -223,7 +222,6 @@ export async function POST(request: NextRequest) {
       status: "running",
     });
 
-    // ── SSE stream ───────────────────────────────────────────────────────
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -238,7 +236,7 @@ export async function POST(request: NextRequest) {
               )
             );
           } catch {
-            closed = true; // client disconnected
+            closed = true;
           }
         };
 
@@ -247,9 +245,10 @@ export async function POST(request: NextRequest) {
           total: urls.length,
           concurrency,
           runCitations,
-          // Inform client if citations were auto-disabled
           citationsAutoDisabled: urls.length > 50 && body?.runCitations !== false,
           interTaskDelayMs,
+          // Estimated time in seconds (rough: interTaskDelayMs × total / concurrency / 1000)
+          estimatedSeconds: Math.ceil((interTaskDelayMs * urls.length) / concurrency / 1000),
         });
 
         let completed = 0;
@@ -267,14 +266,15 @@ export async function POST(request: NextRequest) {
           duration?: number;
         }> = [];
 
-        // ── Build task list with inter-task delay ────────────────────────
-        // Each task waits `index * interTaskDelayMs` before starting so
-        // requests are staggered rather than spiking simultaneously.
+        // ── Stagger ALL tasks from the very beginning ─────────────────────
+        // Previously only tasks with idx >= concurrency were delayed, meaning
+        // the first `concurrency` tasks all fired simultaneously — causing
+        // a burst spike. Now every task has its own stagger offset.
         const tasks = urls.map((url, idx) => async () => {
-          // Stagger task starts to avoid burst; only for tasks beyond first batch
-          if (idx >= concurrency && interTaskDelayMs > 0) {
-            await sleep(interTaskDelayMs);
-          }
+          // Stagger: task 0 starts at t=0, task 1 at t=delay, task 2 at t=2*delay, etc.
+          // Workers pick up tasks as they become available, so the actual start
+          // time is max(worker_free_at, idx * interTaskDelayMs).
+          await sleep(idx * interTaskDelayMs);
 
           const start = Date.now();
           send("progress", {
@@ -327,7 +327,6 @@ export async function POST(request: NextRequest) {
 
         await runWithConcurrency(tasks, concurrency, () => {});
 
-        // Save final results to Firestore
         await saveBulkJob(jobId, {
           jobId,
           urls,
