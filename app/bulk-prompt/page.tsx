@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface ProviderResponse {
@@ -20,15 +20,22 @@ interface CitationResult {
   error?: string;
 }
 
-interface RunResult {
-  url: string | null;
-  hasUrl: boolean;
-  topic: string;
+type PromptStatus = "idle" | "running" | "done" | "error";
+
+interface PromptContainer {
+  id: string;
+  prompt: string;
+  status: PromptStatus;
   responses: ProviderResponse[];
   citations: CitationResult[];
+  topic: string;
+  error: string | null;
+  activeProvider: string;
+  activeTab: "responses" | "citations";
+  activeCitProvider: string;
 }
 
-// ── Provider colours (matches rest of app) ────────────────────────────────
+// ── Provider colours ──────────────────────────────────────────────────────
 const PROVIDER_CONFIG: Record<string, { color: string; bg: string; border: string; icon: string }> = {
   "Gemini 2.0 Flash":      { color: "#4285f4", bg: "rgba(66,133,244,0.1)",  border: "rgba(66,133,244,0.28)", icon: "✦" },
   "ChatGPT (GPT-4o-mini)": { color: "#10a37f", bg: "rgba(16,163,127,0.1)", border: "rgba(16,163,127,0.28)", icon: "⬡" },
@@ -38,35 +45,16 @@ const PROVIDER_CONFIG: Record<string, { color: string; bg: string; border: strin
   "Microsoft Copilot":     { color: "#0078d4", bg: "rgba(0,120,212,0.1)",   border: "rgba(0,120,212,0.28)", icon: "⊞" },
 };
 
-const DEFAULT_PROMPT = `You are an AI Visibility Auditor. Analyse the website at {url} and answer the following:
+const DEFAULT_PROVIDER_CFG = { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
 
-1. Is this website likely to be cited or referenced by AI assistants (ChatGPT, Gemini, Perplexity)?
-2. What is the primary topic or industry of this site?
-3. List 3 specific improvements that would increase its AI discoverability.
-4. Rate its current AI visibility: Poor / Fair / Good / Excellent — and explain why.
+const PROMPT_PRESETS = [
+  "Best 5 CRM platforms for startups — rank them with pros, cons, and pricing URL.",
+  "Top 5 AI writing tools in 2025 — who are they best for? Include website URLs.",
+  "Best project management software for remote teams — compare features and pricing.",
+  "Top 5 email marketing platforms — rank by deliverability, ease of use, and cost.",
+];
 
-Be concise but specific. Format your response clearly with numbered sections.`;
-
-const DEFAULT_PROMPT_NO_URL = `You are a market research expert. Answer the following clearly and specifically:
-
-Best 5 selling booking platforms — rank them, explain what makes each one stand out, who they are best for, and provide their website URL.`;
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-function dotColor(count: number) {
-  if (count === 0) return "#ff5a5a";
-  if (count < 3) return "#ffb830";
-  return "#00e87a";
-}
-
-function parseDomain(url: string) {
-  try {
-    const u = new URL(url);
-    return u.hostname.replace(/^www\./, "");
-  } catch {
-    return url.slice(0, 30);
-  }
-}
-
+// ── Markdown renderer ─────────────────────────────────────────────────────
 function renderMarkdown(text: string) {
   return text.split("\n").map((line, i) => {
     const h2 = line.match(/^## (.+)/);
@@ -76,691 +64,746 @@ function renderMarkdown(text: string) {
     const bold = (t: string) =>
       t.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#e0e0e8">$1</strong>');
 
-    if (h2) return <h2 key={i} style={{ color: "#fff", fontSize: 14, fontWeight: 700, margin: "12px 0 4px" }} dangerouslySetInnerHTML={{ __html: bold(h2[1]) }} />;
-    if (h3) return <h3 key={i} style={{ color: "#e0e0ea", fontSize: 13, fontWeight: 600, margin: "10px 0 3px" }} dangerouslySetInnerHTML={{ __html: bold(h3[1]) }} />;
+    if (h2) return <h2 key={i} style={{ color: "#fff", fontSize: 13, fontWeight: 700, margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: bold(h2[1]) }} />;
+    if (h3) return <h3 key={i} style={{ color: "#e0e0ea", fontSize: 12, fontWeight: 600, margin: "8px 0 2px" }} dangerouslySetInnerHTML={{ __html: bold(h3[1]) }} />;
     if (bullet) return (
       <div key={i} style={{ display: "flex", gap: 6, margin: "2px 0" }}>
         <span style={{ color: "#00e5ff", flexShrink: 0 }}>•</span>
-        <span style={{ color: "#c9cdd4", fontSize: 13 }} dangerouslySetInnerHTML={{ __html: bold(bullet[1]) }} />
+        <span style={{ color: "#c9cdd4", fontSize: 12 }} dangerouslySetInnerHTML={{ __html: bold(bullet[1]) }} />
       </div>
     );
     if (numbered) return (
-      <div key={i} style={{ display: "flex", gap: 6, margin: "3px 0" }}>
-        <span style={{ color: "#00e5ff", flexShrink: 0, minWidth: 18, fontSize: 13 }}>{numbered[1]}.</span>
-        <span style={{ color: "#c9cdd4", fontSize: 13 }} dangerouslySetInnerHTML={{ __html: bold(numbered[2]) }} />
+      <div key={i} style={{ display: "flex", gap: 6, margin: "2px 0" }}>
+        <span style={{ color: "#00e5ff", flexShrink: 0, minWidth: 16, fontSize: 12 }}>{numbered[1]}.</span>
+        <span style={{ color: "#c9cdd4", fontSize: 12 }} dangerouslySetInnerHTML={{ __html: bold(numbered[2]) }} />
       </div>
     );
     if (line.trim() === "") return <br key={i} />;
-    return <p key={i} style={{ color: "#c9cdd4", fontSize: 13, margin: "2px 0" }} dangerouslySetInnerHTML={{ __html: bold(line) }} />;
+    return <p key={i} style={{ color: "#c9cdd4", fontSize: 12, margin: "1px 0" }} dangerouslySetInnerHTML={{ __html: bold(line) }} />;
   });
 }
 
-// ── Single result card ────────────────────────────────────────────────────
-function ResultCard({ result }: { result: RunResult }) {
-  const [tab, setTab] = useState<"responses" | "citations">("responses");
-  const [activeResp, setActiveResp] = useState(result.responses[0]?.provider ?? "");
-  const [activeCit, setActiveCit] = useState(result.citations[0]?.provider ?? "");
+function dotColor(count: number) {
+  if (count === 0) return "#ff5a5a";
+  if (count < 3) return "#ffb830";
+  return "#00e87a";
+}
 
-  const respData = result.responses.find((r) => r.provider === activeResp);
-  const citData = result.citations.find((c) => c.provider === activeCit);
-  const hasCitations = result.citations.length > 0;
+// ── Single prompt container card ──────────────────────────────────────────
+function PromptCard({
+  container,
+  index,
+  runCitations,
+  onUpdate,
+  onRemove,
+  onRun,
+}: {
+  container: PromptContainer;
+  index: number;
+  runCitations: boolean;
+  onUpdate: (id: string, patch: Partial<PromptContainer>) => void;
+  onRemove: (id: string) => void;
+  onRun: (id: string) => void;
+}) {
+  const { id, prompt, status, responses, citations, error, activeProvider, activeTab, activeCitProvider } = container;
 
-  const cfg = PROVIDER_CONFIG[activeResp] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
-  const citCfg = PROVIDER_CONFIG[activeCit] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
+  const hasCitations = citations.length > 0;
+  const respData = responses.find((r) => r.provider === activeProvider);
+  const citData = citations.find((c) => c.provider === activeCitProvider);
+  const cfg = PROVIDER_CONFIG[activeProvider] ?? DEFAULT_PROVIDER_CFG;
+  const citCfg = PROVIDER_CONFIG[activeCitProvider] ?? DEFAULT_PROVIDER_CFG;
+
+  const isRunning = status === "running";
+  const isDone = status === "done";
+  const isError = status === "error";
+
+  const statusColor = isRunning ? "#ffb830" : isDone ? "#00e87a" : isError ? "#ff5a5a" : "#4b5563";
+  const statusLabel = isRunning ? "Running…" : isDone ? "Done" : isError ? "Error" : "Idle";
 
   return (
-    <div className="rounded-2xl border overflow-hidden mb-4" style={{ background: "#111219", borderColor: "rgba(255,255,255,0.08)" }}>
-      {/* Card header */}
-      <div className="px-5 py-3.5 border-b flex items-center justify-between flex-wrap gap-3"
-        style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
-        <div className="flex items-center gap-3">
-          {result.hasUrl ? (
-            <>
-              <span className="text-sm font-semibold text-white">{parseDomain(result.url!)}</span>
-              <a href={result.url!} target="_blank" rel="noreferrer"
-                className="text-[11px] font-mono hover:underline" style={{ color: "#4285f4" }}>
-                {result.url}
-              </a>
-            </>
-          ) : (
-            <span className="text-sm font-semibold text-white truncate max-w-xs" title={result.topic}>
-              {result.topic.length > 60 ? result.topic.slice(0, 60) + "…" : result.topic}
-            </span>
-          )}
-        </div>
+    <div
+      style={{
+        background: "#111219",
+        border: `1px solid ${isRunning ? "rgba(255,184,48,0.25)" : isDone ? "rgba(0,232,122,0.18)" : isError ? "rgba(255,90,90,0.18)" : "rgba(255,255,255,0.08)"}`,
+        borderRadius: 16,
+        overflow: "hidden",
+        transition: "border-color 0.3s",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Card top bar */}
+      <div style={{
+        padding: "10px 14px",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(0,0,0,0.2)",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        flexWrap: "wrap",
+      }}>
+        <span style={{
+          fontSize: 10, fontFamily: "monospace", fontWeight: 700,
+          padding: "2px 8px", borderRadius: 6,
+          color: "#00e5ff", background: "rgba(0,229,255,0.1)", border: "1px solid rgba(0,229,255,0.2)",
+        }}>
+          #{index + 1}
+        </span>
 
-        {/* Tab toggle */}
-        {hasCitations && (
-          <div className="flex items-center gap-1 rounded-lg p-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-            {(["responses", "citations"] as const).map((t) => (
-              <button key={t} onClick={() => setTab(t)}
-                className="px-3 py-1 rounded-md text-[11px] font-medium transition-all"
-                style={{
-                  background: tab === t ? "rgba(0,229,255,0.12)" : "transparent",
-                  color: tab === t ? "#00e5ff" : "#6f7280",
-                  border: tab === t ? "1px solid rgba(0,229,255,0.2)" : "1px solid transparent",
-                }}>
-                {t === "responses" ? `Responses (${result.responses.length})` : `Citations (${result.citations.length})`}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Status dot */}
+        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: statusColor }}>
+          {isRunning ? (
+            <span style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: statusColor,
+              boxShadow: `0 0 6px ${statusColor}`,
+              display: "inline-block",
+              animation: "pulse 1s ease-in-out infinite",
+            }} />
+          ) : (
+            <span style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: statusColor,
+              display: "inline-block",
+            }} />
+          )}
+          {statusLabel}
+        </span>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Run button */}
+        <button
+          onClick={() => onRun(id)}
+          disabled={isRunning || !prompt.trim()}
+          style={{
+            padding: "4px 14px", borderRadius: 8, fontSize: 11, fontWeight: 700,
+            background: isRunning ? "rgba(255,184,48,0.15)" : "linear-gradient(135deg, #00e5ff, #4285f4)",
+            color: isRunning ? "#ffb830" : "#000",
+            border: isRunning ? "1px solid rgba(255,184,48,0.3)" : "none",
+            cursor: isRunning || !prompt.trim() ? "not-allowed" : "pointer",
+            opacity: !prompt.trim() ? 0.4 : 1,
+            transition: "all 0.2s",
+          }}
+        >
+          {isRunning ? "Running…" : isDone ? "↻ Re-run" : "▶ Run"}
+        </button>
+
+        {/* Remove button */}
+        <button
+          onClick={() => onRemove(id)}
+          style={{
+            width: 26, height: 26, borderRadius: 7, fontSize: 13, fontWeight: 700,
+            background: "transparent", color: "#4b5563",
+            border: "1px solid rgba(255,255,255,0.07)",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          ×
+        </button>
       </div>
 
-      {/* ── RESPONSES TAB ── */}
-      {tab === "responses" && (
-        <>
+      {/* Prompt textarea */}
+      <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        <textarea
+          value={prompt}
+          onChange={(e) => onUpdate(id, { prompt: e.target.value })}
+          rows={3}
+          disabled={isRunning}
+          placeholder="Enter your prompt here…"
+          style={{
+            width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: 10, padding: "8px 12px", fontSize: 12, fontFamily: "monospace",
+            color: "#e0e0ea", resize: "vertical", outline: "none",
+            caretColor: "#00e5ff", lineHeight: 1.5,
+            opacity: isRunning ? 0.6 : 1,
+          }}
+        />
+      </div>
+
+      {/* Results area */}
+      {(status !== "idle") && (
+        <div style={{ flex: 1, padding: "10px 14px 12px" }}>
+
+          {/* Error state */}
+          {isError && error && (
+            <div style={{
+              background: "rgba(255,90,90,0.06)", border: "1px solid rgba(255,90,90,0.2)",
+              borderRadius: 10, padding: "10px 14px",
+            }}>
+              <p style={{ color: "#ff5a5a", fontSize: 12, fontWeight: 600, margin: "0 0 4px" }}>✗ Failed</p>
+              <p style={{ color: "#8b8d9e", fontSize: 11, margin: 0 }}>{error}</p>
+            </div>
+          )}
+
+          {/* Loading spinner */}
+          {isRunning && responses.length === 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
+              <span style={{
+                width: 16, height: 16, borderRadius: "50%",
+                border: "2px solid rgba(0,229,255,0.15)",
+                borderTopColor: "#00e5ff",
+                display: "inline-block",
+                animation: "spin 0.8s linear infinite",
+              }} />
+              <span style={{ color: "#8b8d9e", fontSize: 12 }}>Querying providers…</span>
+            </div>
+          )}
+
+          {/* Tab toggle (only when done and has citations) */}
+          {isDone && hasCitations && (
+            <div style={{
+              display: "flex", gap: 4, marginBottom: 10,
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+              borderRadius: 8, padding: 3, width: "fit-content",
+            }}>
+              {(["responses", "citations"] as const).map((t) => (
+                <button key={t}
+                  onClick={() => onUpdate(id, { activeTab: t })}
+                  style={{
+                    padding: "3px 10px", borderRadius: 5, fontSize: 10, fontWeight: 600,
+                    background: activeTab === t ? "rgba(0,229,255,0.12)" : "transparent",
+                    color: activeTab === t ? "#00e5ff" : "#6f7280",
+                    border: activeTab === t ? "1px solid rgba(0,229,255,0.2)" : "1px solid transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  {t === "responses" ? `Responses (${responses.length})` : `Citations (${citations.length})`}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Provider tabs */}
-          <div className="flex flex-wrap gap-2 px-5 pt-4">
-            {result.responses.map((r) => {
-              const pCfg = PROVIDER_CONFIG[r.provider] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
-              const isActive = activeResp === r.provider;
-              return (
-                <button key={r.provider} onClick={() => setActiveResp(r.provider)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border"
-                  style={{
-                    color: isActive ? pCfg.color : "#6f7280",
-                    background: isActive ? pCfg.bg : "transparent",
-                    borderColor: isActive ? pCfg.border : "rgba(255,255,255,0.07)",
-                  }}>
-                  <span style={{ fontSize: 10 }}>{pCfg.icon}</span>
-                  {r.provider}
-                  {r.error && <span className="text-[9px] font-mono px-1 rounded ml-0.5" style={{ color: "#ff5a5a", background: "rgba(255,90,90,0.12)" }}>✗</span>}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="p-5 pt-4">
-            {respData?.error ? (
-              <div className="rounded-xl p-4" style={{ background: "rgba(255,90,90,0.05)", border: "1px solid rgba(255,90,90,0.18)" }}>
-                <p className="text-[13px] font-medium mb-1" style={{ color: "#ff5a5a" }}>✗ Request Failed</p>
-                <p className="text-[12px]" style={{ color: "#8b8d9e" }}>{respData.error}</p>
-              </div>
-            ) : respData ? (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "#8b8d9e" }}>Response</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono" style={{ color: "#4b5563" }}>{cfg.icon} {respData.durationMs}ms</span>
-                    <button onClick={() => navigator.clipboard.writeText(respData.response)}
-                      className="text-[10px] font-mono px-2.5 py-0.5 rounded-lg hover:opacity-80"
-                      style={{ color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-                      Copy
+          {responses.length > 0 && activeTab === "responses" && (
+            <>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                {responses.map((r) => {
+                  const pCfg = PROVIDER_CONFIG[r.provider] ?? DEFAULT_PROVIDER_CFG;
+                  const isActive = activeProvider === r.provider;
+                  return (
+                    <button key={r.provider}
+                      onClick={() => onUpdate(id, { activeProvider: r.provider })}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 500,
+                        color: isActive ? pCfg.color : "#6f7280",
+                        background: isActive ? pCfg.bg : "transparent",
+                        border: `1px solid ${isActive ? pCfg.border : "rgba(255,255,255,0.07)"}`,
+                        cursor: "pointer", transition: "all 0.15s",
+                      }}
+                    >
+                      <span style={{ fontSize: 9 }}>{pCfg.icon}</span>
+                      {r.provider}
+                      {r.error && <span style={{ fontSize: 9, color: "#ff5a5a" }}>✗</span>}
+                      {r.durationMs && !r.error && (
+                        <span style={{ fontSize: 9, color: "#4b5563" }}>{(r.durationMs / 1000).toFixed(1)}s</span>
+                      )}
                     </button>
-                  </div>
-                </div>
-                <div className="px-4 py-3 rounded-xl overflow-y-auto" style={{ background: "rgba(0,0,0,0.22)", border: `1px solid ${cfg.border}`, maxHeight: 400 }}>
-                  {renderMarkdown(respData.response)}
-                </div>
+                  );
+                })}
               </div>
-            ) : null}
-          </div>
-        </>
-      )}
 
-      {/* ── CITATIONS TAB ── */}
-      {tab === "citations" && hasCitations && (
-        <>
-          <div className="flex flex-wrap gap-2 px-5 pt-4">
-            {result.citations.map((c) => {
-              const pCfg = PROVIDER_CONFIG[c.provider] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
-              const isActive = activeCit === c.provider;
-              return (
-                <button key={c.provider} onClick={() => setActiveCit(c.provider)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border"
-                  style={{
-                    color: isActive ? pCfg.color : "#6f7280",
-                    background: isActive ? pCfg.bg : "transparent",
-                    borderColor: isActive ? pCfg.border : "rgba(255,255,255,0.07)",
+              {respData?.error ? (
+                <div style={{
+                  background: "rgba(255,90,90,0.05)", border: "1px solid rgba(255,90,90,0.18)",
+                  borderRadius: 8, padding: "8px 12px",
+                }}>
+                  <p style={{ color: "#ff5a5a", fontSize: 11, margin: 0 }}>✗ {respData.error}</p>
+                </div>
+              ) : respData ? (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                    <span style={{ fontSize: 9, fontFamily: "monospace", color: "#4b5563", textTransform: "uppercase", letterSpacing: 1 }}>Response</span>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(respData.response)}
+                      style={{
+                        fontSize: 9, fontFamily: "monospace", padding: "2px 8px", borderRadius: 5,
+                        color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
+                        cursor: "pointer",
+                      }}
+                    >Copy</button>
+                  </div>
+                  <div style={{
+                    background: "rgba(0,0,0,0.22)", border: `1px solid ${cfg.border}`,
+                    borderRadius: 10, padding: "10px 12px", maxHeight: 260, overflowY: "auto",
                   }}>
-                  <span style={{ fontSize: 10 }}>{pCfg.icon}</span>
-                  {c.provider}
-                  {c.status === "success" && (
-                    <span className="text-[10px] font-mono ml-1" style={{ color: isActive ? pCfg.color : "#4b5563" }}>
-                      {c.count} URL{c.count !== 1 ? "s" : ""}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="p-5 pt-4 space-y-4">
-            {citData?.status === "failed" ? (
-              <div className="rounded-xl p-4" style={{ background: "rgba(255,90,90,0.05)", border: "1px solid rgba(255,90,90,0.18)" }}>
-                <p className="text-[13px] font-medium" style={{ color: "#ff5a5a" }}>✗ Citation query failed</p>
-                <p className="text-[12px] mt-1" style={{ color: "#8b8d9e" }}>{citData.error}</p>
-              </div>
-            ) : citData ? (
-              <>
-                {/* Query shown */}
-                <div>
-                  <p className="text-[10px] font-mono uppercase tracking-wider mb-2" style={{ color: "#8b8d9e" }}>Citation query sent</p>
-                  <div className="text-[13px] px-4 py-3 rounded-xl leading-relaxed" style={{ color: "#e0e0ea", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                    {citData.query}
+                    {renderMarkdown(respData.response)}
                   </div>
                 </div>
+              ) : null}
+            </>
+          )}
 
-                {/* Response */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "#8b8d9e" }}>
-                      Response
-                      <span className="ml-2 normal-case" style={{ color: dotColor(citData.count) }}>
-                        · {citData.count} URL{citData.count !== 1 ? "s" : ""} detected
-                      </span>
+          {/* Citations tab */}
+          {citations.length > 0 && activeTab === "citations" && (
+            <>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                {citations.map((c) => {
+                  const pCfg = PROVIDER_CONFIG[c.provider] ?? DEFAULT_PROVIDER_CFG;
+                  const isActive = activeCitProvider === c.provider;
+                  return (
+                    <button key={c.provider}
+                      onClick={() => onUpdate(id, { activeCitProvider: c.provider })}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 500,
+                        color: isActive ? pCfg.color : "#6f7280",
+                        background: isActive ? pCfg.bg : "transparent",
+                        border: `1px solid ${isActive ? pCfg.border : "rgba(255,255,255,0.07)"}`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontSize: 9 }}>{pCfg.icon}</span>
+                      {c.provider}
+                      {c.status === "success" && (
+                        <span style={{ fontSize: 9, color: dotColor(c.count) }}>
+                          {c.count} URL{c.count !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {citData && (
+                <>
+                  <div style={{ marginBottom: 8 }}>
+                    <p style={{ fontSize: 9, fontFamily: "monospace", color: "#4b5563", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                      Citation query
                     </p>
-                    <button onClick={() => navigator.clipboard.writeText(citData.rawAnswer)}
-                      className="text-[10px] font-mono px-2.5 py-0.5 rounded-lg hover:opacity-80"
-                      style={{ color: citCfg.color, background: citCfg.bg, border: `1px solid ${citCfg.border}` }}>
-                      Copy
-                    </button>
+                    <div style={{
+                      background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+                      borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "#e0e0ea",
+                    }}>
+                      {citData.query}
+                    </div>
                   </div>
-                  <div className="px-4 py-3 rounded-xl overflow-y-auto" style={{ background: "rgba(0,0,0,0.22)", border: `1px solid ${citCfg.border}`, maxHeight: 360 }}>
+
+                  <div style={{
+                    background: "rgba(0,0,0,0.22)", border: `1px solid ${citCfg.border}`,
+                    borderRadius: 10, padding: "10px 12px", maxHeight: 220, overflowY: "auto", marginBottom: 8,
+                  }}>
                     {renderMarkdown(citData.rawAnswer)}
                   </div>
-                </div>
 
-                {/* Cited URLs */}
-                {citData.allCitationUrls.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-mono uppercase tracking-wider mb-2" style={{ color: "#8b8d9e" }}>
-                      Cited URLs ({citData.allCitationUrls.length})
-                    </p>
-                    <div className="space-y-1.5">
-                      {citData.allCitationUrls.map((url, i) => (
+                  {citData.allCitationUrls.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {citData.allCitationUrls.slice(0, 6).map((url, i) => (
                         <a key={i} href={url} target="_blank" rel="noreferrer"
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-mono hover:opacity-80 transition-opacity truncate"
-                          style={{ color: citCfg.color, background: citCfg.bg, border: `1px solid ${citCfg.border}` }}>
-                          <span style={{ color: "#4b5563" }}>{i + 1}.</span>
-                          {url}
+                          style={{
+                            display: "block", padding: "4px 10px", borderRadius: 6, fontSize: 10,
+                            fontFamily: "monospace", color: citCfg.color, background: citCfg.bg,
+                            border: `1px solid ${citCfg.border}`, textDecoration: "none",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          }}
+                        >
+                          {i + 1}. {url}
                         </a>
                       ))}
+                      {citData.allCitationUrls.length > 6 && (
+                        <span style={{ fontSize: 10, color: "#4b5563", fontFamily: "monospace", paddingLeft: 4 }}>
+                          +{citData.allCitationUrls.length - 6} more
+                        </span>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
-                {/* Legend */}
-                <div className="flex items-center gap-5 pt-1">
-                  {[{ color: "#00e87a", label: "3+ = well sourced" }, { color: "#ffb830", label: "1–2 = partial" }, { color: "#ff5a5a", label: "0 = no URLs" }].map(({ color, label }) => (
-                    <div key={label} className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                      <span className="text-[11px]" style={{ color: "#8b8d9e" }}>{label}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : null}
-          </div>
-        </>
+      {/* Idle placeholder */}
+      {status === "idle" && (
+        <div style={{ padding: "10px 14px 14px" }}>
+          <p style={{ fontSize: 11, color: "#4b5563", margin: 0, fontFamily: "monospace" }}>
+            ↑ Enter a prompt and click Run
+          </p>
+        </div>
       )}
     </div>
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────
-export default function BulkPromptPage() {
-  const [mode, setMode] = useState<"single" | "bulk">("single");
-  const [urlMode, setUrlMode] = useState<"with-url" | "no-url">("with-url");
-  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
-  const [singleUrl, setSingleUrl] = useState("");
-  const [bulkUrls, setBulkUrls] = useState("");
-  const [runCitations, setRunCitations] = useState(true);
-  const [isRunning, setIsRunning] = useState(false);
-  const [results, setResults] = useState<RunResult[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const promptRef = useRef<HTMLTextAreaElement>(null);
+// ── ID generator ──────────────────────────────────────────────────────────
+let _id = 0;
+function genId() { return `p_${++_id}_${Math.random().toString(36).slice(2, 6)}`; }
 
-  // When toggling URL mode, switch default prompt and clear stale results
-  const handleUrlModeChange = (next: "with-url" | "no-url") => {
-    setUrlMode(next);
-    setResults([]);
-    setError(null);
-    if (next === "no-url") {
-      setPrompt(DEFAULT_PROMPT_NO_URL);
-    } else {
-      setPrompt(DEFAULT_PROMPT);
-    }
+function makeContainer(prompt = ""): PromptContainer {
+  return {
+    id: genId(),
+    prompt,
+    status: "idle",
+    responses: [],
+    citations: [],
+    topic: "",
+    error: null,
+    activeProvider: "",
+    activeTab: "responses",
+    activeCitProvider: "",
   };
+}
 
-  const hasUrlPlaceholder = prompt.includes("{url}");
-  const charCount = prompt.length;
-  const wordCount = prompt.trim().split(/\s+/).filter(Boolean).length;
+// ── PDF Export ────────────────────────────────────────────────────────────
+async function exportToPdf(containers: PromptContainer[]) {
+  if (!(window as any).jspdf) {
+    await new Promise<void>((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Failed to load jsPDF"));
+      document.head.appendChild(s);
+    });
+  }
+  const { jsPDF } = (window as any).jspdf;
+  const doc: any = new jsPDF({ unit: "mm", format: "a4" });
+  const PW = 210, PH = 297, ML = 15, MR = 15, TW = PW - ML - MR, LH = 5;
+  let y = 15;
 
-  async function runPrompt() {
-    if (!prompt.trim()) return;
+  const writeLine = (text: string, size = 9, bold = false) => {
+    doc.setFontSize(size); doc.setFont("courier", bold ? "bold" : "normal"); doc.setTextColor(20, 20, 20);
+    const wrapped: string[] = doc.splitTextToSize(text, TW);
+    wrapped.forEach((line: string) => {
+      if (y + LH > PH - 12) { doc.addPage(); y = 15; }
+      doc.text(line, ML, y); y += LH;
+    });
+  };
+  const blank = () => { y += LH; };
 
-    // Collect URLs
-    let urls: string[] = [];
-    if (urlMode === "with-url") {
-      if (mode === "single") {
-        if (!singleUrl.trim()) { setError("Please enter a URL"); return; }
-        urls = [singleUrl.trim()];
-      } else {
-        urls = bulkUrls
-          .split("\n")
-          .map((u) => u.trim())
-          .filter((u) => u.length > 0)
-          .slice(0, 50);
-        if (urls.length === 0) { setError("Please enter at least one URL"); return; }
-      }
-    } else {
-      // No-URL mode: single run
-      urls = [""]; // placeholder so we loop once
-    }
+  writeLine("AISCOPE — MULTI-PROMPT REPORT", 11, true);
+  writeLine(`Generated : ${new Date().toLocaleString()}`);
+  writeLine(`Prompts run: ${containers.filter(c => c.status === "done").length} / ${containers.length}`);
+  writeLine("=".repeat(76));
 
-    setIsRunning(true);
-    setError(null);
-    setResults([]);
+  containers.filter(c => c.status === "done").forEach((c, i) => {
+    blank();
+    writeLine(`[Prompt #${i + 1}]  ${c.prompt.slice(0, 80)}`, 9, true);
+    writeLine("-".repeat(76));
+    c.responses.forEach(r => {
+      writeLine(`  ${r.provider}  ${r.durationMs ? `(${(r.durationMs / 1000).toFixed(1)}s)` : ""}`);
+      writeLine(r.response || "(no response)");
+      blank();
+    });
+    writeLine("=".repeat(76));
+  });
+
+  writeLine("Generated by AiScope · aiscope.io");
+  const total = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p); doc.setFontSize(7); doc.setFont("courier", "normal"); doc.setTextColor(130, 130, 130);
+    doc.text(`Page ${p} of ${total}`, PW - MR, PH - 6, { align: "right" });
+  }
+  doc.save(`aiscope-multi-prompt-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────
+export default function MultiPromptPage() {
+  const [containers, setContainers] = useState<PromptContainer[]>([
+    makeContainer(PROMPT_PRESETS[0]),
+    makeContainer(PROMPT_PRESETS[1]),
+  ]);
+  const [runCitations, setRunCitations] = useState(true);
+  const [globalRunning, setGlobalRunning] = useState(false);
+  const [addCount, setAddCount] = useState(1);
+  const runningRef = useRef<Set<string>>(new Set());
+
+  const updateContainer = useCallback((id: string, patch: Partial<PromptContainer>) => {
+    setContainers(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
+  }, []);
+
+  const removeContainer = useCallback((id: string) => {
+    setContainers(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  const addContainers = useCallback((count: number) => {
+    const news = Array.from({ length: count }, () => makeContainer());
+    setContainers(prev => [...prev, ...news]);
+  }, []);
+
+  const runSingle = useCallback(async (id: string) => {
+    if (runningRef.current.has(id)) return;
+
+    setContainers(prev => {
+      const c = prev.find(x => x.id === id);
+      if (!c || !c.prompt.trim()) return prev;
+      return prev.map(x => x.id === id
+        ? { ...x, status: "running", responses: [], citations: [], error: null }
+        : x
+      );
+    });
+
+    runningRef.current.add(id);
+
+    // Get the prompt at call time
+    const c = containers.find(x => x.id === id);
+    if (!c || !c.prompt.trim()) { runningRef.current.delete(id); return; }
 
     try {
-      const newResults: RunResult[] = [];
+      const res = await fetch("/api/prompt-run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: c.prompt, runCitations }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`);
 
-      for (const rawUrl of urls) {
-        const body: Record<string, unknown> = {
-          prompt,
-          runCitations,
-        };
-        if (urlMode === "with-url" && rawUrl) {
-          body.url = rawUrl.startsWith("http") ? rawUrl : "https://" + rawUrl;
-        }
+      const firstProvider = data.responses?.[0]?.provider ?? "";
+      const firstCitProvider = data.citations?.[0]?.provider ?? "";
 
-        const res = await fetch("/api/prompt-run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-
-        const data = await res.json();
-        if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`);
-
-        newResults.push({
-          url: data.url ?? null,
-          hasUrl: data.hasUrl ?? false,
-          topic: data.topic ?? prompt.slice(0, 80),
-          responses: data.responses ?? [],
-          citations: data.citations ?? [],
-        });
-
-        // Stream results as they come
-        setResults([...newResults]);
-      }
+      setContainers(prev => prev.map(x => x.id === id ? {
+        ...x,
+        status: "done",
+        responses: data.responses ?? [],
+        citations: data.citations ?? [],
+        topic: data.topic ?? c.prompt.slice(0, 80),
+        activeProvider: firstProvider,
+        activeCitProvider: firstCitProvider,
+        activeTab: "responses",
+        error: null,
+      } : x));
     } catch (e) {
-      setError(String(e));
+      setContainers(prev => prev.map(x => x.id === id ? {
+        ...x,
+        status: "error",
+        error: String(e),
+      } : x));
     } finally {
-      setIsRunning(false);
+      runningRef.current.delete(id);
     }
-  }
+  }, [containers, runCitations]);
+
+  // Run all in parallel
+  const runAll = useCallback(async () => {
+    setGlobalRunning(true);
+    const toRun = containers.filter(c => c.prompt.trim() && c.status !== "running");
+    await Promise.all(toRun.map(c => runSingle(c.id)));
+    setGlobalRunning(false);
+  }, [containers, runSingle]);
+
+  const clearAll = useCallback(() => {
+    setContainers([makeContainer(), makeContainer()]);
+  }, []);
+
+  const doneCount = containers.filter(c => c.status === "done").length;
+  const runningCount = containers.filter(c => c.status === "running").length;
+  const totalWithPrompt = containers.filter(c => c.prompt.trim()).length;
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0b10", color: "#f0f0f5" }}>
-      {/* Content offset for sidebar */}
-      <div className="pl-64">
-        <div className="max-w-5xl mx-auto px-8 py-10">
+    <div style={{ minHeight: "100vh", background: "#0a0b10", color: "#f0f0f5" }}>
+      <div style={{ paddingLeft: 256 }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 32px 80px" }}>
 
           {/* Page header */}
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-[10px] font-mono px-2.5 py-1 rounded-full border tracking-widest"
-              style={{ color: "#00e5ff", background: "rgba(0,229,255,0.08)", borderColor: "rgba(0,229,255,0.2)" }}>
-              NEW
-            </span>
-            <h1 className="text-2xl font-bold tracking-tight">Bulk Prompt Runner</h1>
-          </div>
-          <div className="flex items-start justify-between gap-4">
-            <p className="text-sm mb-8" style={{ color: "#8b8d9e" }}>
-              Write your own AI prompt · run it against one or many URLs, or without any URL · get AI citations
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <span style={{
+                fontSize: 10, fontFamily: "monospace", fontWeight: 700,
+                padding: "3px 10px", borderRadius: 20,
+                color: "#00e5ff", background: "rgba(0,229,255,0.08)", border: "1px solid rgba(0,229,255,0.2)",
+                letterSpacing: 2,
+              }}>
+                MULTI-PROMPT
+              </span>
+              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.5px" }}>
+                Bulk Prompt Runner
+              </h1>
+            </div>
+            <p style={{ fontSize: 13, color: "#8b8d9e", margin: 0 }}>
+              Add up to 100 independent prompts · run all in parallel · each gets its own AI response
             </p>
-            {results.length > 0 && (
-              <div className="mb-6">
-                <button
-                  onClick={() => void exportToPdf(results, prompt)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                  style={{ background: "#00e5ff", color: "#000" }}
-                >
-                  ↓ Export PDF
-                </button>
-              </div>
+          </div>
+
+          {/* Global controls bar */}
+          <div style={{
+            background: "#111219", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 14, padding: "14px 18px", marginBottom: 24,
+            display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          }}>
+
+            {/* Run all */}
+            <button
+              onClick={runAll}
+              disabled={globalRunning || totalWithPrompt === 0}
+              style={{
+                padding: "8px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+                background: globalRunning ? "rgba(255,184,48,0.15)" : "linear-gradient(135deg, #00e5ff, #4285f4)",
+                color: globalRunning ? "#ffb830" : "#000",
+                border: globalRunning ? "1px solid rgba(255,184,48,0.3)" : "none",
+                cursor: globalRunning || totalWithPrompt === 0 ? "not-allowed" : "pointer",
+                opacity: totalWithPrompt === 0 ? 0.4 : 1,
+              }}
+            >
+              {globalRunning
+                ? `⟳ Running ${runningCount}/${totalWithPrompt}…`
+                : `⚡ Run All (${totalWithPrompt})`}
+            </button>
+
+            {/* Citations toggle */}
+            <button
+              onClick={() => setRunCitations(v => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "7px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600,
+                background: runCitations ? "rgba(0,229,255,0.1)" : "transparent",
+                color: runCitations ? "#00e5ff" : "#8b8d9e",
+                border: `1px solid ${runCitations ? "rgba(0,229,255,0.35)" : "rgba(255,255,255,0.1)"}`,
+                cursor: "pointer",
+              }}
+            >
+              {runCitations ? "✓" : "○"} Citations
+              <span style={{
+                fontSize: 9, fontFamily: "monospace", padding: "1px 5px", borderRadius: 4,
+                background: runCitations ? "rgba(0,229,255,0.12)" : "rgba(255,184,48,0.15)",
+                color: runCitations ? "#00e5ff" : "#ffb830",
+              }}>
+                {runCitations ? "ON" : "OFF"}
+              </span>
+            </button>
+
+            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.07)" }} />
+
+            {/* Add N containers */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, color: "#6f7280", fontFamily: "monospace" }}>Add</span>
+              <input
+                type="number" min={1} max={100} value={addCount}
+                onChange={e => setAddCount(Math.min(100, Math.max(1, Number(e.target.value))))}
+                style={{
+                  width: 52, background: "#0e0f17", border: "1px solid rgba(255,255,255,0.09)",
+                  borderRadius: 7, padding: "4px 8px", fontSize: 12, fontFamily: "monospace",
+                  color: "#e0e0ea", outline: "none", textAlign: "center",
+                }}
+              />
+              <button
+                onClick={() => addContainers(addCount)}
+                disabled={containers.length >= 100}
+                style={{
+                  padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  background: "rgba(0,229,255,0.08)", color: "#00e5ff",
+                  border: "1px solid rgba(0,229,255,0.2)", cursor: "pointer",
+                  opacity: containers.length >= 100 ? 0.4 : 1,
+                }}
+              >
+                + Add Prompt{addCount > 1 ? "s" : ""}
+              </button>
+            </div>
+
+            {/* Quick presets */}
+            <button
+              onClick={() => setContainers(PROMPT_PRESETS.map(p => makeContainer(p)))}
+              style={{
+                padding: "5px 12px", borderRadius: 8, fontSize: 11,
+                background: "transparent", color: "#6f7280",
+                border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer",
+              }}
+            >
+              Load Presets
+            </button>
+
+            <div style={{ flex: 1 }} />
+
+            {/* Stats */}
+            <div style={{ display: "flex", gap: 16, fontSize: 11, fontFamily: "monospace" }}>
+              <span style={{ color: "#4b5563" }}>{containers.length} prompts</span>
+              {runningCount > 0 && <span style={{ color: "#ffb830" }}>⟳ {runningCount} running</span>}
+              {doneCount > 0 && <span style={{ color: "#00e87a" }}>✓ {doneCount} done</span>}
+            </div>
+
+            {/* Export PDF */}
+            {doneCount > 0 && (
+              <button
+                onClick={() => exportToPdf(containers)}
+                style={{
+                  padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                  background: "#00e5ff", color: "#000", border: "none", cursor: "pointer",
+                }}
+              >
+                ↓ Export PDF
+              </button>
+            )}
+
+            {/* Clear all */}
+            {containers.length > 0 && (
+              <button
+                onClick={clearAll}
+                style={{
+                  padding: "5px 12px", borderRadius: 8, fontSize: 11,
+                  background: "transparent", color: "#6f7280",
+                  border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer",
+                }}
+              >
+                Clear All
+              </button>
             )}
           </div>
 
-          <div className="grid grid-cols-5 gap-6">
-            {/* ── Left panel: prompt + controls ── */}
-            <div className="col-span-3 space-y-4">
+          {/* Progress bar (global) */}
+          {globalRunning && (
+            <div style={{
+              borderRadius: 8, overflow: "hidden", marginBottom: 20,
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+              height: 4,
+            }}>
+              <div style={{
+                height: "100%", transition: "width 0.5s",
+                width: `${totalWithPrompt > 0 ? (doneCount / totalWithPrompt) * 100 : 0}%`,
+                background: "linear-gradient(90deg, #00e5ff, #4285f4)",
+              }} />
+            </div>
+          )}
 
-              {/* URL mode toggle */}
-              <div className="flex items-center gap-2 p-1 rounded-xl w-fit"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                {(["with-url", "no-url"] as const).map((m) => (
-                  <button key={m} onClick={() => handleUrlModeChange(m)}
-                    className="px-4 py-2 rounded-lg text-[12px] font-semibold transition-all"
-                    style={{
-                      background: urlMode === m ? "rgba(0,229,255,0.12)" : "transparent",
-                      color: urlMode === m ? "#00e5ff" : "#6f7280",
-                      border: urlMode === m ? "1px solid rgba(0,229,255,0.2)" : "1px solid transparent",
-                    }}>
-                    {m === "with-url" ? "🔗 With URL" : "✦ No URL (general query)"}
-                  </button>
-                ))}
-              </div>
-
-              {/* Prompt editor */}
-              <div className="rounded-2xl border overflow-hidden"
-                style={{ background: "#111219", borderColor: "rgba(255,255,255,0.09)" }}>
-                <div className="px-5 py-3 border-b flex items-center justify-between"
-                  style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                  <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "#8b8d9e" }}>
-                    CUSTOM PROMPT
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {urlMode === "with-url" && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded"
-                        style={{ color: "#00e5ff", background: "rgba(0,229,255,0.1)" }}>
-                        {"{url}"} = replaced with each website
-                      </span>
-                    )}
-                    <button
-                      onClick={() => setPrompt(urlMode === "with-url" ? DEFAULT_PROMPT : DEFAULT_PROMPT_NO_URL)}
-                      className="text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all hover:border-white/20"
-                      style={{ color: "#8b8d9e", borderColor: "rgba(255,255,255,0.1)" }}>
-                      Reset default
-                    </button>
-                  </div>
-                </div>
-
-                <textarea
-                  ref={promptRef}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  rows={10}
-                  className="w-full bg-transparent outline-none resize-none px-5 py-4 text-[13px] leading-relaxed font-mono"
-                  style={{ color: "#e0e0ea", caretColor: "#00e5ff" }}
-                  placeholder={urlMode === "with-url"
-                    ? "Write your prompt here. Use {url} as a placeholder for each website."
-                    : "Write any question or prompt — no URL needed."
-                  }
-                />
-
-                <div className="px-5 py-2.5 border-t flex items-center justify-between"
-                  style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                  <span className="text-[11px] font-mono" style={{ color: "#4b5563" }}>
-                    {charCount} chars · {wordCount} words
-                  </span>
-                  {urlMode === "with-url" ? (
-                    hasUrlPlaceholder ? (
-                      <span className="text-[11px] font-mono" style={{ color: "#00e87a" }}>
-                        ✓ {"{url}"} placeholder found
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-mono" style={{ color: "#ffb830" }}>
-                        ⚠ No {"{url}"} placeholder — same prompt for all URLs
-                      </span>
-                    )
-                  ) : (
-                    <span className="text-[11px] font-mono" style={{ color: "#8b8d9e" }}>
-                      ✦ General prompt mode
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* URL input area — only shown in with-url mode */}
-              {urlMode === "with-url" && (
-                <div className="rounded-2xl border overflow-hidden"
-                  style={{ background: "#111219", borderColor: "rgba(255,255,255,0.09)" }}>
-                  {/* Mode tabs */}
-                  <div className="flex border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                    {(["single", "bulk"] as const).map((m) => (
-                      <button key={m} onClick={() => setMode(m)}
-                        className="flex-1 py-3 text-[12px] font-semibold transition-all"
-                        style={{
-                          background: mode === m ? "rgba(0,229,255,0.06)" : "transparent",
-                          color: mode === m ? "#00e5ff" : "#6f7280",
-                          borderBottom: mode === m ? "2px solid #00e5ff" : "2px solid transparent",
-                        }}>
-                        {m === "single" ? "Single URL" : "Bulk URLs"}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="p-4">
-                    {mode === "single" ? (
-                      <div className="flex items-center gap-3 rounded-xl border px-4 py-2.5"
-                        style={{ background: "#0e0f17", borderColor: "rgba(255,255,255,0.09)" }}>
-                        <span style={{ color: "#8b8d9e", fontSize: 14 }}>🌐</span>
-                        <input
-                          type="text"
-                          value={singleUrl}
-                          onChange={(e) => setSingleUrl(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && runPrompt()}
-                          placeholder="https://yourwebsite.com"
-                          className="flex-1 bg-transparent outline-none text-[13px] text-white"
-                        />
-                      </div>
-                    ) : (
-                      <textarea
-                        value={bulkUrls}
-                        onChange={(e) => setBulkUrls(e.target.value)}
-                        rows={5}
-                        placeholder={"https://site1.com\nhttps://site2.com\nhttps://site3.com"}
-                        className="w-full bg-transparent outline-none resize-none text-[13px] font-mono leading-relaxed"
-                        style={{ color: "#e0e0ea", caretColor: "#00e5ff" }}
-                      />
-                    )}
-                  </div>
-
-                  {mode === "bulk" && (
-                    <div className="px-4 pb-3">
-                      <span className="text-[11px] font-mono" style={{ color: "#4b5563" }}>
-                        {bulkUrls.split("\n").filter((u) => u.trim()).length} URLs entered · max 50
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Options row */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <button
-                  onClick={() => setRunCitations(!runCitations)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all"
-                  style={{
-                    background: runCitations ? "rgba(0,229,255,0.1)" : "transparent",
-                    borderColor: runCitations ? "rgba(0,229,255,0.4)" : "rgba(255,255,255,0.12)",
-                    color: runCitations ? "#00e5ff" : "#8b8d9e",
-                  }}>
-                  <span style={{ fontSize: 13 }}>{runCitations ? "✓" : "○"}</span>
-                  AI Citations
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-                    style={{ background: runCitations ? "rgba(0,229,255,0.12)" : "rgba(255,184,48,0.15)", color: runCitations ? "#00e5ff" : "#ffb830" }}>
-                    {runCitations ? "ON" : "OFF"}
-                  </span>
-                </button>
-                <span className="text-[11px]" style={{ color: "#8b8d9e" }}>
-                  {runCitations ? "Citation sources will be listed per provider" : "Skip citation queries"}
-                </span>
-              </div>
-
-              {/* Run button */}
+          {/* Container grid */}
+          {containers.length === 0 ? (
+            <div style={{
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              minHeight: 240, borderRadius: 16, border: "1px dashed rgba(255,255,255,0.07)",
+              background: "rgba(255,255,255,0.015)",
+            }}>
+              <div style={{ fontSize: 36, marginBottom: 14 }}>🔭</div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 6 }}>No prompts yet</p>
+              <p style={{ fontSize: 12, color: "#8b8d9e", marginBottom: 16 }}>Add prompt containers to get started</p>
               <button
-                onClick={runPrompt}
-                disabled={isRunning || !prompt.trim()}
-                className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-85 active:scale-[0.99]"
-                style={{ background: "linear-gradient(135deg, #00e5ff, #4285f4)", color: "#000" }}>
-                {isRunning
-                  ? "Running…"
-                  : urlMode === "no-url"
-                    ? "✦ Run Prompt →"
-                    : mode === "bulk"
-                      ? `⚡ Run on ${bulkUrls.split("\n").filter((u) => u.trim()).length || 1} URL${bulkUrls.split("\n").filter((u) => u.trim()).length !== 1 ? "s" : ""} →`
-                      : "Run Prompt →"
-                }
+                onClick={() => addContainers(2)}
+                style={{
+                  padding: "8px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+                  background: "linear-gradient(135deg, #00e5ff, #4285f4)", color: "#000",
+                  border: "none", cursor: "pointer",
+                }}
+              >
+                + Add 2 Prompts
               </button>
-
-              {error && (
-                <div className="rounded-xl p-4 text-[13px]"
-                  style={{ background: "rgba(255,90,90,0.06)", border: "1px solid rgba(255,90,90,0.2)", color: "#ff5a5a" }}>
-                  ⚠ {error}
-                </div>
-              )}
             </div>
-
-            {/* ── Right panel: results ── */}
-            <div className="col-span-2">
-              {results.length === 0 && !isRunning ? (
-                <div className="flex flex-col items-center justify-center h-full min-h-64 text-center rounded-2xl border"
-                  style={{ background: "rgba(255,255,255,0.015)", borderColor: "rgba(255,255,255,0.06)", borderStyle: "dashed" }}>
-                  <div className="text-4xl mb-4">🔭</div>
-                  <p className="text-sm font-semibold text-white mb-1">Results will appear here</p>
-                  <p className="text-[12px]" style={{ color: "#8b8d9e" }}>
-                    {urlMode === "no-url"
-                      ? "Write a prompt, then hit Run"
-                      : "Write a prompt, add URLs, then hit Run"}
-                  </p>
-                </div>
-              ) : isRunning && results.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 rounded-2xl border"
-                  style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}>
-                  <div className="spinner w-10 h-10 rounded-full mb-4"
-                    style={{ border: "3px solid rgba(255,255,255,0.08)", borderTopColor: "#00e5ff" }} />
-                  <p className="text-sm font-medium text-white">Running prompt…</p>
-                  <p className="text-[12px] mt-1" style={{ color: "#8b8d9e" }}>Querying all enabled providers</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {isRunning && (
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border"
-                      style={{ background: "rgba(0,229,255,0.04)", borderColor: "rgba(0,229,255,0.15)" }}>
-                      <div className="spinner w-4 h-4 rounded-full flex-shrink-0"
-                        style={{ border: "2px solid rgba(0,229,255,0.2)", borderTopColor: "#00e5ff" }} />
-                      <span className="text-[12px]" style={{ color: "#00e5ff" }}>Still running…</span>
-                    </div>
-                  )}
-                  {results.map((r, i) => <ResultCard key={i} result={r} />)}
-                </div>
-              )}
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))",
+              gap: 14,
+            }}>
+              {containers.map((c, i) => (
+                <PromptCard
+                  key={c.id}
+                  container={c}
+                  index={i}
+                  runCitations={runCitations}
+                  onUpdate={updateContainer}
+                  onRemove={removeContainer}
+                  onRun={runSingle}
+                />
+              ))}
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       <style>{`
-        .spinner { animation: spin 0.9s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.85); }
+        }
       `}</style>
     </div>
   );
-}
-
-// ── PDF Export (plain text) ───────────────────────────────────────────────
-async function exportToPdf(results: RunResult[], prompt: string) {
-  // Load jsPDF from CDN if not already present
-  if (!(window as any).jspdf) {
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load jsPDF"));
-      document.head.appendChild(script);
-    });
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { jsPDF } = (window as any).jspdf;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const doc: any = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-
-  const PW = 210;
-  const PH = 297;
-  const ML = 15;
-  const MR = 15;
-  const TW = PW - ML - MR;
-  const LH = 5;
-  let y = 15;
-
-  const sep = "=".repeat(76);
-  const thin = "-".repeat(76);
-
-  const writeLine = (text: string, size = 9, bold = false) => {
-    doc.setFontSize(size);
-    doc.setFont("courier", bold ? "bold" : "normal");
-    doc.setTextColor(20, 20, 20);
-    const wrapped: string[] = doc.splitTextToSize(text, TW);
-    wrapped.forEach((line: string) => {
-      if (y + LH > PH - 12) {
-        doc.addPage();
-        y = 15;
-      }
-      doc.text(line, ML, y);
-      y += LH;
-    });
-  };
-
-  const blankLine = () => { y += LH; };
-
-  // Header
-  writeLine("AISCOPE — BULK PROMPT REPORT", 11, true);
-  writeLine(`Generated : ${new Date().toLocaleString()}`);
-  writeLine(`Total     : ${results.length}`);
-  writeLine(sep);
-  blankLine();
-
-  writeLine("PROMPT USED", 9, true);
-  writeLine(thin);
-  writeLine(prompt.trim());
-  blankLine();
-  writeLine(sep);
-  writeLine("RESULTS", 9, true);
-  writeLine(sep);
-
-  results.forEach((r, idx) => {
-    blankLine();
-    writeLine(`[${idx + 1}] ${r.hasUrl ? (r.url ?? "(no url)") : (r.topic || "(general)")}`, 9, true);
-
-    // Responses
-    if (r.responses && r.responses.length > 0) {
-      r.responses.forEach((p) => {
-        const meta = [p.provider, p.durationMs ? `${(p.durationMs/1000).toFixed(1)}s` : ""].filter(Boolean).join("  |  ");
-        if (meta) writeLine(`    ${meta}`);
-        writeLine(thin);
-        writeLine(p.response || "(no response)");
-        blankLine();
-      });
-    } else {
-      writeLine(thin);
-      writeLine("(no provider responses)");
-      blankLine();
-    }
-
-    // Citations
-    if (r.citations && r.citations.length > 0) {
-      writeLine("CITATIONS", 9, true);
-      r.citations.forEach((c) => {
-        writeLine(`  Provider: ${c.provider}  ·  ${c.count} URLs`);
-        writeLine(thin);
-        writeLine(c.rawAnswer || "(no answer)");
-        if (c.allCitationUrls && c.allCitationUrls.length > 0) {
-          writeLine("  Cited URLs:");
-          c.allCitationUrls.forEach((u) => writeLine(`    - ${u}`));
-        }
-        blankLine();
-      });
-    }
-
-    writeLine(sep);
-  });
-
-  writeLine("Generated by AiScope  ·  aiscope.io");
-
-  // page numbers
-  const totalPages = doc.internal.getNumberOfPages();
-  for (let p = 1; p <= totalPages; p++) {
-    doc.setPage(p);
-    doc.setFontSize(7);
-    doc.setFont("courier", "normal");
-    doc.setTextColor(130, 130, 130);
-    doc.text(`Page ${p} of ${totalPages}`, PW - MR, PH - 6, { align: "right" });
-  }
-
-  doc.save(`aiscope-prompt-report-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
