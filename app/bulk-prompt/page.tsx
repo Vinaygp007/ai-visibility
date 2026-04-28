@@ -108,10 +108,6 @@ function PromptCard({
   const { id, prompt, status, responses, citations, error, activeProvider, activeTab, activeCitProvider } = container;
 
   const hasCitations = citations.length > 0;
-  const respData = responses.find((r) => r.provider === activeProvider);
-  const citData = citations.find((c) => c.provider === activeCitProvider);
-  const cfg = PROVIDER_CONFIG[activeProvider] ?? DEFAULT_PROVIDER_CFG;
-  const citCfg = PROVIDER_CONFIG[activeCitProvider] ?? DEFAULT_PROVIDER_CFG;
 
   const isRunning = status === "running";
   const isDone = status === "done";
@@ -274,143 +270,202 @@ function PromptCard({
             </div>
           )}
 
-          {/* Provider tabs */}
+          {/* Provider responses — accordion/dropdown style */}
           {responses.length > 0 && activeTab === "responses" && (
-            <>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-                {responses.map((r) => {
-                  const pCfg = PROVIDER_CONFIG[r.provider] ?? DEFAULT_PROVIDER_CFG;
-                  const isActive = activeProvider === r.provider;
-                  return (
-                    <button key={r.provider}
-                      onClick={() => onUpdate(id, { activeProvider: r.provider })}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {responses.map((r) => {
+                const pCfg = PROVIDER_CONFIG[r.provider] ?? DEFAULT_PROVIDER_CFG;
+                const isOpen = activeProvider === r.provider;
+                return (
+                  <div
+                    key={r.provider}
+                    style={{
+                      borderRadius: 10,
+                      border: `1px solid ${isOpen ? pCfg.border : "rgba(255,255,255,0.07)"}`,
+                      background: isOpen ? pCfg.bg : "rgba(0,0,0,0.15)",
+                      overflow: "hidden",
+                      transition: "border-color 0.2s, background 0.2s",
+                    }}
+                  >
+                    {/* Accordion header */}
+                    <button
+                      onClick={() => onUpdate(id, { activeProvider: isOpen ? "" : r.provider })}
                       style={{
-                        display: "flex", alignItems: "center", gap: 5,
-                        padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 500,
-                        color: isActive ? pCfg.color : "#6f7280",
-                        background: isActive ? pCfg.bg : "transparent",
-                        border: `1px solid ${isActive ? pCfg.border : "rgba(255,255,255,0.07)"}`,
-                        cursor: "pointer", transition: "all 0.15s",
+                        width: "100%", display: "flex", alignItems: "center", gap: 8,
+                        padding: "8px 12px", background: "transparent", border: "none",
+                        cursor: "pointer", textAlign: "left",
                       }}
                     >
-                      <span style={{ fontSize: 9 }}>{pCfg.icon}</span>
-                      {r.provider}
-                      {r.error && <span style={{ fontSize: 9, color: "#ff5a5a" }}>✗</span>}
-                      {r.durationMs && !r.error && (
-                        <span style={{ fontSize: 9, color: "#4b5563" }}>{(r.durationMs / 1000).toFixed(1)}s</span>
-                      )}
+                      <span style={{
+                        fontSize: 13, color: isOpen ? pCfg.color : "#6f7280",
+                        flexShrink: 0, transition: "color 0.15s",
+                      }}>
+                        {pCfg.icon}
+                      </span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, flex: 1,
+                        color: isOpen ? pCfg.color : "#9ca3af",
+                        transition: "color 0.15s",
+                      }}>
+                        {r.provider}
+                      </span>
+                      {r.error ? (
+                        <span style={{ fontSize: 9, color: "#ff5a5a", fontFamily: "monospace" }}>✗ failed</span>
+                      ) : r.durationMs ? (
+                        <span style={{ fontSize: 9, color: "#4b5563", fontFamily: "monospace" }}>
+                          {(r.durationMs / 1000).toFixed(1)}s
+                        </span>
+                      ) : null}
+                      <span style={{
+                        fontSize: 10, color: isOpen ? pCfg.color : "#4b5563",
+                        transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                        transition: "transform 0.2s",
+                        marginLeft: 2,
+                      }}>
+                        ▾
+                      </span>
                     </button>
-                  );
-                })}
-              </div>
 
-              {respData?.error ? (
-                <div style={{
-                  background: "rgba(255,90,90,0.05)", border: "1px solid rgba(255,90,90,0.18)",
-                  borderRadius: 8, padding: "8px 12px",
-                }}>
-                  <p style={{ color: "#ff5a5a", fontSize: 11, margin: 0 }}>✗ {respData.error}</p>
-                </div>
-              ) : respData ? (
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-                    <span style={{ fontSize: 9, fontFamily: "monospace", color: "#4b5563", textTransform: "uppercase", letterSpacing: 1 }}>Response</span>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(respData.response)}
-                      style={{
-                        fontSize: 9, fontFamily: "monospace", padding: "2px 8px", borderRadius: 5,
-                        color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
-                        cursor: "pointer",
-                      }}
-                    >Copy</button>
+                    {/* Accordion body */}
+                    {isOpen && (
+                      <div style={{ padding: "0 12px 10px" }}>
+                        {r.error ? (
+                          <div style={{
+                            background: "rgba(255,90,90,0.05)", border: "1px solid rgba(255,90,90,0.18)",
+                            borderRadius: 8, padding: "8px 12px",
+                          }}>
+                            <p style={{ color: "#ff5a5a", fontSize: 11, margin: 0 }}>✗ {r.error}</p>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 5 }}>
+                              <button
+                                onClick={() => navigator.clipboard.writeText(r.response)}
+                                style={{
+                                  fontSize: 9, fontFamily: "monospace", padding: "2px 8px", borderRadius: 5,
+                                  color: pCfg.color, background: "rgba(0,0,0,0.3)", border: `1px solid ${pCfg.border}`,
+                                  cursor: "pointer",
+                                }}
+                              >Copy</button>
+                            </div>
+                            <div style={{
+                              background: "rgba(0,0,0,0.22)", border: `1px solid ${pCfg.border}`,
+                              borderRadius: 10, padding: "10px 12px", maxHeight: 260, overflowY: "auto",
+                            }}>
+                              {renderMarkdown(r.response)}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div style={{
-                    background: "rgba(0,0,0,0.22)", border: `1px solid ${cfg.border}`,
-                    borderRadius: 10, padding: "10px 12px", maxHeight: 260, overflowY: "auto",
-                  }}>
-                    {renderMarkdown(respData.response)}
-                  </div>
-                </div>
-              ) : null}
-            </>
+                );
+              })}
+            </div>
           )}
 
-          {/* Citations tab */}
+          {/* Citations tab — accordion style */}
           {citations.length > 0 && activeTab === "citations" && (
-            <>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-                {citations.map((c) => {
-                  const pCfg = PROVIDER_CONFIG[c.provider] ?? DEFAULT_PROVIDER_CFG;
-                  const isActive = activeCitProvider === c.provider;
-                  return (
-                    <button key={c.provider}
-                      onClick={() => onUpdate(id, { activeCitProvider: c.provider })}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {citations.map((c) => {
+                const pCfg = PROVIDER_CONFIG[c.provider] ?? DEFAULT_PROVIDER_CFG;
+                const isOpen = activeCitProvider === c.provider;
+                return (
+                  <div
+                    key={c.provider}
+                    style={{
+                      borderRadius: 10,
+                      border: `1px solid ${isOpen ? pCfg.border : "rgba(255,255,255,0.07)"}`,
+                      background: isOpen ? pCfg.bg : "rgba(0,0,0,0.15)",
+                      overflow: "hidden",
+                      transition: "border-color 0.2s, background 0.2s",
+                    }}
+                  >
+                    {/* Accordion header */}
+                    <button
+                      onClick={() => onUpdate(id, { activeCitProvider: isOpen ? "" : c.provider })}
                       style={{
-                        display: "flex", alignItems: "center", gap: 5,
-                        padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 500,
-                        color: isActive ? pCfg.color : "#6f7280",
-                        background: isActive ? pCfg.bg : "transparent",
-                        border: `1px solid ${isActive ? pCfg.border : "rgba(255,255,255,0.07)"}`,
-                        cursor: "pointer",
+                        width: "100%", display: "flex", alignItems: "center", gap: 8,
+                        padding: "8px 12px", background: "transparent", border: "none",
+                        cursor: "pointer", textAlign: "left",
                       }}
                     >
-                      <span style={{ fontSize: 9 }}>{pCfg.icon}</span>
-                      {c.provider}
+                      <span style={{ fontSize: 13, color: isOpen ? pCfg.color : "#6f7280", flexShrink: 0 }}>
+                        {pCfg.icon}
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 600, flex: 1, color: isOpen ? pCfg.color : "#9ca3af" }}>
+                        {c.provider}
+                      </span>
                       {c.status === "success" && (
-                        <span style={{ fontSize: 9, color: dotColor(c.count) }}>
+                        <span style={{
+                          fontSize: 9, fontFamily: "monospace",
+                          color: dotColor(c.count),
+                          background: `${dotColor(c.count)}18`,
+                          border: `1px solid ${dotColor(c.count)}44`,
+                          padding: "1px 6px", borderRadius: 4,
+                        }}>
                           {c.count} URL{c.count !== 1 ? "s" : ""}
                         </span>
                       )}
+                      <span style={{
+                        fontSize: 10, color: isOpen ? pCfg.color : "#4b5563",
+                        transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                        transition: "transform 0.2s", marginLeft: 2,
+                      }}>▾</span>
                     </button>
-                  );
-                })}
-              </div>
 
-              {citData && (
-                <>
-                  <div style={{ marginBottom: 8 }}>
-                    <p style={{ fontSize: 9, fontFamily: "monospace", color: "#4b5563", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
-                      Citation query
-                    </p>
-                    <div style={{
-                      background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
-                      borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "#e0e0ea",
-                    }}>
-                      {citData.query}
-                    </div>
+                    {/* Accordion body */}
+                    {isOpen && (
+                      <div style={{ padding: "0 12px 10px" }}>
+                        {/* Citation query */}
+                        <div style={{ marginBottom: 8 }}>
+                          <p style={{ fontSize: 9, fontFamily: "monospace", color: "#4b5563", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                            Citation query
+                          </p>
+                          <div style={{
+                            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+                            borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "#e0e0ea",
+                          }}>
+                            {c.query}
+                          </div>
+                        </div>
+
+                        {/* Raw answer */}
+                        <div style={{
+                          background: "rgba(0,0,0,0.22)", border: `1px solid ${pCfg.border}`,
+                          borderRadius: 10, padding: "10px 12px", maxHeight: 220, overflowY: "auto", marginBottom: 8,
+                        }}>
+                          {renderMarkdown(c.rawAnswer)}
+                        </div>
+
+                        {/* Citation URLs */}
+                        {c.allCitationUrls.length > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            {c.allCitationUrls.slice(0, 6).map((url, i) => (
+                              <a key={i} href={url} target="_blank" rel="noreferrer"
+                                style={{
+                                  display: "block", padding: "4px 10px", borderRadius: 6, fontSize: 10,
+                                  fontFamily: "monospace", color: pCfg.color, background: "rgba(0,0,0,0.2)",
+                                  border: `1px solid ${pCfg.border}`, textDecoration: "none",
+                                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                }}
+                              >
+                                {i + 1}. {url}
+                              </a>
+                            ))}
+                            {c.allCitationUrls.length > 6 && (
+                              <span style={{ fontSize: 10, color: "#4b5563", fontFamily: "monospace", paddingLeft: 4 }}>
+                                +{c.allCitationUrls.length - 6} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-
-                  <div style={{
-                    background: "rgba(0,0,0,0.22)", border: `1px solid ${citCfg.border}`,
-                    borderRadius: 10, padding: "10px 12px", maxHeight: 220, overflowY: "auto", marginBottom: 8,
-                  }}>
-                    {renderMarkdown(citData.rawAnswer)}
-                  </div>
-
-                  {citData.allCitationUrls.length > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      {citData.allCitationUrls.slice(0, 6).map((url, i) => (
-                        <a key={i} href={url} target="_blank" rel="noreferrer"
-                          style={{
-                            display: "block", padding: "4px 10px", borderRadius: 6, fontSize: 10,
-                            fontFamily: "monospace", color: citCfg.color, background: citCfg.bg,
-                            border: `1px solid ${citCfg.border}`, textDecoration: "none",
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          }}
-                        >
-                          {i + 1}. {url}
-                        </a>
-                      ))}
-                      {citData.allCitationUrls.length > 6 && (
-                        <span style={{ fontSize: 10, color: "#4b5563", fontFamily: "monospace", paddingLeft: 4 }}>
-                          +{citData.allCitationUrls.length - 6} more
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
