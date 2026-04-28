@@ -33,7 +33,7 @@ function parseCitedPage(url: string): { domain: string; path: string } {
   }
 }
 
-/** Extract entity/brand mentions from the raw answer (naive: capitalised words / badge-like tokens) */
+/** Extract entitybrand mentions from the raw answer (naive: capitalised words / badge-like tokens) */
 function extractMentions(rawAnswer: string, urls: string[]): string[] {
   // Pull domain names from URLs as primary mention source
   const fromUrls = urls
