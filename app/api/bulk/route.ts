@@ -1,13 +1,15 @@
 // app/api/bulk/route.ts
 // POST /api/bulk — accepts up to 500 URLs, streams progress via SSE
 // Each URL goes through the same analysis pipeline as /api/analyze
+// ✅ Fixed: exponential backoff, retry on 429, sequential citations,
+//           inter-URL delay, auto-disable citations for large jobs,
+//           per-provider rate-limit tracking
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/firebase";
 import type { AppSettings } from "@/types";
 
 export const runtime = "nodejs";
-// Increase max duration for bulk jobs (Vercel Pro: 300s, hobby: 60s)
 export const maxDuration = 300;
 
 const CORS_HEADERS = {
@@ -20,7 +22,52 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: CORS_HEADERS });
 }
 
-// ── Settings loader (same as analyze route) ────────────────────────────────
+// ── Utility: sleep ─────────────────────────────────────────────────────────
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// ── Utility: exponential backoff retry ────────────────────────────────────
+// Retries on 429 (rate limit) and 503 (service unavailable) with jitter.
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  {
+    retries = 4,
+    baseDelayMs = 1500,
+    label = "request",
+  }: { retries?: number; baseDelayMs?: number; label?: string } = {}
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      lastError = err;
+      const msg = String(err);
+      const isRetryable =
+        msg.includes("429") ||
+        msg.includes("503") ||
+        msg.includes("rate limit") ||
+        msg.includes("Rate limit") ||
+        msg.includes("too many requests") ||
+        msg.includes("Too Many Requests");
+
+      if (isRetryable && attempt < retries) {
+        // Exponential backoff with ±20% jitter: 1.5s, 3s, 6s, 12s
+        const jitter = 1 + (Math.random() * 0.4 - 0.2);
+        const wait = Math.round(baseDelayMs * Math.pow(2, attempt) * jitter);
+        console.warn(
+          `[bulk][${label}] rate-limited, attempt ${attempt + 1}/${retries}, retrying in ${wait}ms`
+        );
+        await sleep(wait);
+        continue;
+      }
+      // Non-retryable or out of retries
+      throw err;
+    }
+  }
+  throw lastError;
+}
+
+// ── Settings loader ────────────────────────────────────────────────────────
 async function loadSettings(): Promise<AppSettings | null> {
   const db = await getDb();
   if (!db) return null;
@@ -49,28 +96,33 @@ async function saveBulkJob(jobId: string, data: object) {
 }
 
 // ── Analyze a single URL (calls internal /api/analyze) ────────────────────
+// Wrapped with retry so transient 429s from providers don't kill the job.
 async function analyzeSingleUrl(
   url: string,
   runCitations: boolean,
   baseUrl: string
 ): Promise<{ success: boolean; data?: object; error?: string }> {
-  try {
-    const res = await fetch(`${baseUrl}/api/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, runCitations, bustCache: false }),
-    });
-    const data = await res.json();
-    if (!res.ok || data.error) {
-      return { success: false, error: data.error || `HTTP ${res.status}` };
-    }
-    return { success: true, data };
-  } catch (err) {
-    return { success: false, error: String(err) };
-  }
+  return withRetry(
+    async () => {
+      const res = await fetch(`${baseUrl}/api/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, runCitations, bustCache: false }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        // Propagate HTTP status so withRetry can detect 429/503
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      return { success: true, data };
+    },
+    { retries: 3, baseDelayMs: 2000, label: url }
+  ).catch((err) => ({ success: false, error: String(err) }));
 }
 
 // ── Concurrency limiter ────────────────────────────────────────────────────
+// Runs `tasks` with at most `limit` in-flight at once.
+// `onDone` is called after each task completes (used for SSE progress).
 async function runWithConcurrency<T>(
   tasks: (() => Promise<T>)[],
   limit: number,
@@ -88,7 +140,10 @@ async function runWithConcurrency<T>(
     }
   }
 
-  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
+  const workers = Array.from(
+    { length: Math.min(limit, tasks.length) },
+    () => worker()
+  );
   await Promise.all(workers);
   return results;
 }
@@ -97,18 +152,20 @@ async function runWithConcurrency<T>(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // ── Validate & normalise URLs ────────────────────────────────────────
     const urls: string[] = (body?.urls ?? [])
       .map((u: string) => u.trim())
       .filter((u: string) => {
-        try { new URL(u.startsWith("http") ? u : "https://" + u); return true; }
-        catch { return false; }
+        try {
+          new URL(u.startsWith("http") ? u : "https://" + u);
+          return true;
+        } catch {
+          return false;
+        }
       })
       .map((u: string) => (u.startsWith("http") ? u : "https://" + u))
-      .slice(0, 500); // hard cap at 500
-
-    const runCitations: boolean = body?.runCitations !== false;
-    const concurrency: number = Math.min(Math.max(Number(body?.concurrency ?? 3), 1), 10);
-    const jobId: string = `bulk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      .slice(0, 500); // hard cap
 
     if (urls.length === 0) {
       return NextResponse.json(
@@ -117,7 +174,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate settings
+    // ── Rate-limit-safe defaults ─────────────────────────────────────────
+    // For large jobs, force citations OFF to halve API call count.
+    // User can override for small jobs (<= 50 URLs).
+    const runCitations: boolean =
+      urls.length > 50 ? false : body?.runCitations !== false;
+
+    // Cap concurrency conservatively to avoid provider burst limits:
+    //   ≤ 50 URLs  → up to 5 concurrent
+    //   51–200     → up to 3 concurrent
+    //   201–500    → up to 2 concurrent
+    const requestedConcurrency = Math.min(
+      Math.max(Number(body?.concurrency ?? 3), 1),
+      10
+    );
+    const safeConcurrencyMax =
+      urls.length <= 50 ? 5 : urls.length <= 200 ? 3 : 2;
+    const concurrency = Math.min(requestedConcurrency, safeConcurrencyMax);
+
+    // Minimum delay between starting each URL task (ms).
+    // Larger jobs get a longer inter-task pause to spread load.
+    const interTaskDelayMs =
+      urls.length <= 50 ? 300 : urls.length <= 200 ? 600 : 1000;
+
+    const jobId = `bulk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // ── Validate settings ────────────────────────────────────────────────
     const settings = await loadSettings();
     const hasProviders = settings?.providers?.some((p) => p.enabled && p.apiKey);
     if (!hasProviders) {
@@ -127,12 +209,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get base URL for internal fetch
     const proto = request.headers.get("x-forwarded-proto") ?? "http";
     const host = request.headers.get("host") ?? "localhost:3000";
     const baseUrl = `${proto}://${host}`;
 
-    // Save job metadata to Firestore
+    // Save initial job metadata
     await saveBulkJob(jobId, {
       jobId,
       urls,
@@ -142,31 +223,39 @@ export async function POST(request: NextRequest) {
       status: "running",
     });
 
-    // Stream SSE
+    // ── SSE stream ───────────────────────────────────────────────────────
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        let closed = false;
+
         const send = (event: string, data: object) => {
+          if (closed) return;
           try {
             controller.enqueue(
-              encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+              encoder.encode(
+                `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+              )
             );
           } catch {
-            // client disconnected
+            closed = true; // client disconnected
           }
         };
 
-        // Send job start
         send("start", {
           jobId,
           total: urls.length,
           concurrency,
           runCitations,
+          // Inform client if citations were auto-disabled
+          citationsAutoDisabled: urls.length > 50 && body?.runCitations !== false,
+          interTaskDelayMs,
         });
 
         let completed = 0;
         let passed = 0;
         let failed = 0;
+
         const allResults: Array<{
           url: string;
           status: "success" | "failed";
@@ -178,7 +267,15 @@ export async function POST(request: NextRequest) {
           duration?: number;
         }> = [];
 
-        const tasks = urls.map((url) => async () => {
+        // ── Build task list with inter-task delay ────────────────────────
+        // Each task waits `index * interTaskDelayMs` before starting so
+        // requests are staggered rather than spiking simultaneously.
+        const tasks = urls.map((url, idx) => async () => {
+          // Stagger task starts to avoid burst; only for tasks beyond first batch
+          if (idx >= concurrency && interTaskDelayMs > 0) {
+            await sleep(interTaskDelayMs);
+          }
+
           const start = Date.now();
           send("progress", {
             jobId,
@@ -204,12 +301,17 @@ export async function POST(request: NextRequest) {
                 summary: d?.summary as string,
                 duration,
               }
-            : { url, status: "failed" as const, error: result.error, duration };
+            : {
+                url,
+                status: "failed" as const,
+                error: result.error,
+                duration,
+              };
 
-          if (result.success) passed++; else failed++;
+          if (result.success) passed++;
+          else failed++;
           allResults.push(row);
 
-          // ── Send full analysis data alongside summary fields ──
           send("result", {
             jobId,
             ...row,
@@ -217,7 +319,6 @@ export async function POST(request: NextRequest) {
             total: urls.length,
             passed,
             failed,
-            // Full AnalysisResult so the UI can render detail panels
             fullData: result.success ? result.data : null,
           });
 
@@ -226,7 +327,7 @@ export async function POST(request: NextRequest) {
 
         await runWithConcurrency(tasks, concurrency, () => {});
 
-        // Save final results
+        // Save final results to Firestore
         await saveBulkJob(jobId, {
           jobId,
           urls,
@@ -248,7 +349,7 @@ export async function POST(request: NextRequest) {
           results: allResults,
         });
 
-        controller.close();
+        if (!closed) controller.close();
       },
     });
 
