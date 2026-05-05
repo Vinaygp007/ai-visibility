@@ -532,7 +532,7 @@ async function exportBulkPDF(jobs: BulkJob[]) {
 
   rows.forEach(({ r, fd }, idx) => {
     h.needsSpace(16);
-    const status = r.status === "success" ? "PASS" : r.status === "failed" ? "FAIL" : r.status.toUpperCase();
+    const status = r.status === "success" ? "PASS" : "FAIL";
     const name = r.site_name && r.site_name !== r.url ? r.site_name : "";
     const url = r.url.replace(/^https?:\/\//, "");
     const dur = r.duration ? (r.duration < 1000 ? `${r.duration}ms` : `${(r.duration / 1000).toFixed(1)}s`) : "";
