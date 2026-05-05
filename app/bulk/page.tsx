@@ -751,6 +751,7 @@ export default function BulkPage() {
     if (parsedUrls.length === 0) return;
     abortRef.current = new AbortController();
 
+    // Initialize all rows upfront
     const initialRows: BulkRow[] = parsedUrls.map((url) => ({ url, status: "queued" }));
     setRows(initialRows);
     setPhase("running");
@@ -762,58 +763,75 @@ export default function BulkPage() {
     setJobId("");
     setExpandedUrl(null);
 
+    // Batch into chunks of 50
+    const BATCH_SIZE = 50;
+    const batches: string[][] = [];
+    for (let i = 0; i < parsedUrls.length; i += BATCH_SIZE) {
+      batches.push(parsedUrls.slice(i, i + BATCH_SIZE));
+    }
+
+    let allRows = [...initialRows];
+    let totalCompleted = 0;
+    let totalPassed = 0;
+    let totalFailed = 0;
+
     try {
-      const res = await fetch("/api/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urls: parsedUrls, runCitations, concurrency }),
-        signal: abortRef.current.signal,
-      });
+      // Process each batch sequentially
+      for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+        if (abortRef.current.signal.aborted) break;
 
-      if (!res.ok) {
-        const err = await res.json();
-        setFatalError(err.error ?? "Server error");
-        setPhase("error");
-        return;
-      }
+        const batch = batches[batchIdx];
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+        const res = await fetch("/api/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: batch, runCitations, concurrency }),
+          signal: abortRef.current.signal,
+        });
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+        if (!res.ok) {
+          const err = await res.json();
+          setFatalError(err.error ?? `Batch ${batchIdx + 1} server error`);
+          setPhase("error");
+          return;
+        }
 
-        const events = buffer.split("\n\n");
-        buffer = events.pop() ?? "";
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-        for (const raw of events) {
-          const lines = raw.split("\n");
-          const eventLine = lines.find((l) => l.startsWith("event: "));
-          const dataLine = lines.find((l) => l.startsWith("data: "));
-          if (!eventLine || !dataLine) continue;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
 
-          const event = eventLine.replace("event: ", "").trim();
-          const data = JSON.parse(dataLine.replace("data: ", "").trim());
+          const events = buffer.split("\n\n");
+          buffer = events.pop() ?? "";
 
-          if (event === "start") {
-            setJobId(data.jobId);
-          }
+          for (const raw of events) {
+            const lines = raw.split("\n");
+            const eventLine = lines.find((l) => l.startsWith("event: "));
+            const dataLine = lines.find((l) => l.startsWith("data: "));
+            if (!eventLine || !dataLine) continue;
 
-          if (event === "progress") {
-            setRows((prev) =>
-              prev.map((r) => r.url === data.url ? { ...r, status: "running" } : r)
-            );
-          }
+            const event = eventLine.replace("event: ", "").trim();
+            const data = JSON.parse(dataLine.replace("data: ", "").trim());
 
-          if (event === "result") {
-            setCompleted(data.completed);
-            setPassed(data.passed);
-            setFailed(data.failed);
-            setRows((prev) =>
-              prev.map((r) =>
+            if (event === "start") {
+              setJobId(data.jobId);
+            }
+
+            if (event === "progress") {
+              allRows = allRows.map((r) => r.url === data.url ? { ...r, status: "running" } : r);
+              setRows([...allRows]);
+            }
+
+            if (event === "result") {
+              totalCompleted++;
+              if (data.status === "success") totalPassed++;
+              else if (data.status === "failed") totalFailed++;
+
+              allRows = allRows.map((r) =>
                 r.url === data.url
                   ? {
                       ...r,
@@ -824,19 +842,20 @@ export default function BulkPage() {
                       summary: data.summary,
                       error: data.error,
                       duration: data.duration,
-                      // Store full analysis result
                       fullData: data.fullData ?? undefined,
                     }
                   : r
-              )
-            );
-          }
-
-          if (event === "done") {
-            setPhase("done");
+              );
+              setRows([...allRows]);
+              setCompleted(totalCompleted);
+              setPassed(totalPassed);
+              setFailed(totalFailed);
+            }
           }
         }
       }
+
+      setPhase("done");
     } catch (err: unknown) {
       if ((err as Error)?.name === "AbortError") {
         setPhase("done");
