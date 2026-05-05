@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ReportModal from "@/components/ReportModal";
 import { AnalysisResult } from "@/types";
+import { toPlainText, extractProviderText } from "@/lib/plainText";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -126,6 +127,41 @@ function domainFromUrl(url: string): string {
     return url;
   }
 }
+
+function normalizeBulkAnalysisResult(
+  data: any,
+  fallback?: Partial<BulkResult>
+): AnalysisResult | null {
+  if (!data && !fallback) return null;
+
+  const stats = data?.stats ?? {};
+  const categories = Array.isArray(data?.categories) ? data.categories : [];
+  const recommendations = Array.isArray(data?.recommendations) ? data.recommendations : [];
+  const citations = Array.isArray(data?.citations) ? data.citations : [];
+  const providers = Array.isArray(data?._providers) ? data._providers : [];
+
+  return {
+    site_name: (data?.site_name as string) ?? fallback?.site_name ?? fallback?.url ?? "",
+    url: (data?.url as string) ?? fallback?.url ?? "",
+    overall_score: Number(data?.overall_score ?? data?.score ?? fallback?.score ?? 0),
+    grade: (data?.grade as string) ?? fallback?.grade ?? "—",
+    summary: (data?.summary as string) ?? fallback?.summary ?? "",
+    stats: {
+      checks_passed: Number(stats.checks_passed ?? 0),
+      checks_failed: Number(stats.checks_failed ?? 0),
+      checks_warned: Number(stats.checks_warned ?? 0),
+    },
+    categories,
+    ai_platform_coverage: data?.ai_platform_coverage ?? undefined,
+    recommendations,
+    citations,
+    _providers: providers,
+    _cached: data?._cached ?? false,
+    createdAt: (data?.createdAt as number | null | undefined) ?? null,
+  };
+}
+
+// Using shared plain-text helpers from lib/plainText
 
 // ── Export helpers ────────────────────────────────────────────────────────────
 
@@ -424,124 +460,206 @@ async function exportBulkPDF(jobs: BulkJob[]) {
   const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const h = makePdfHelpers(doc);
 
-  // ── Cover page ────────────────────────────────────────────────────────────
-  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(20, 20, 20);
-  doc.text("AiScope — Bulk Scan Report", 16, 16);
-  doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(90, 90, 90);
+  const rows = jobs.flatMap((job) =>
+    job.results.map((r) => ({
+      job,
+      r,
+      fd: normalizeBulkAnalysisResult(r.fullData, r),
+    }))
+  );
+
+  const successRows = rows.filter(({ r }) => r.status === "success");
+  const failedRows = rows.filter(({ r }) => r.status === "failed");
+  const avgScore = successRows.length
+    ? Math.round(successRows.reduce((sum, { r }) => sum + (r.score ?? 0), 0) / successRows.length)
+    : 0;
+
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(20, 20, 20);
+  doc.text("AiScope — AI Visibility Bulk Report", 16, 16);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(90, 90, 90);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 16, 22);
   doc.text("by Marcstrat", 16, 27);
   h.setY(33);
   h.writeSeparator();
 
   h.writeLabel("Summary");
-  const totalUrls = jobs.reduce((s, j) => s + j.total, 0);
-  const totalPassed = jobs.reduce((s, j) => s + j.passed, 0);
-  const totalFailed = jobs.reduce((s, j) => s + j.failed, 0);
-  const avgScore = (() => {
-    const scored = jobs.flatMap(j => j.results).filter(r => r.score != null);
-    return scored.length ? Math.round(scored.reduce((s, r) => s + (r.score ?? 0), 0) / scored.length) : null;
-  })();
-  h.writeLine(`Total jobs     : ${jobs.length}`, 10);
-  h.writeLine(`Total URLs     : ${totalUrls}`, 10);
-  h.writeLine(`Passed         : ${totalPassed}   Failed: ${totalFailed}`, 10);
-  if (avgScore != null) h.writeLine(`Average score  : ${avgScore} / 100`, 10);
+  h.writeLine(`Total URLs scanned : ${rows.length}`, 10);
+  h.writeLine(`Passed             : ${successRows.length}`, 10);
+  h.writeLine(`Failed             : ${failedRows.length}`, 10);
+  h.writeLine(`Average score      : ${avgScore} / 100`, 10);
   h.setY(h.getY() + 4);
 
-  // ── Per-job pages ─────────────────────────────────────────────────────────
-  jobs.forEach((job, ji) => {
+  const bucketA = successRows.filter(({ r }) => (r.score ?? 0) >= 70).length;
+  const bucketB = successRows.filter(({ r }) => (r.score ?? 0) >= 40 && (r.score ?? 0) < 70).length;
+  const bucketC = successRows.filter(({ r }) => (r.score ?? 0) < 40).length;
+
+  h.writeLabel("Score Distribution");
+  h.writeLine(`Good  (70-100) : ${bucketA} site${bucketA !== 1 ? "s" : ""}`, 10);
+  h.writeLine(`Fair  (40-69)  : ${bucketB} site${bucketB !== 1 ? "s" : ""}`, 10);
+  h.writeLine(`Poor  (0-39)   : ${bucketC} site${bucketC !== 1 ? "s" : ""}`, 10);
+  h.setY(h.getY() + 4);
+
+  const topRows = [...successRows].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).slice(0, 5);
+  if (topRows.length) {
+    h.writeLabel("Top Performers");
+    topRows.forEach(({ r, fd }, i) => {
+      const name = (fd?.site_name || r.site_name || r.url.replace(/^https?:\/\//, "")).slice(0, 60);
+      h.writeLine(`${i + 1}. ${name}  —  Score: ${r.score ?? "—"}  Grade: ${r.grade ?? "—"}`, 9);
+    });
+    h.setY(h.getY() + 4);
+  }
+
+  if (failedRows.length) {
+    h.writeLabel("Failed Sites");
+    failedRows.slice(0, 10).forEach(({ r }) => {
+      h.writeLine(`• ${r.url.replace(/^https?:\/\//, "").slice(0, 60)}`, 9);
+      if (r.error) h.writeLine(`  Error: ${r.error.slice(0, 80)}`, 8, "italic", 4);
+    });
+    h.setY(h.getY() + 4);
+  }
+
+  h.newPage();
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(20, 20, 20);
+  doc.text("All Results", 16, h.getY());
+  h.setY(h.getY() + 8);
+  h.writeSeparator();
+
+  rows.forEach(({ r, fd }, idx) => {
+    h.needsSpace(16);
+    const status = r.status === "success" ? "PASS" : r.status === "failed" ? "FAIL" : r.status.toUpperCase();
+    const name = r.site_name && r.site_name !== r.url ? r.site_name : "";
+    const url = r.url.replace(/^https?:\/\//, "");
+    const dur = r.duration ? (r.duration < 1000 ? `${r.duration}ms` : `${(r.duration / 1000).toFixed(1)}s`) : "";
+
+    h.writeLine(`${idx + 1}. [${status}]  ${url}`, 9, "bold");
+    if (name) h.writeLine(`   ${name}`, 8, "normal", 4);
+    if (r.score != null) h.writeLine(`   Score: ${r.score}/100   Grade: ${r.grade ?? "—"}   Time: ${dur}`, 8, "normal", 4);
+    if (r.summary || fd?.summary) h.writeLine(`   ${r.summary ?? fd?.summary ?? ""}`, 8, "italic", 4);
+    if (r.error) h.writeLine(`   Error: ${r.error}`, 8, "italic", 4);
+    h.setY(h.getY() + 3);
+  });
+
+  rows.filter(({ r, fd }) => r.status === "success" && fd).forEach(({ r, fd }) => {
+    const report = fd!;
     h.newPage();
-    doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(20, 20, 20);
-    doc.text(`Job ${ji + 1}: ${job.jobId}`, 16, h.getY()); h.setY(h.getY() + 7);
+
+    const siteName = report.site_name || r.site_name || r.url;
+    h.writeLine(siteName, 16, "bold");
+    h.writeLine(r.url, 9, "normal");
+    h.setY(h.getY() + 2);
+    h.writeLine(`Score: ${r.score ?? "—"} / 100   Grade: ${r.grade ?? "—"}`, 10, "bold");
+    if (report.summary) {
+      h.setY(h.getY() + 2);
+      h.writeLine(report.summary, 9, "italic");
+    }
     h.writeSeparator();
-    h.writeLine(`Status: ${job.status}   Total: ${job.total}   Passed: ${job.passed}   Failed: ${job.failed}`, 10, "bold");
-    h.writeLine(`Date: ${job.createdAt ?? "Unknown"}   Citations: ${job.runCitations ? "Yes" : "No"}   Concurrency: ${job.concurrency}`, 9);
+
+    h.writeLabel("Checks");
+    h.writeLine(`Passed: ${report.stats?.checks_passed ?? 0}   Warnings: ${report.stats?.checks_warned ?? 0}   Failed: ${report.stats?.checks_failed ?? 0}`, 10);
     h.setY(h.getY() + 3);
 
-    h.writeLabel(`Results (${job.results.length})`);
-    if (job.results.length === 0) {
-      h.writeLine("No results available.", 9, "italic");
-      return;
+    const providers = report._providers ?? [];
+    if (providers.length > 0) {
+      h.writeLabel("AI Provider Results");
+      providers.forEach((provider: any) => {
+        const providerName = provider.name ?? provider.provider ?? "Provider";
+        const status2 = provider.status === "success" ? "OK" : "FAILED";
+        h.writeLine(`${providerName}  [${status2}]  Score: ${provider.score ?? "—"}  Time: ${provider.durationMs ?? "—"}ms`, 9, "bold");
+
+        const responseText = extractProviderText(provider.rawResponse ?? "");
+        const cleanText = toPlainText(responseText);
+        if (cleanText) {
+          h.writeLine(cleanText, 8, "normal", 4);
+        } else if (provider.error) {
+          h.writeLine(`Error: ${provider.error}`, 8, "italic", 4);
+        }
+        h.setY(h.getY() + 3);
+      });
     }
 
-    job.results.forEach((r, ri) => {
-      const fd = r.fullData as any;
-      h.needsSpace(16);
-
-      // ── URL header ──
-      const status = r.status === "success" ? "[PASS]" : "[FAIL]";
-      h.writeLine(`${ri + 1}. ${status}  ${r.url.replace(/^https?:\/\//, "")}`, 9, "bold");
-
-      if (r.site_name && r.site_name !== r.url) {
-        h.writeLine(`   Site: ${r.site_name}`, 8, "normal", 4);
+    const normName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const enabledKeys = new Set(providers.map((p: any) => normName(p.name ?? p.provider ?? "")));
+    const isCitationEnabled = (citProvider: string) => {
+      const citKey = normName(citProvider);
+      for (const key of enabledKeys) {
+        const minLen = Math.min(key.length, citKey.length, 6);
+        if (key.slice(0, minLen) === citKey.slice(0, minLen)) return true;
       }
+      return false;
+    };
+    const filteredCitations = (report.citations ?? []).filter((c: any) => isCitationEnabled(c.provider));
 
-      if (r.score != null) {
-        h.writeLine(`   Score: ${r.score}/100   Grade: ${r.grade ?? "—"}   Duration: ${r.duration != null ? (r.duration / 1000).toFixed(1) + "s" : "—"}`, 8, "normal", 4);
-      }
-
-      const summary = r.summary ?? fd?.summary;
-      if (summary) h.writeLine(`   ${summary}`, 8, "italic", 4);
-
-      if (r.error) h.writeLine(`   Error: ${r.error}`, 8, "italic", 4);
-
-      // ── Providers ──
-      const providers: string[] = fd?._providers ?? [];
-      if (providers.length > 0) {
-        h.writeLine(`   Providers: ${providers.join(", ")}`, 8, "normal", 4);
-      }
-
-      // ── Category scores ──
-      const cats: any[] = fd?.categories ?? [];
-      if (cats.length > 0) {
-        h.needsSpace(8);
-        h.writeLine(`   Categories:`, 8, "bold", 4);
-        cats.forEach((cat: any) => {
-          const name = cat?.name ?? cat?.category ?? "Unknown";
-          const score = cat?.score ?? "—";
-          h.writeLine(`     • ${name}: ${score}/100`, 8, "normal", 8);
-        });
-      }
-
-      // ── AI platform coverage ──
-      const coverage = fd?.ai_platform_coverage;
-      if (coverage && typeof coverage === "object") {
-        const entries = Object.entries(coverage);
-        if (entries.length > 0) {
-          h.needsSpace(8);
-          const present = entries.filter(([, v]) => v).map(([k]) => k);
-          const absent  = entries.filter(([, v]) => !v).map(([k]) => k);
-          if (present.length > 0) h.writeLine(`   AI Visible on : ${present.join(", ")}`, 8, "normal", 4);
-          if (absent.length > 0)  h.writeLine(`   AI Missing on : ${absent.join(", ")}`, 8, "normal", 4);
+    if (filteredCitations.length > 0) {
+      const totalCit = filteredCitations.reduce((sum: number, c: any) => sum + (c.count ?? 0), 0);
+      h.writeLabel(`AI Citations  (${totalCit} total)`);
+      filteredCitations.forEach((cit: any) => {
+        h.writeLine(`${cit.provider}:  ${cit.count} citation${cit.count !== 1 ? "s" : ""}`, 9, "bold");
+        if (cit.rawAnswer) {
+          h.writeLine(toPlainText(cit.rawAnswer), 8, "normal", 4);
         }
-      }
+        if (cit.allCitationUrls?.length) {
+          h.setY(h.getY() + 1);
+          h.writeLine(`Sources cited (${cit.allCitationUrls.length}):`, 8, "bold", 4);
+          cit.allCitationUrls.forEach((u: string) => {
+            let domain = u;
+            try {
+              domain = new URL(u).hostname.replace(/^www\./, "");
+            } catch {
+              // keep original string when URL parsing fails
+            }
+            h.writeLine(`• ${domain}`, 7, "normal", 8);
+          });
+        }
+        h.setY(h.getY() + 3);
+      });
+    } else {
+      h.writeLabel("AI Citations");
+      h.writeLine("Not included in this scan. Re-scan with AI Citations toggle ON.", 9, "italic");
+      h.setY(h.getY() + 3);
+    }
 
-      // ── Recommendations ──
-      const recs: any[] = fd?.recommendations ?? [];
-      if (recs.length > 0) {
-        h.needsSpace(8);
-        h.writeLine(`   Recommendations (${recs.length}):`, 8, "bold", 4);
-        recs.slice(0, 5).forEach((rec: any) => {
-          const text = rec?.text ?? rec?.recommendation ?? String(rec);
-          h.writeLine(`     • ${text}`, 8, "normal", 8);
+    const coverage = report.ai_platform_coverage ?? {};
+    const covEntries = Object.entries(coverage);
+    if (covEntries.length) {
+      h.writeLabel("AI Platform Coverage");
+      covEntries.forEach(([platform, status]) => {
+        const label = platform.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+        h.writeLine(`${status === "indexed" ? "[Indexed]" : "[Blocked]"}  ${label}`, 9);
+      });
+      h.setY(h.getY() + 3);
+    }
+
+    if (report.categories?.length) {
+      h.writeLabel("Category Breakdown");
+      report.categories.forEach((cat: any) => {
+        h.needsSpace(10);
+        h.writeLine(`${cat.name ?? cat.category ?? "Unknown"}  —  ${cat.score}/100`, 10, "bold");
+        cat.checks?.forEach((check: any) => {
+          const sym = check.status === "pass" ? "[+]" : check.status === "warn" ? "[!]" : "[x]";
+          const detail = check.detail ? ` — ${check.detail}` : "";
+          h.writeLine(`  ${sym} ${check.label}${detail}`, 8, "normal", 4);
         });
-        if (recs.length > 5) h.writeLine(`     … and ${recs.length - 5} more`, 7, "italic", 8);
-      }
+        h.setY(h.getY() + 2);
+      });
+    }
 
-      // ── Citations ──
-      const citations: any[] = fd?.citations ?? [];
-      if (citations.length > 0) {
-        h.needsSpace(8);
-        h.writeLine(`   Citations (${citations.length}):`, 8, "bold", 4);
-        citations.slice(0, 8).forEach((c: any) => {
-          const url = c?.url ?? c?.source ?? String(c);
-          h.writeLine(`     ${url}`, 7, "normal", 8);
-        });
-        if (citations.length > 8) h.writeLine(`     … and ${citations.length - 8} more`, 7, "italic", 8);
-      }
-
-      h.setY(h.getY() + 4);
-      h.writeSeparator();
-    });
+    if (report.recommendations?.length) {
+      h.writeLabel("Recommendations");
+      report.recommendations.forEach((rec: any, ri: number) => {
+        h.needsSpace(10);
+        const priority = (rec.priority ?? "medium").toUpperCase();
+        h.writeLine(`${ri + 1}. [${priority}] ${rec.title ?? rec.text ?? rec.recommendation ?? "Recommendation"}`, 9, "bold");
+        if (rec.description) h.writeLine(rec.description, 8, "normal", 4);
+        if (rec.impact) h.writeLine(`Impact: ${rec.impact}`, 8, "italic", 4);
+        h.setY(h.getY() + 2);
+      });
+    }
   });
 
   h.addPageNumbers("Bulk Scan Report");
@@ -1251,7 +1369,11 @@ function BulkResultRow({
   onViewReport: (data: AnalysisResult) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const fd = r.fullData as any;
+  const fd = normalizeBulkAnalysisResult(r.fullData, r);
+  const providers = fd?._providers ?? [];
+  const recommendations = fd?.recommendations ?? [];
+  const categories = fd?.categories ?? [];
+  const citations = fd?.citations ?? [];
 
   return (
     <div className="border-b last:border-b-0" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
@@ -1318,26 +1440,74 @@ function BulkResultRow({
             </div>
           )}
 
+          {fd?.stats && (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(0,232,122,0.08)", border: "1px solid rgba(0,232,122,0.2)" }}>
+                <div className="text-sm font-bold" style={{ color: "#00e87a" }}>{fd.stats.checks_passed}</div>
+                <div className="text-[10px] mt-0.5" style={{ color: "#8b8d9e" }}>Passed</div>
+              </div>
+              <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(255,184,48,0.08)", border: "1px solid rgba(255,184,48,0.2)" }}>
+                <div className="text-sm font-bold" style={{ color: "#ffb830" }}>{fd.stats.checks_warned}</div>
+                <div className="text-[10px] mt-0.5" style={{ color: "#8b8d9e" }}>Warnings</div>
+              </div>
+              <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(255,90,90,0.08)", border: "1px solid rgba(255,90,90,0.2)" }}>
+                <div className="text-sm font-bold" style={{ color: "#ff5a5a" }}>{fd.stats.checks_failed}</div>
+                <div className="text-[10px] mt-0.5" style={{ color: "#8b8d9e" }}>Failed</div>
+              </div>
+            </div>
+          )}
+
           {/* If no fullData, show what we have */}
-          {!fd && r.status === "success" && (
+          {!r.fullData && r.status === "success" && (
             <p className="text-[10px] font-mono" style={{ color: "#555869" }}>
               Full analysis data not stored. Re-run with <code>disableFirestoreWrite: false</code> to persist.
             </p>
           )}
 
           {/* Categories */}
-          {fd?.categories && fd.categories.length > 0 && (
+          {categories.length > 0 && (
             <div>
               <div className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "#555869" }}>
                 Category Scores
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {fd.categories.map((cat: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between rounded-lg px-2.5 py-1.5"
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <span className="text-[10px] truncate pr-2" style={{ color: "#8b8d9e" }}>{cat.name ?? cat.category}</span>
-                    <span className="text-[10px] font-mono font-bold flex-shrink-0"
-                      style={{ color: getScoreColor(cat.score ?? 0) }}>{cat.score ?? "—"}</span>
+              <div className="space-y-2">
+                {categories.map((cat: any, i: number) => (
+                  <div
+                    key={i}
+                    className="rounded-lg px-3 py-2"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[10px] truncate pr-2" style={{ color: "#f0f0f5" }}>
+                        {cat.icon ? `${cat.icon} ` : ""}{cat.name ?? cat.category ?? "Unknown"}
+                      </span>
+                      <span
+                        className="text-[10px] font-mono font-bold flex-shrink-0"
+                        style={{ color: getScoreColor(cat.score ?? 0) }}
+                      >
+                        {cat.score ?? "—"}
+                      </span>
+                    </div>
+                    {Array.isArray(cat.checks) && cat.checks.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {cat.checks.slice(0, 4).map((check: any, ci: number) => (
+                          <div key={ci} className="flex items-start gap-2 text-[10px] leading-relaxed">
+                            <span style={{ color: check.status === "pass" ? "#00e87a" : check.status === "warn" ? "#ffb830" : "#ff5a5a" }}>
+                              {check.status === "pass" ? "✓" : check.status === "warn" ? "!" : "✗"}
+                            </span>
+                            <span style={{ color: "#8b8d9e" }}>
+                              {check.label}
+                              {check.detail ? ` — ${check.detail}` : ""}
+                            </span>
+                          </div>
+                        ))}
+                        {cat.checks.length > 4 && (
+                          <div className="text-[10px] font-mono" style={{ color: "#555869" }}>
+                            +{cat.checks.length - 4} more checks
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1367,26 +1537,26 @@ function BulkResultRow({
           )}
 
           {/* Citations */}
-          {fd?.citations && fd.citations.length > 0 && (
+          {citations.length > 0 && (
             <div>
               <div className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "#555869" }}>
-                Citations ({fd.citations.length})
+                Citations ({citations.length})
               </div>
               <div className="space-y-1">
-                {fd.citations.slice(0, 5).map((c: any, i: number) => (
+                {citations.slice(0, 5).map((c: any, i: number) => (
                   <div key={i} className="text-[10px] font-mono flex items-center gap-2">
                     <span style={{ color: "#555869" }}>{i + 1}.</span>
-                    <a href={c.url ?? c} target="_blank" rel="noopener noreferrer"
+                    <a href={c.url ?? c.source ?? c.allCitationUrls?.[0] ?? c} target="_blank" rel="noopener noreferrer"
                       className="truncate hover:underline"
                       style={{ color: "#00e5ff" }}
                       onClick={(e) => e.stopPropagation()}>
-                      {c.url ?? c.source ?? String(c)}
+                      {c.url ?? c.source ?? c.allCitationUrls?.[0] ?? String(c)}
                     </a>
                   </div>
                 ))}
-                {fd.citations.length > 5 && (
+                {citations.length > 5 && (
                   <div className="text-[10px] font-mono" style={{ color: "#555869" }}>
-                    +{fd.citations.length - 5} more — click "Full Report" to see all
+                    +{citations.length - 5} more — click "Full Report" to see all
                   </div>
                 )}
               </div>
@@ -1394,21 +1564,27 @@ function BulkResultRow({
           )}
 
           {/* Recommendations */}
-          {fd?.recommendations && fd.recommendations.length > 0 && (
+          {recommendations.length > 0 && (
             <div>
               <div className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "#555869" }}>
                 Top Recommendations
               </div>
               <div className="space-y-1.5">
-                {fd.recommendations.slice(0, 3).map((rec: any, i: number) => (
+                {recommendations.slice(0, 3).map((rec: any, i: number) => (
                   <div key={i} className="text-[10px] leading-relaxed rounded-lg px-2.5 py-1.5"
                     style={{ background: "rgba(255,184,48,0.05)", border: "1px solid rgba(255,184,48,0.1)", color: "#c8a840" }}>
-                    {rec.text ?? rec.recommendation ?? String(rec)}
+                    {rec.title ?? rec.text ?? rec.recommendation ?? String(rec)}
+                    {(rec.description || rec.impact) && (
+                      <div className="mt-1 text-[10px] leading-relaxed" style={{ color: "#8b8d9e" }}>
+                        {rec.description ?? ""}
+                        {rec.impact ? ` ${rec.impact}` : ""}
+                      </div>
+                    )}
                   </div>
                 ))}
-                {fd.recommendations.length > 3 && (
+                {recommendations.length > 3 && (
                   <div className="text-[10px] font-mono" style={{ color: "#555869" }}>
-                    +{fd.recommendations.length - 3} more in full report
+                    +{recommendations.length - 3} more in full report
                   </div>
                 )}
               </div>
@@ -1416,16 +1592,52 @@ function BulkResultRow({
           )}
 
           {/* Providers used */}
-          {fd?._providers && fd._providers.length > 0 && (
-            <div className="text-[10px] font-mono" style={{ color: "#555869" }}>
-              Analysed by: <span style={{ color: "#8b8d9e" }}>{fd._providers.join(", ")}</span>
+          {providers.length > 0 && (
+            <div>
+              <div className="text-[9px] font-mono uppercase tracking-widest mb-2" style={{ color: "#555869" }}>
+                AI Provider Results
+              </div>
+              <div className="space-y-2">
+                {providers.map((provider: any, i: number) => (
+                  <div key={i} className="rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-[10px] font-mono font-bold" style={{ color: "#00e5ff" }}>
+                        {provider.name ?? provider.provider ?? `Provider ${i + 1}`}
+                      </span>
+                      {provider.status && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,229,255,0.08)", color: "#00e5ff" }}>
+                          {provider.status}
+                        </span>
+                      )}
+                      {provider.durationMs != null && (
+                        <span className="text-[9px] font-mono" style={{ color: "#555869" }}>
+                          {provider.durationMs}ms
+                        </span>
+                      )}
+                      {provider.score != null && (
+                        <span className="text-[9px] font-mono" style={{ color: getScoreColor(provider.score) }}>
+                          {provider.score}/100
+                        </span>
+                      )}
+                    </div>
+                    {provider.error ? (
+                      <p className="text-[10px] font-mono" style={{ color: "#ff5a5a" }}>{provider.error}</p>
+                    ) : (
+                      <p className="text-[10px] leading-relaxed whitespace-pre-wrap" style={{ color: "#8b8d9e" }}>
+                        {extractProviderText(provider.rawResponse).slice(0, 300)}
+                        {extractProviderText(provider.rawResponse).length > 300 ? "…" : ""}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {/* Full Report button (bottom) */}
-          {fd && (
+          {fd && r.fullData && (
             <button
-              onClick={(e) => { e.stopPropagation(); onViewReport(r.fullData as AnalysisResult); }}
+              onClick={(e) => { e.stopPropagation(); onViewReport(fd); }}
               className="w-full py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-85 mt-1"
               style={{ background: "rgba(0,229,255,0.1)", color: "#00e5ff", border: "1px solid rgba(0,229,255,0.25)" }}
             >
@@ -1443,7 +1655,23 @@ function BulkResultRow({
 function BulkJobCard({ job }: { job: BulkJob }) {
   const [expanded, setExpanded] = useState(false);
   const [modalReport, setModalReport] = useState<AnalysisResult | null>(null);
+  const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
   const passRate = job.total > 0 ? Math.round((job.passed / job.total) * 100) : 0;
+
+  const handleExport = async (format: "csv" | "pdf") => {
+    setExporting(format);
+    try {
+      if (format === "csv") {
+        exportBulkCSV([job]);
+      } else {
+        await exportBulkPDF([job]);
+      }
+    } catch (e) {
+      console.error("Bulk job export error:", e);
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <>
@@ -1486,8 +1714,30 @@ function BulkJobCard({ job }: { job: BulkJob }) {
               <span>{timeAgo(job.createdAt)}</span>
             </div>
           </div>
-          <div className="text-sm transition-transform duration-200 flex-shrink-0"
-            style={{ color: "#8b8d9e", transform: expanded ? "rotate(180deg)" : "none" }}>▼</div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); void handleExport("csv"); }}
+                disabled={!!exporting}
+                className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
+                style={{ background: "rgba(255,255,255,0.04)", color: "#f0f0f5", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                {exporting === "csv" ? "Exporting…" : "CSV"}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); void handleExport("pdf"); }}
+                disabled={!!exporting}
+                className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
+                style={{ background: "rgba(0,229,255,0.08)", color: "#00e5ff", border: "1px solid rgba(0,229,255,0.18)" }}
+              >
+                {exporting === "pdf" ? "Exporting…" : "PDF"}
+              </button>
+              <div
+                className="text-sm transition-transform duration-200 flex-shrink-0"
+                style={{ color: "#8b8d9e", transform: expanded ? "rotate(180deg)" : "none" }}
+              >
+                ▼
+              </div>
+            </div>
         </div>
 
         {expanded && (
@@ -1656,8 +1906,24 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
 
 function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
   const [expanded, setExpanded] = useState(false);
+  const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
   // ✅ batch.runs is an array now
   const runs = batch.runs;
+
+  const handleExport = async (format: "csv" | "pdf") => {
+    setExporting(format);
+    try {
+      if (format === "csv") {
+        exportBulkPromptCSV([batch]);
+      } else {
+        await exportBulkPromptPDF([batch]);
+      }
+    } catch (e) {
+      console.error("Bulk prompt export error:", e);
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <div
@@ -1694,8 +1960,30 @@ function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
             {timeAgo(batch.createdAt ?? batch.updatedAt)}
           </div>
         </div>
-        <div className="text-sm transition-transform duration-200 flex-shrink-0"
-          style={{ color: "#8b8d9e", transform: expanded ? "rotate(180deg)" : "none" }}>▼</div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); void handleExport("csv"); }}
+            disabled={!!exporting}
+            className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
+            style={{ background: "rgba(255,255,255,0.04)", color: "#f0f0f5", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            {exporting === "csv" ? "Exporting…" : "CSV"}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); void handleExport("pdf"); }}
+            disabled={!!exporting}
+            className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
+            style={{ background: "rgba(0,229,255,0.08)", color: "#00e5ff", border: "1px solid rgba(0,229,255,0.18)" }}
+          >
+            {exporting === "pdf" ? "Exporting…" : "PDF"}
+          </button>
+          <div
+            className="text-sm transition-transform duration-200 flex-shrink-0"
+            style={{ color: "#8b8d9e", transform: expanded ? "rotate(180deg)" : "none" }}
+          >
+            ▼
+          </div>
+        </div>
       </div>
 
       {expanded && (

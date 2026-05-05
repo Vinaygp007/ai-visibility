@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { AnalysisResult } from "@/types";
+import { toPlainText, extractProviderText } from "@/lib/plainText";
 import CategoryCard from "@/components/CategoryCard";
 import Recommendations from "@/components/Recommendations";
 import ScoreGauge from "@/components/ScoreGauge";
@@ -47,31 +48,7 @@ function durationLabel(ms?: number) {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-// ── Strip HTML / markdown to plain text ────────────────────────────────────
-function toPlainText(raw: string): string {
-  return raw
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<\/h[1-6]>/gi, "\n")
-    .replace(/<\/tr>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/#{1,6}\s+/g, "")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/\*(.*?)\*/g, "$1")
-    .replace(/`(.*?)`/g, "$1")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
+// using shared plain-text helpers from lib/plainText
 
 // ── PDF Export ─────────────────────────────────────────────────────────────
 async function exportPdf(rows: BulkRow[]) {
