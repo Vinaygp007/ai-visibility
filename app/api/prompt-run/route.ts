@@ -74,6 +74,16 @@ async function loadSettings(): Promise<AppSettings | null> {
   }
 }
 
+async function saveBulkPromptBatch(docId: string, data: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.collection("bulk_prompt").doc(docId).set(data, { merge: true });
+  } catch (e) {
+    console.warn("[prompt-run] save batch error:", e);
+  }
+}
+
 async function callGemini(apiKey: string, model: string, prompt: string): Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -198,11 +208,23 @@ async function runCitationQuery(
 }
 
 export async function POST(request: NextRequest) {
+  let batchId = "";
+  let executionId = "";
+  let promptId = "default";
   try {
     const body = await request.json();
     const rawUrl: string = (body?.url ?? "").trim();
     const customPrompt: string = (body?.prompt ?? "").trim();
     const runCitations: boolean = body?.runCitations !== false;
+    promptId = typeof body?.promptId === "string" && body.promptId.trim()
+      ? body.promptId.trim()
+      : "default";
+    batchId = typeof body?.batchId === "string" && body.batchId.trim()
+      ? body.batchId.trim()
+      : `bulk_prompt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    executionId = typeof body?.executionId === "string" && body.executionId.trim()
+      ? body.executionId.trim()
+      : `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     if (!customPrompt) {
       return NextResponse.json(
@@ -289,6 +311,40 @@ export async function POST(request: NextRequest) {
     const firstSuccess =
       responses.find((r) => r.response && !r.error) ?? responses[0];
 
+    const runRecord = {
+      executionId,
+      promptId,
+      status: "success",
+      url,
+      hasUrl,
+      prompt: customPrompt,
+      finalPrompt,
+      topic,
+      runCitations,
+      settings: {
+        providerCount: providers.length,
+      },
+      responses,
+      citations,
+      response: firstSuccess?.response ?? "",
+      provider: firstSuccess?.provider ?? null,
+      durationMs: firstSuccess?.durationMs ?? null,
+      createdAt: new Date().toISOString(),
+    };
+
+    await saveBulkPromptBatch(batchId, {
+      batchId,
+      type: "bulk_prompt_batch",
+      status: "running",
+      updatedAt: new Date().toISOString(),
+      runs: {
+        [executionId]: runRecord,
+      },
+      latestByPrompt: {
+        [promptId]: runRecord,
+      },
+    });
+
     return NextResponse.json(
       {
         responses,
@@ -304,6 +360,23 @@ export async function POST(request: NextRequest) {
     );
   } catch (err) {
     console.error("[prompt-run] error:", err);
+    if (batchId && executionId) {
+      await saveBulkPromptBatch(batchId, {
+        batchId,
+        type: "bulk_prompt_batch",
+        status: "running",
+        updatedAt: new Date().toISOString(),
+        runs: {
+          [executionId]: {
+            executionId,
+            promptId,
+            status: "failed",
+            error: String(err),
+            createdAt: new Date().toISOString(),
+          },
+        },
+      });
+    }
     return NextResponse.json(
       { error: String(err) },
       { status: 500, headers: CORS_HEADERS }

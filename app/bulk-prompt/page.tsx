@@ -485,6 +485,7 @@ function PromptCard({
 // ── ID generator ──────────────────────────────────────────────────────────
 let _id = 0;
 function genId() { return `p_${++_id}_${Math.random().toString(36).slice(2, 6)}`; }
+function genBatchId() { return `bulk_prompt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
 
 function makeContainer(prompt = ""): PromptContainer {
   return {
@@ -553,6 +554,104 @@ async function exportToPdf(containers: PromptContainer[]) {
   doc.save(`aiscope-multi-prompt-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
+// ── CSV Export ───────────────────────────────────────────────────────────
+function exportToCsv(containers: PromptContainer[]) {
+  const escape = (v?: string | number | null) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v).replace(/"/g, '""');
+    return `"${s}"`;
+  };
+
+  const headers = [
+    "PromptIndex",
+    "Prompt",
+    "Status",
+    "Topic",
+    "Provider",
+    "Response",
+    "DurationMs",
+    "ResponseError",
+    "CitationProvider",
+    "CitationCount",
+    "CitationURLs",
+    "CitationError",
+    "AllResponses",
+  ];
+
+  const rows: string[] = [];
+
+  containers.forEach((c, i) => {
+    const allResponses = (c.responses ?? []).map(r => `${r.provider}: ${r.response ?? ""}`).join(" ||| ");
+    // For each response, pair with citation of same provider if available
+    if (c.responses.length > 0) {
+      c.responses.forEach((r) => {
+        const cit = c.citations.find((x) => x.provider === r.provider);
+        rows.push([
+          i + 1,
+          c.prompt,
+          c.status,
+          c.topic ?? "",
+          r.provider,
+          r.response ?? "",
+          r.durationMs ?? "",
+          r.error ?? "",
+          cit?.provider ?? "",
+          cit?.count ?? 0,
+          (cit?.allCitationUrls ?? []).join(" | "),
+          cit?.error ?? "",
+          allResponses,
+        ].map(escape).join(","));
+      });
+    } else if (c.citations.length > 0) {
+      // No responses but citations exist — emit citation rows
+      c.citations.forEach((cit) => {
+        rows.push([
+          i + 1,
+          c.prompt,
+          c.status,
+          c.topic ?? "",
+          "",
+          "",
+          "",
+          "",
+          cit.provider,
+          cit.count,
+          (cit.allCitationUrls ?? []).join(" | "),
+          cit.error ?? "",
+          allResponses,
+        ].map(escape).join(","));
+      });
+    } else {
+      // Empty result row
+      rows.push([
+        i + 1,
+        c.prompt,
+        c.status,
+        c.topic ?? "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        0,
+        "",
+        "",
+        allResponses,
+      ].map(escape).join(","));
+    }
+  });
+
+  const csv = `${headers.join(",")}\n${rows.join("\n")}`;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `aiscope-multi-prompt-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function MultiPromptPage() {
   const [containers, setContainers] = useState<PromptContainer[]>([
@@ -563,6 +662,7 @@ export default function MultiPromptPage() {
   const [globalRunning, setGlobalRunning] = useState(false);
   const [addCount, setAddCount] = useState(1);
   const runningRef = useRef<Set<string>>(new Set());
+  const batchIdRef = useRef<string>(genBatchId());
 
   const updateContainer = useCallback((id: string, patch: Partial<PromptContainer>) => {
     setContainers(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
@@ -577,8 +677,15 @@ export default function MultiPromptPage() {
     setContainers(prev => [...prev, ...news]);
   }, []);
 
+  const startNewBatch = useCallback(() => {
+    batchIdRef.current = genBatchId();
+    return batchIdRef.current;
+  }, []);
+
   const runSingle = useCallback(async (id: string) => {
     if (runningRef.current.has(id)) return;
+    const batchId = batchIdRef.current || startNewBatch();
+    const executionId = genId();
 
     setContainers(prev => {
       const c = prev.find(x => x.id === id);
@@ -599,7 +706,13 @@ export default function MultiPromptPage() {
       const res = await fetch("/api/prompt-run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: c.prompt, runCitations }),
+        body: JSON.stringify({
+          prompt: c.prompt,
+          runCitations,
+          batchId,
+          promptId: id,
+          executionId,
+        }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -631,15 +744,17 @@ export default function MultiPromptPage() {
 
   // Run all in parallel
   const runAll = useCallback(async () => {
+    startNewBatch();
     setGlobalRunning(true);
     const toRun = containers.filter(c => c.prompt.trim() && c.status !== "running");
     await Promise.all(toRun.map(c => runSingle(c.id)));
     setGlobalRunning(false);
-  }, [containers, runSingle]);
+  }, [containers, runSingle, startNewBatch]);
 
   const clearAll = useCallback(() => {
+    startNewBatch();
     setContainers([makeContainer(), makeContainer()]);
-  }, []);
+  }, [startNewBatch]);
 
   const doneCount = containers.filter(c => c.status === "done").length;
   const runningCount = containers.filter(c => c.status === "running").length;
@@ -766,17 +881,29 @@ export default function MultiPromptPage() {
               {doneCount > 0 && <span style={{ color: "#00e87a" }}>✓ {doneCount} done</span>}
             </div>
 
-            {/* Export PDF */}
+            {/* Export PDF / CSV */}
             {doneCount > 0 && (
-              <button
-                onClick={() => exportToPdf(containers)}
-                style={{
-                  padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                  background: "#00e5ff", color: "#000", border: "none", cursor: "pointer",
-                }}
-              >
-                ↓ Export PDF
-              </button>
+              <>
+                <button
+                  onClick={() => exportToPdf(containers)}
+                  style={{
+                    padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    background: "#00e5ff", color: "#000", border: "none", cursor: "pointer",
+                  }}
+                >
+                  ↓ Export PDF
+                </button>
+
+                <button
+                  onClick={() => exportToCsv(containers)}
+                  style={{
+                    padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    background: "#00e87a", color: "#000", border: "none", cursor: "pointer", marginLeft: 8,
+                  }}
+                >
+                  ↓ Export CSV
+                </button>
+              </>
             )}
 
             {/* Clear all */}
