@@ -17,7 +17,7 @@ import { getDb } from "@/lib/firebase";
 import type { AppSettings } from "@/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 3600;
+export const maxDuration = 300;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
