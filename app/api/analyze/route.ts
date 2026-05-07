@@ -66,12 +66,12 @@ function getCacheKey(key: string): string {
   return crypto.createHash("md5").update(key).digest("hex");
 }
 
-async function readCache(key: string): Promise<object | null> {
+async function readCache(key: string, collection = COLLECTION): Promise<object | null> {
   const db = await getDb();
   if (!db) return null;
   try {
     const docId = getCacheKey(key);
-    const doc = await db.collection(COLLECTION).doc(docId).get();
+    const doc = await db.collection(collection).doc(docId).get();
     if (!doc.exists) return null;
 
     const { timestamp, data } = doc.data() as { timestamp: number; data: object };
@@ -93,15 +93,21 @@ async function readCache(key: string): Promise<object | null> {
   }
 }
 
-async function writeCache(key: string, data: object): Promise<void> {
+async function writeCache(
+  key: string,
+  data: object,
+  collection = COLLECTION,
+  meta: Record<string, unknown> = {}
+): Promise<void> {
   const db = await getDb();
   if (!db) return;
   try {
     const docId = getCacheKey(key);
-    await db.collection(COLLECTION).doc(docId).set({
+    await db.collection(collection).doc(docId).set({
       url: key,
       timestamp: Date.now(),
       createdAt: new Date().toISOString(),
+      ...meta,
       data,
     });
     console.log("[firebase] cached result for", key);
@@ -1160,6 +1166,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const url = body?.url as string | undefined;
     const bustCache = body?.bustCache as boolean | undefined;
+    const disableFirestoreWrite = body?.disableFirestoreWrite === true;
+    const storageCollection = typeof body?.storageCollection === "string" && body.storageCollection.trim()
+      ? body.storageCollection.trim()
+      : COLLECTION;
+    const storageNamespace = typeof body?.storageNamespace === "string" && body.storageNamespace.trim()
+      ? body.storageNamespace.trim()
+      : "";
     // Default citations ON for all integrations. Only explicit false disables.
     const runCitations = body?.runCitations === false ? false : true;
     if (!url) return NextResponse.json({ error: "URL is required", errorCode: "MISSING_URL" }, { status: 400, headers: CORS_HEADERS });
@@ -1177,14 +1190,14 @@ export async function POST(request: NextRequest) {
       }, { status: 500, headers: CORS_HEADERS });
     }
 
-    const enableCache = settings?.features?.enableCache ?? true;
+    const enableCache = !disableFirestoreWrite && (settings?.features?.enableCache ?? true);
     const enableCitationsFromSettings = settings?.features?.enableCitations ?? true;
     const shouldRunCitations = runCitations && enableCitationsFromSettings;
 
     if (!bustCache && enableCache) {
       // Always use a single cache key per URL — include citations flag
-      const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic");
-      const cached = await readCache(cacheKey) as Record<string, unknown> | null;
+      const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic") + (storageNamespace ? `|${storageNamespace}` : "");
+      const cached = await readCache(cacheKey, storageCollection) as Record<string, unknown> | null;
       if (cached) {
         console.log("[cache] serving cached result for", cacheKey);
         return NextResponse.json({ ...cached, _cached: true }, { headers: CORS_HEADERS });
@@ -1233,10 +1246,13 @@ export async function POST(request: NextRequest) {
     const deterministicScores = computeScores(tech);
     const merged = mergeResults(providerResults, deterministicScores, tech.siteName, url);
     const final = { ...merged, citations: citationResults };
-    const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic");
+    const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic") + (storageNamespace ? `|${storageNamespace}` : "");
     
     if (enableCache) {
-      writeCache(cacheKey, final); // async, non-blocking
+      writeCache(cacheKey, final, storageCollection, {
+        storageNamespace: storageNamespace || null,
+        source: storageCollection === COLLECTION ? "scan" : "bulk",
+      }); // async, non-blocking
     }
     
     return NextResponse.json(final, { headers: CORS_HEADERS });

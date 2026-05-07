@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { AnalysisResult } from "@/types";
+import { toPlainText, extractProviderText } from "@/lib/plainText";
 import CategoryCard from "@/components/CategoryCard";
 import Recommendations from "@/components/Recommendations";
 import ScoreGauge from "@/components/ScoreGauge";
@@ -47,31 +48,7 @@ function durationLabel(ms?: number) {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-// ── Strip HTML / markdown to plain text ────────────────────────────────────
-function toPlainText(raw: string): string {
-  return raw
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<\/h[1-6]>/gi, "\n")
-    .replace(/<\/tr>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/#{1,6}\s+/g, "")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/\*(.*?)\*/g, "$1")
-    .replace(/`(.*?)`/g, "$1")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
+// using shared plain-text helpers from lib/plainText
 
 // ── PDF Export ─────────────────────────────────────────────────────────────
 async function exportPdf(rows: BulkRow[]) {
@@ -386,6 +363,103 @@ async function exportPdf(rows: BulkRow[]) {
   doc.save(`aiscope-bulk-report-${Date.now()}.pdf`);
 }
 
+// ── CSV Export ───────────────────────────────────────────────────────────
+function exportCsv(rows: BulkRow[]) {
+  const escape = (v?: string | number | null) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v).replace(/"/g, '""');
+    return `"${s}"`;
+  };
+
+  const extractProviderText = (raw?: string) => {
+    if (!raw) return "";
+    try {
+      const parsed = JSON.parse(raw);
+      return (
+        parsed?.choices?.[0]?.message?.content ||
+        parsed?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        parsed?.content || parsed?.answer || parsed?.text || JSON.stringify(parsed)
+      );
+    } catch {
+      return raw;
+    }
+  };
+
+  const headers = [
+    "URL",
+    "Status",
+    "Score",
+    "Grade",
+    "SiteName",
+    "Summary",
+    "DurationMs",
+    "Error",
+    "AllResponses",
+    "ProviderResponsesJSON",
+    "CitationCount",
+    "CitationURLs",
+  ];
+
+  const rowsOut: string[] = [];
+
+  rows.forEach((r) => {
+    const fd = r.fullData;
+    let allResponses = "";
+    let citCount = 0;
+    let citUrls: string[] = [];
+    // provMap is used below when creating the CSV row; declare it here
+    // so it's available whether or not `fd` is present.
+    let provMap: Record<string, string> = {};
+
+    if (fd) {
+      const providers = fd._providers ?? [];
+      allResponses = providers
+        .map((p: any) => {
+          const text = extractProviderText(p.rawResponse);
+          return `${p.name}: ${toPlainText(text).replace(/\s+/g, " ").slice(0, 10000)}`;
+        })
+        .join(" ||| ");
+
+      provMap = {};
+      (fd._providers ?? []).forEach((p: any) => {
+        provMap[p.name] = toPlainText(extractProviderText(p.rawResponse)).replace(/\s+/g, " ");
+      });
+
+      const citations = fd.citations ?? [];
+      citCount = citations.reduce((s: number, c: any) => s + (c.count ?? 0), 0);
+      citUrls = citations.flatMap((c: any) => c.allCitationUrls ?? []);
+    }
+
+    const row = [
+      r.url,
+      r.status,
+      r.score ?? "",
+      r.grade ?? "",
+      r.site_name ?? "",
+      r.summary ?? "",
+      r.duration ?? "",
+      r.error ?? "",
+      allResponses,
+      JSON.stringify(provMap ?? {}),
+      citCount,
+      (citUrls ?? []).join(" | "),
+    ].map(escape).join(",");
+
+    rowsOut.push(row);
+  });
+
+  const csv = `${headers.join(",")}\n${rowsOut.join("\n")}`;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `aiscope-bulk-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ── Parse URLs from textarea ───────────────────────────────────────────────
 function parseUrls(raw: string): string[] {
   return raw
@@ -677,6 +751,7 @@ export default function BulkPage() {
     if (parsedUrls.length === 0) return;
     abortRef.current = new AbortController();
 
+    // Initialize all rows upfront
     const initialRows: BulkRow[] = parsedUrls.map((url) => ({ url, status: "queued" }));
     setRows(initialRows);
     setPhase("running");
@@ -688,58 +763,75 @@ export default function BulkPage() {
     setJobId("");
     setExpandedUrl(null);
 
+    // Batch into chunks of 50
+    const BATCH_SIZE = 50;
+    const batches: string[][] = [];
+    for (let i = 0; i < parsedUrls.length; i += BATCH_SIZE) {
+      batches.push(parsedUrls.slice(i, i + BATCH_SIZE));
+    }
+
+    let allRows = [...initialRows];
+    let totalCompleted = 0;
+    let totalPassed = 0;
+    let totalFailed = 0;
+
     try {
-      const res = await fetch("/api/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urls: parsedUrls, runCitations, concurrency }),
-        signal: abortRef.current.signal,
-      });
+      // Process each batch sequentially
+      for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+        if (abortRef.current.signal.aborted) break;
 
-      if (!res.ok) {
-        const err = await res.json();
-        setFatalError(err.error ?? "Server error");
-        setPhase("error");
-        return;
-      }
+        const batch = batches[batchIdx];
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+        const res = await fetch("/api/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: batch, runCitations, concurrency }),
+          signal: abortRef.current.signal,
+        });
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+        if (!res.ok) {
+          const err = await res.json();
+          setFatalError(err.error ?? `Batch ${batchIdx + 1} server error`);
+          setPhase("error");
+          return;
+        }
 
-        const events = buffer.split("\n\n");
-        buffer = events.pop() ?? "";
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-        for (const raw of events) {
-          const lines = raw.split("\n");
-          const eventLine = lines.find((l) => l.startsWith("event: "));
-          const dataLine = lines.find((l) => l.startsWith("data: "));
-          if (!eventLine || !dataLine) continue;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
 
-          const event = eventLine.replace("event: ", "").trim();
-          const data = JSON.parse(dataLine.replace("data: ", "").trim());
+          const events = buffer.split("\n\n");
+          buffer = events.pop() ?? "";
 
-          if (event === "start") {
-            setJobId(data.jobId);
-          }
+          for (const raw of events) {
+            const lines = raw.split("\n");
+            const eventLine = lines.find((l) => l.startsWith("event: "));
+            const dataLine = lines.find((l) => l.startsWith("data: "));
+            if (!eventLine || !dataLine) continue;
 
-          if (event === "progress") {
-            setRows((prev) =>
-              prev.map((r) => r.url === data.url ? { ...r, status: "running" } : r)
-            );
-          }
+            const event = eventLine.replace("event: ", "").trim();
+            const data = JSON.parse(dataLine.replace("data: ", "").trim());
 
-          if (event === "result") {
-            setCompleted(data.completed);
-            setPassed(data.passed);
-            setFailed(data.failed);
-            setRows((prev) =>
-              prev.map((r) =>
+            if (event === "start") {
+              setJobId(data.jobId);
+            }
+
+            if (event === "progress") {
+              allRows = allRows.map((r) => r.url === data.url ? { ...r, status: "running" } : r);
+              setRows([...allRows]);
+            }
+
+            if (event === "result") {
+              totalCompleted++;
+              if (data.status === "success") totalPassed++;
+              else if (data.status === "failed") totalFailed++;
+
+              allRows = allRows.map((r) =>
                 r.url === data.url
                   ? {
                       ...r,
@@ -750,19 +842,20 @@ export default function BulkPage() {
                       summary: data.summary,
                       error: data.error,
                       duration: data.duration,
-                      // Store full analysis result
                       fullData: data.fullData ?? undefined,
                     }
                   : r
-              )
-            );
-          }
-
-          if (event === "done") {
-            setPhase("done");
+              );
+              setRows([...allRows]);
+              setCompleted(totalCompleted);
+              setPassed(totalPassed);
+              setFailed(totalFailed);
+            }
           }
         }
       }
+
+      setPhase("done");
     } catch (err: unknown) {
       if ((err as Error)?.name === "AbortError") {
         setPhase("done");
@@ -1022,6 +1115,13 @@ export default function BulkPage() {
                   ↓ Export PDF
                 </button>
                 <button
+                  onClick={() => exportCsv(rows)}
+                  className="px-4 py-2 rounded-xl border text-sm transition-all hover:opacity-80"
+                  style={{ borderColor: "rgba(0,232,122,0.3)", color: "#00e87a", background: "rgba(0,232,122,0.05)" }}
+                >
+                  ↓ Export CSV
+                </button>
+                <button
                   onClick={handleReset}
                   className="px-4 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-85"
                   style={{ background: "#00e5ff", color: "#000" }}
@@ -1091,6 +1191,15 @@ export default function BulkPage() {
               style={{ color: "#00e87a", background: "rgba(0,232,122,0.06)", border: "1px solid rgba(0,232,122,0.2)" }}
             >
               ↓ PDF
+            </button>
+          )}
+          {phase === "done" && (
+            <button
+              onClick={() => exportCsv(rows)}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
+              style={{ color: "#00e87a", background: "rgba(0,232,122,0.06)", border: "1px solid rgba(0,232,122,0.2)" }}
+            >
+              ↓ CSV
             </button>
           )}
         </div>

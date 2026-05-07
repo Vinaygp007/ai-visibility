@@ -1,6 +1,11 @@
 // app/api/prompt-run/route.ts
 // POST /api/prompt-run
-// ✅ Fixed v2:
+// ✅ Fixed v3:
+//   - Firestore structure now mirrors bulk/route.ts pattern:
+//       ONE job doc:  bulk_prompt/{batchId}         (metadata + counters only)
+//       PER-RUN subdoc: bulk_prompt/{batchId}/runs/{executionId}  (full run record)
+//   - Job doc uses .set() on create, .update() on progress (preserves createdAt)
+//   - No more `runs` map or `latestByPrompt` map embedded in the batch doc
 //   - INTER_PROVIDER_DELAY_MS raised to 800ms (was 400ms) — safer for Gemini/Perplexity RPM
 //   - INTER_CITATION_DELAY_MS raised to 1000ms (was 600ms)
 //   - withRetry baseDelayMs raised to 1500ms (was 1000ms) for citation calls
@@ -71,6 +76,58 @@ async function loadSettings(): Promise<AppSettings | null> {
   } catch (e) {
     console.warn("[prompt-run] settings load error:", e);
     return null;
+  }
+}
+
+const COLLECTION = "bulk_prompt";
+
+// ── Batch-level doc (metadata + counters only, no runs map) ──────────────
+// Structure: bulk_prompt/{batchId}
+async function createBatchDoc(batchId: string, data: object) {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db
+      .collection(COLLECTION)
+      .doc(batchId)
+      .set({ ...data, createdAt: new Date().toISOString() });
+  } catch (e) {
+    console.warn("[prompt-run] createBatchDoc error:", e);
+  }
+}
+
+async function updateBatchDoc(batchId: string, data: object) {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    // .update() preserves createdAt and other fields not mentioned here
+    await db
+      .collection(COLLECTION)
+      .doc(batchId)
+      .update({ ...data, updatedAt: new Date().toISOString() });
+  } catch (e) {
+    console.warn("[prompt-run] updateBatchDoc error:", e);
+  }
+}
+
+// ── Per-execution subdoc ──────────────────────────────────────────────────
+// Structure: bulk_prompt/{batchId}/runs/{executionId}
+async function saveRunSubDoc(
+  batchId: string,
+  executionId: string,
+  data: object
+) {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db
+      .collection(COLLECTION)
+      .doc(batchId)
+      .collection("runs")
+      .doc(executionId)
+      .set({ ...data, savedAt: new Date().toISOString() });
+  } catch (e) {
+    console.warn("[prompt-run] saveRunSubDoc error:", e);
   }
 }
 
@@ -198,11 +255,23 @@ async function runCitationQuery(
 }
 
 export async function POST(request: NextRequest) {
+  let batchId = "";
+  let executionId = "";
+  let promptId = "default";
   try {
     const body = await request.json();
     const rawUrl: string = (body?.url ?? "").trim();
     const customPrompt: string = (body?.prompt ?? "").trim();
     const runCitations: boolean = body?.runCitations !== false;
+    promptId = typeof body?.promptId === "string" && body.promptId.trim()
+      ? body.promptId.trim()
+      : "default";
+    batchId = typeof body?.batchId === "string" && body.batchId.trim()
+      ? body.batchId.trim()
+      : `bulk_prompt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    executionId = typeof body?.executionId === "string" && body.executionId.trim()
+      ? body.executionId.trim()
+      : `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     if (!customPrompt) {
       return NextResponse.json(
@@ -236,12 +305,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Create the single batch document (no runs map) ─────────────────────
+    await createBatchDoc(batchId, {
+      type: "bulk_prompt_batch",
+      batchId,
+      status: "running",
+      promptId,
+      url,
+      hasUrl,
+      prompt: customPrompt,
+      topic,
+      runCitations,
+      providerCount: providers.length,
+      totalRuns: 0,
+      passedRuns: 0,
+      failedRuns: 0,
+    });
+
     // ── Sequential provider calls with increased delay ─────────────────────
     // Raised from 400ms → 800ms between providers.
-    // Rationale: Perplexity free = 20 RPM (~3s between calls minimum to be safe).
-    // Gemini free = 15 RPM (~4s). With bulk at concurrency=2, two slots each
-    // fire this route, so effective inter-call gap = 800ms × 2 slots = 1600ms.
-    // Combined with bulk's inter-task stagger this stays under rate limits.
     const INTER_PROVIDER_DELAY_MS = 800;
 
     const responses: {
@@ -269,8 +351,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Sequential citation queries with increased delay ───────────────────
-    // Raised from 600ms → 1000ms. Citation prompts are longer and heavier,
-    // so providers need more recovery time between calls.
+    // Raised from 600ms → 1000ms. Citation prompts are longer and heavier.
     const INTER_CITATION_DELAY_MS = 1000;
 
     let citations: Awaited<ReturnType<typeof runCitationQuery>>[] = [];
@@ -289,6 +370,40 @@ export async function POST(request: NextRequest) {
     const firstSuccess =
       responses.find((r) => r.response && !r.error) ?? responses[0];
 
+    const runSucceeded = !!firstSuccess?.response && !firstSuccess?.error;
+
+    const runRecord = {
+      executionId,
+      promptId,
+      status: runSucceeded ? "success" : "failed",
+      url,
+      hasUrl,
+      prompt: customPrompt,
+      finalPrompt,
+      topic,
+      runCitations,
+      providerCount: providers.length,
+      responses,
+      citations,
+      response: firstSuccess?.response ?? "",
+      provider: firstSuccess?.provider ?? null,
+      durationMs: firstSuccess?.durationMs ?? null,
+      createdAt: new Date().toISOString(),
+    };
+
+    // ── Save this execution as its own subdoc ──────────────────────────────
+    // bulk_prompt/{batchId}/runs/{executionId}
+    await saveRunSubDoc(batchId, executionId, runRecord);
+
+    // ── Update batch doc counters only (no runs map) ───────────────────────
+    await updateBatchDoc(batchId, {
+      status: "done",
+      totalRuns: 1,
+      passedRuns: runSucceeded ? 1 : 0,
+      failedRuns: runSucceeded ? 0 : 1,
+      completedAt: new Date().toISOString(),
+    });
+
     return NextResponse.json(
       {
         responses,
@@ -304,6 +419,25 @@ export async function POST(request: NextRequest) {
     );
   } catch (err) {
     console.error("[prompt-run] error:", err);
+
+    // ── Save failed run subdoc ─────────────────────────────────────────────
+    if (batchId && executionId) {
+      await saveRunSubDoc(batchId, executionId, {
+        executionId,
+        promptId,
+        status: "failed",
+        error: String(err),
+        createdAt: new Date().toISOString(),
+      });
+      await updateBatchDoc(batchId, {
+        status: "done",
+        totalRuns: 1,
+        passedRuns: 0,
+        failedRuns: 1,
+        completedAt: new Date().toISOString(),
+      });
+    }
+
     return NextResponse.json(
       { error: String(err) },
       { status: 500, headers: CORS_HEADERS }
