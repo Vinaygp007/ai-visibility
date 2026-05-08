@@ -35,7 +35,7 @@ function parseCitedPage(url: string): { domain: string; path: string } {
 
 /** Extract entitybrand mentions from the raw answer (naive: capitalised words / badge-like tokens) */
 function extractMentions(rawAnswer: string, urls: string[]): string[] {
-  // Pull domain names from URLs as primary mention source
+  // Pull domain names from URLs as primary mention sourc
   const fromUrls = urls
     .map((u) => {
       try {
