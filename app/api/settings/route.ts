@@ -42,6 +42,13 @@ const DEFAULT_SETTINGS: AppSettings = {
       model: "gemini-2.0-flash-exp",
     },
     {
+      id: "ai-overview",
+      name: "ai-overview",
+      enabled: false,
+      apiKey: "",
+      model: "gemini-2.5-pro",
+    },
+    {
       id: "openai",
       name: "ChatGPT (GPT-4o-mini)",
       enabled: false,
@@ -167,7 +174,30 @@ export async function GET() {
       return NextResponse.json(DEFAULT_SETTINGS, { headers: CORS_HEADERS });
     }
 
-    const settings = snapshot.data() as AppSettings;
+    const savedSettings = snapshot.data() as Partial<AppSettings>;
+    const mergedProviders = DEFAULT_SETTINGS.providers.map((defaultProvider) => {
+      const savedProvider = savedSettings.providers?.find(
+        (provider) =>
+          provider.id === defaultProvider.id ||
+          (defaultProvider.id === "ai-overview" && provider.id === "ai_overview")
+      );
+      return savedProvider
+        ? { ...defaultProvider, ...savedProvider, id: defaultProvider.id }
+        : defaultProvider;
+    });
+
+    const settings: AppSettings = {
+      providers: mergedProviders,
+      prompts: {
+        ...DEFAULT_SETTINGS.prompts,
+        ...(savedSettings.prompts ?? {}),
+      },
+      features: {
+        ...DEFAULT_SETTINGS.features,
+        ...(savedSettings.features ?? {}),
+      },
+    };
+
     return NextResponse.json(settings, { headers: CORS_HEADERS });
   } catch (error) {
     console.error("Error fetching settings:", error);

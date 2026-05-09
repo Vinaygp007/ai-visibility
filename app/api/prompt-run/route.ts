@@ -198,6 +198,8 @@ function buildCaller(
   return () => {
     switch (prov.id) {
       case "gemini":
+      case "ai-overview":
+      case "ai_overview":
         return callGemini(prov.apiKey, prov.model, prompt);
       case "openai":
       case "copilot":
