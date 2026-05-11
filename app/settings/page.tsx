@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { AppSettings } from "@/types";
 
-// Available models per provider
+// Available models per providr
 const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
   gemini: [
     { label: "Gemini 3.1 Pro", value: "gemini-3.1-pro" },
