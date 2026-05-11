@@ -21,7 +21,7 @@ interface CitationsPanelProps {
   totalCitations: number;
 }
 
-/** Extract doain label from a UL */
+/** Extract doai label from a UL */
 function parseCitedPage(url: string): { domain: string; path: string } {
   try {
     const u = new URL(url);
