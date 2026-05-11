@@ -16,6 +16,9 @@ const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
     { label: "Gemini 1.5 Flash", value: "gemini-1.5-flash" },
     { label: "Gemini 1.0 Pro", value: "gemini-1.0-pro" },
   ],
+  "ai-overview": [
+    { label: "Gemini 2.5 Pro", value: "gemini-2.5-pro" },
+  ],
   openai: [
     { label: "GPT-4o", value: "gpt-4o" },
     { label: "GPT-4o Mini", value: "gpt-4o-mini" },
@@ -58,6 +61,13 @@ const DEFAULT_SETTINGS: AppSettings = {
       enabled: true,
       apiKey: "",
       model: "gemini-2.0-flash-exp",
+    },
+    {
+      id: "ai-overview",
+      name: "ai-overview",
+      enabled: false,
+      apiKey: "",
+      model: "gemini-2.5-pro",
     },
     {
       id: "openai",
@@ -133,7 +143,28 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings");
       if (res.ok) {
         const data = await res.json();
-        setSettings(data);
+        const mergedProviders = DEFAULT_SETTINGS.providers.map((defaultProvider) => {
+          const savedProvider = data?.providers?.find(
+            (provider: typeof DEFAULT_SETTINGS.providers[number]) =>
+              provider.id === defaultProvider.id ||
+              (defaultProvider.id === "ai-overview" && provider.id === "ai_overview")
+          );
+          return savedProvider
+            ? { ...defaultProvider, ...savedProvider, id: defaultProvider.id }
+            : defaultProvider;
+        });
+
+        setSettings({
+          providers: mergedProviders,
+          prompts: {
+            ...DEFAULT_SETTINGS.prompts,
+            ...(data?.prompts ?? {}),
+          },
+          features: {
+            ...DEFAULT_SETTINGS.features,
+            ...(data?.features ?? {}),
+          },
+        });
       }
     } catch (error) {
       console.error("Failed to load settings:", error);

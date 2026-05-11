@@ -661,6 +661,14 @@ async function runAllProviders(
         process.env.GEMINI_API_KEY = apiKey;
         return callGemini(prompt, model);
       },
+      "ai-overview": async (prompt: string, apiKey: string, model?: string) => {
+        process.env.GEMINI_API_KEY = apiKey;
+        return callGemini(prompt, model);
+      },
+      ai_overview: async (prompt: string, apiKey: string, model?: string) => {
+        process.env.GEMINI_API_KEY = apiKey;
+        return callGemini(prompt, model);
+      },
       openai: async (prompt: string, apiKey: string, model?: string) => {
         process.env.OPENAI_API_KEY = apiKey;
         return callOpenAI(prompt, model);
