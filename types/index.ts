@@ -44,6 +44,23 @@ export interface CitationResult {
   error?: string;
 }
 
+export type BlockType =
+  | "explicit_allow"
+  | "explicit_block"
+  | "global_block"
+  | "not_mentioned"
+  | "no_robots";
+
+export interface BotDetail {
+  key: string;
+  label: string;
+  company: string;
+  allowed: boolean;
+  reason: string;
+  directive: string | null;
+  blockType: BlockType;
+}
+
 export interface ProviderMeta {
   name: string;
   status: "success" | "failed";
@@ -78,8 +95,72 @@ export interface AnalysisResult {
   // Citations are included by default when runCitations is true (the default)
   citations?: CitationResult[];
   _providers?: ProviderMeta[];
+  _botResults?: BotDetail[];
+  keywords?: { word: string; count: number; inTitle: boolean; inH1: boolean; inMeta: boolean }[];
   _cached?: boolean;
   createdAt?: number | null;
+}
+
+// ── Speed / Core Web Vitals Types ─────────────────────────────────────────
+
+export interface SpeedMetricValue {
+  displayValue: string;
+  score: number | null;
+  numericValue?: number;
+}
+
+export interface SpeedResult {
+  strategy: "mobile" | "desktop";
+  performanceScore: number | null;
+  metrics: {
+    lcp: SpeedMetricValue;
+    cls: SpeedMetricValue;
+    inp: SpeedMetricValue;
+    fcp: SpeedMetricValue;
+    ttfb: SpeedMetricValue;
+    tbt: SpeedMetricValue;
+  };
+  opportunities: { title: string; description: string; savingsMs?: number }[];
+  diagnostics: string[];
+  fetchTime: string;
+  error?: string;
+}
+
+// ── Crawl Types ───────────────────────────────────────────────────────────
+
+export interface CrawlPage {
+  url: string;
+  status: number;
+  responseTimeMs: number;
+  wordCount: number;
+  h1Text: string;
+  h1Count: number;
+  h2Count: number;
+  textRatioPercent: number;
+  metaTitle: string;
+  metaTitleLength: number;
+  metaDescription: string;
+  metaDescriptionLength: number;
+  isIndexable: boolean;
+  hasCanonical: boolean;
+  linkDepth: number;
+  inboundLinkCount: number;
+  issues: string[];
+}
+
+export interface CrawlResult {
+  baseUrl: string;
+  pagesCrawled: number;
+  pagesBroken: number;
+  crawlDurationMs: number;
+  avgResponseTimeMs: number;
+  totalIssues: number;
+  statusBreakdown: Record<string, number>;
+  robotsTxtFound: boolean;
+  sitemapFound: boolean;
+  orphanPages: string[];
+  avgLinkDepth: number;
+  pages: CrawlPage[];
 }
 
 // ── Settings Types ────────────────────────────────────────────────────────

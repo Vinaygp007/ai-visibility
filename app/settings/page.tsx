@@ -51,6 +51,18 @@ const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
     { label: "o1 Mini", value: "o1-mini" },
     { label: "o3 Mini", value: "o3-mini" },
   ],
+  youcom: [
+    { label: "You.com Smart", value: "smart" },
+    { label: "You.com Research", value: "research" },
+  ],
+  duckduckgo: [
+    { label: "DuckDuckGo AI Chat", value: "ddg-default" },
+  ],
+  meta: [
+    { label: "Llama 3.3 70B Instruct", value: "meta-llama/Llama-3.3-70B-Instruct-Turbo" },
+    { label: "Llama 3.1 70B Instruct", value: "meta-llama/Llama-3.1-70B-Instruct-Turbo" },
+    { label: "Llama 3.1 8B Instruct", value: "meta-llama/Llama-3.1-8B-Instruct-Turbo" },
+  ],
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -96,6 +108,27 @@ const DEFAULT_SETTINGS: AppSettings = {
       enabled: false,
       apiKey: "",
       model: "gpt-4o",
+    },
+    {
+      id: "youcom",
+      name: "You.com",
+      enabled: false,
+      apiKey: "",
+      model: "smart",
+    },
+    {
+      id: "duckduckgo",
+      name: "DuckDuckGo AI",
+      enabled: false,
+      apiKey: "",
+      model: "ddg-default",
+    },
+    {
+      id: "meta",
+      name: "Meta AI (Llama via Together AI)",
+      enabled: false,
+      apiKey: "",
+      model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     },
   ],
   prompts: {

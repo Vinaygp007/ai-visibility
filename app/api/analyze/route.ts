@@ -117,7 +117,7 @@ async function writeCache(
 }
 
 // ── HTTP Fetcher ───────────────────────────────────────────────────────────
-async function safeFetch(url: string, ms = 7000): Promise<{ text: string; status: number }> {
+async function safeFetch(url: string, ms = 7000): Promise<{ text: string; status: number; headers: Record<string, string> }> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -126,8 +126,10 @@ async function safeFetch(url: string, ms = 7000): Promise<{ text: string; status
       headers: { "User-Agent": "Mozilla/5.0 (compatible; AiScope/1.0)", Accept: "text/html,text/plain,*/*" },
       redirect: "follow",
     });
-    return { text: res.ok ? await res.text() : "", status: res.status };
-  } catch { return { text: "", status: 0 }; }
+    const headers: Record<string, string> = {};
+    res.headers.forEach((val, key) => { headers[key.toLowerCase()] = val; });
+    return { text: res.ok ? await res.text() : "", status: res.status, headers };
+  } catch { return { text: "", status: 0, headers: {} }; }
   finally { clearTimeout(t); }
 }
 
@@ -164,28 +166,50 @@ const AI_BOTS = [
 ] as const;
 
 // ── Robots parser ──────────────────────────────────────────────────────────
-function checkBot(robotsTxt: string, botKey: string): { allowed: boolean; reason: string } {
-  if (!robotsTxt) return { allowed: true, reason: "No robots.txt — allowed by default" };
-  const lines = robotsTxt.toLowerCase().split("\n").map(l => l.trim());
+type BlockType = "explicit_allow" | "explicit_block" | "global_block" | "not_mentioned" | "no_robots";
+
+function checkBot(robotsTxt: string, botKey: string): {
+  allowed: boolean; reason: string; directive: string | null; blockType: BlockType;
+} {
+  if (!robotsTxt) return {
+    allowed: true, reason: "No robots.txt — allowed by default", directive: null, blockType: "no_robots",
+  };
+
+  // Preserve original casing so we can display the actual directive line
+  const lines = robotsTxt.split("\n").map(l => l.trim());
   const bot = botKey.toLowerCase();
-  let agents: string[] = [];
-  let botDisallow = false, botAllow = false, botFound = false, globalDisallow = false;
+  let currentAgents: string[] = [];
+  let botDisallow: string | null = null;
+  let botAllow: string | null = null;
+  let botFound = false;
+  let globalDisallow: string | null = null;
+
   for (const line of lines) {
-    if (line.startsWith("user-agent:")) { agents = [line.replace("user-agent:", "").trim()]; }
-    else if (line === "") { agents = []; }
-    else if (line.startsWith("disallow:")) {
-      const rule = line.replace("disallow:", "").trim();
-      if (agents.includes(bot)) { botFound = true; if (rule === "/") botDisallow = true; }
-      if (agents.includes("*") && rule === "/") globalDisallow = true;
-    } else if (line.startsWith("allow:")) {
-      const rule = line.replace("allow:", "").trim();
-      if (agents.includes(bot)) { botFound = true; if (rule === "/" || rule === "") botAllow = true; }
+    const lower = line.toLowerCase();
+    if (lower.startsWith("user-agent:")) {
+      currentAgents = [lower.replace("user-agent:", "").trim()];
+    } else if (line === "") {
+      currentAgents = [];
+    } else if (lower.startsWith("disallow:")) {
+      const rule = lower.replace("disallow:", "").trim();
+      if (currentAgents.includes(bot)) {
+        botFound = true;
+        if (rule === "/") botDisallow = line;
+      }
+      if (currentAgents.includes("*") && rule === "/") globalDisallow = line;
+    } else if (lower.startsWith("allow:")) {
+      const rule = lower.replace("allow:", "").trim();
+      if (currentAgents.includes(bot)) {
+        botFound = true;
+        if (rule === "/" || rule === "") botAllow = line;
+      }
     }
   }
-  if (botFound && botAllow)    return { allowed: true,  reason: botKey + " explicitly allowed" };
-  if (botFound && botDisallow) return { allowed: false, reason: botKey + " blocked in robots.txt" };
-  if (!botFound && globalDisallow) return { allowed: false, reason: "All bots blocked via User-agent: *" };
-  return { allowed: true, reason: botFound ? botKey + " found, no block" : "Not mentioned — allowed by default" };
+
+  if (botFound && botAllow)        return { allowed: true,  reason: `${botKey} explicitly allowed`,    directive: botAllow,       blockType: "explicit_allow" };
+  if (botFound && botDisallow)     return { allowed: false, reason: `${botKey} blocked in robots.txt`, directive: botDisallow,    blockType: "explicit_block" };
+  if (!botFound && globalDisallow) return { allowed: false, reason: "Blocked by User-agent: * rule",   directive: globalDisallow, blockType: "global_block"   };
+  return { allowed: true, reason: botFound ? `${botKey} found — no block rule` : "Not mentioned — allowed by default", directive: null, blockType: "not_mentioned" };
 }
 
 // ── HTML parsers ───────────────────────────────────────────────────────────
@@ -209,12 +233,68 @@ function getSiteName(html: string, url: string) {
     new URL(url).hostname.replace("www.", "");
 }
 
+// ── Keyword extractor ──────────────────────────────────────────────────────
+const STOP_WORDS = new Set(["the","a","an","and","or","but","in","on","at","to","for","of","with","by","from","is","are","was","were","be","been","have","has","had","do","does","did","will","would","can","could","this","that","these","those","it","its","we","you","he","she","they","their","our","your","my","his","her","not","no","nor","as","if","so","than","then","also","about","which","who","what","when","where","how","all","more","some","any","each","every","both","few","most","other","into","through","before","after","out","up","down","just","very","much","many","only","same","get","use","like","new","one","two","see","its","via","per","yet","now","here","there","very","much","such","own","too","its","been","into","over","after","while","page","site","web","www","html","http","https"]);
+
+function extractKeywords(html: string): { word: string; count: number; inTitle: boolean; inH1: boolean; inMeta: boolean }[] {
+  const title = (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || "").toLowerCase();
+  const h1    = (html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || "").replace(/<[^>]+>/g, "").toLowerCase();
+  const meta  = (html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] || "").toLowerCase();
+  const text  = html
+    .replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  const words = text.split(" ").filter(w => w.length > 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
+  const freq: Record<string, number> = {};
+  for (const w of words) freq[w] = (freq[w] || 0) + 1;
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1]).slice(0, 15)
+    .map(([word, count]) => ({ word, count, inTitle: title.includes(word), inH1: h1.includes(word), inMeta: meta.includes(word) }));
+}
+
 // ── Build technical data ───────────────────────────────────────────────────
-function buildTechData(siteUrl: string, robotsTxt: string, html: string, llmsTxt: string, llmsFullTxt: string, sitemapFound: boolean) {
+function buildTechData(
+  siteUrl: string, robotsTxt: string, html: string,
+  llmsTxt: string, llmsFullTxt: string, sitemapFound: boolean,
+  responseHeaders: Record<string, string> = {}
+) {
   const botResults = AI_BOTS.map(b => ({ ...b, access: checkBot(robotsTxt, b.key) }));
   const blocked = botResults.filter(b => !b.access.allowed);
   const allowedCount = botResults.filter(b => b.access.allowed).length;
   const jsonLd = parseJsonLd(html);
+
+  // Security headers
+  const hasHSTS       = !!responseHeaders["strict-transport-security"];
+  const hasCSP        = !!responseHeaders["content-security-policy"];
+  const hasXFrame     = !!(responseHeaders["x-frame-options"] || (responseHeaders["content-security-policy"] || "").includes("frame-ancestors"));
+  const hasXContent   = !!responseHeaders["x-content-type-options"];
+  const hasReferrer   = !!responseHeaders["referrer-policy"];
+
+  // Advanced technical SEO
+  const hasHreflang       = /link[^>]+hreflang=/i.test(html);
+  const mixedContent      = siteUrl.startsWith("https") && /(?:src|href)=["']http:\/\//i.test(html);
+  const canonicalTagCount = (html.match(/link[^>]+rel=["']canonical["']/gi) || []).length;
+  const canonicalConflict = canonicalTagCount > 1;
+
+  // Mobile usability
+  const touchIcon      = /link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["']/i.test(html);
+  const metaThemeColor = /meta[^>]+name=["']theme-color["']/i.test(html);
+  const viewportContent = html.match(/meta[^>]+name=["']viewport["'][^>]+content=["']([^"']+)["']/i)?.[1] || "";
+  const viewportProper  = viewportContent.toLowerCase().includes("width=device-width");
+
+  // Content quality & EEAT
+  const bodyText = html
+    .replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const homepageWordCount = bodyText.split(" ").filter(w => w.length > 1).length;
+  const sentences = bodyText.split(/[.!?]+/).filter(s => s.trim().split(" ").length > 3);
+  const avgSentenceWords = sentences.length > 0 ? Math.round(bodyText.split(" ").length / sentences.length) : 0;
+  const hasAuthorSchema  = /"@type"\s*:\s*["'](?:Person|Author)["']/i.test(html);
+  const hasReviewSchema  = /"@type"\s*:\s*["'](?:Review|AggregateRating)["']/i.test(html);
+  const hasFAQSchema     = /"@type"\s*:\s*["']FAQPage["']/i.test(html);
+  const hasAboutLink     = /href=["'][^"']*\/about[^"']*["']/i.test(html);
+  const hasContactLink   = /href=["'][^"']*(?:\/contact|mailto:)[^"']*["']/i.test(html);
+  const hasPrivacyLink   = /href=["'][^"']*(?:\/privacy|\/terms)[^"']*["']/i.test(html);
+
   return {
     botResults, blocked, allowedCount,
     robotsFound: robotsTxt.length > 50,
@@ -225,17 +305,28 @@ function buildTechData(siteUrl: string, robotsTxt: string, html: string, llmsTxt
     ogImage:     extractMeta(html, "og:image"),
     twitterCard: extractMeta(html, "twitter:card"),
     viewport:    /meta[^>]+name=["']viewport["']/i.test(html),
-    canonical:   /link[^>]+rel=["']canonical["']/i.test(html),
+    canonical:   canonicalTagCount >= 1,
     htmlLang:    html.match(/<html[^>]+lang=["']([^"']+)["']/i)?.[1] || "",
     h1Count:     (html.match(/<h1[\s>]/gi) || []).length,
     h2Count:     (html.match(/<h2[\s>]/gi) || []).length,
     isHttps:     siteUrl.startsWith("https://"),
-    llmsFound:   llmsTxt.length > 50,
-    llmsFullFound: llmsFullTxt.length > 50,
+    llmsFound:        llmsTxt.length > 50,
+    llmsFullFound:    llmsFullTxt.length > 50,
+    llmsTxtLength:    llmsTxt.length,
     pageTitle:   html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() || "",
     hasSchema:   /schema\.org/i.test(html) || jsonLd.found,
     sitemapFound,
     siteName:    getSiteName(html, siteUrl),
+    // Security
+    hasHSTS, hasCSP, hasXFrame, hasXContent, hasReferrer,
+    // Advanced technical
+    hasHreflang, mixedContent, canonicalConflict,
+    // Mobile
+    touchIcon, metaThemeColor, viewportProper,
+    // Content & EEAT
+    homepageWordCount, avgSentenceWords,
+    hasAuthorSchema, hasReviewSchema, hasFAQSchema,
+    hasAboutLink, hasContactLink, hasPrivacyLink,
   };
 }
 
@@ -283,13 +374,20 @@ function computeScores(t: Tech): {
   ];
 
   // Category 2: llms.txt & AI Context
+  // Check 3 evaluates content depth — llms.txt must be >200 chars to count as quality
+  const llmsQualityStatus: "pass"|"warn"|"fail" =
+    t.llmsFound && t.llmsTxtLength > 200 ? "pass" : t.llmsFound ? "warn" : "fail";
   const llmsChecks: CheckItem[] = [
     { status: t.llmsFound ? "pass" : "fail", label: "llms.txt present",
       detail: t.llmsFound ? "llms.txt found — AI systems can read structured site context" : "Missing /llms.txt — add one to help AI systems understand your site" },
     { status: t.llmsFullFound ? "pass" : "warn", label: "llms-full.txt present",
       detail: t.llmsFullFound ? "llms-full.txt found" : "Missing /llms-full.txt — extended AI context not available" },
-    { status: t.llmsFound ? "pass" : "fail", label: "AI context file quality",
-      detail: t.llmsFound ? "AI context file present" : "No AI context files found" },
+    { status: llmsQualityStatus, label: "AI context file quality",
+      detail: t.llmsFound
+        ? t.llmsTxtLength > 200
+          ? "llms.txt has sufficient content (" + t.llmsTxtLength + " chars)"
+          : "llms.txt is too short (" + t.llmsTxtLength + " chars) — expand with site description, topics, and contact"
+        : "No AI context files found — add llms.txt to guide AI systems" },
   ];
 
   // Category 3: Structured Data
@@ -308,6 +406,24 @@ function computeScores(t: Tech): {
 
   // Category 4: Content Discoverability
   const h1h2Status: "pass"|"warn"|"fail" = t.h1Count >= 1 && t.h2Count >= 2 ? "pass" : t.h1Count >= 1 ? "warn" : "fail";
+
+  // AI citation potential — data-driven from real fetched signals
+  const citationSignals: string[] = [];
+  if (t.jsonLd.found)   citationSignals.push("JSON-LD");
+  if (t.metaDesc)       citationSignals.push("meta description");
+  if (t.hasSchema)      citationSignals.push("Schema.org");
+  if (t.llmsFound)      citationSignals.push("llms.txt");
+  if (t.sitemapFound)   citationSignals.push("sitemap");
+  const citationScore = citationSignals.length;
+  const citationStatus: "pass"|"warn"|"fail" =
+    citationScore >= 4 ? "pass" : citationScore >= 2 ? "warn" : "fail";
+  const citationDetail =
+    citationScore >= 4
+      ? `Strong signals (${citationScore}/5): ${citationSignals.join(", ")}`
+      : citationScore >= 2
+      ? `Moderate signals (${citationScore}/5): ${citationSignals.join(", ")} — add ${t.jsonLd.found ? "" : "JSON-LD, "}${t.metaDesc ? "" : "meta description"}`.replace(/,\s*$/, "").replace(/^.*—\s*add\s*$/, `${citationScore}/5 signals — add JSON-LD and meta description`)
+      : `Weak signals (${citationScore}/5) — missing meta description, JSON-LD, and structured data`;
+
   const discoverChecks: CheckItem[] = [
     { status: t.sitemapFound ? "pass" : "warn", label: "XML Sitemap",
       detail: t.sitemapFound ? "sitemap.xml found — AI crawlers can discover all pages" : "No sitemap.xml found" },
@@ -315,32 +431,104 @@ function computeScores(t: Tech): {
       detail: t.h1Count + " H1 and " + t.h2Count + " H2 tags on homepage" },
     { status: t.pageTitle ? "pass" : "fail", label: "Page title",
       detail: t.pageTitle ? "Page title present" : "No page title found" },
-    { status: "warn", label: "AI citation potential",
-      detail: "Depends on content quality and domain authority" },
+    { status: citationStatus, label: "AI citation potential", detail: citationDetail },
   ];
 
   // Category 5: Technical AI-SEO
+  // AI indexing readiness — aggregates the key trust/discoverability signals
+  const blockedBotCount = t.botResults.filter(b => !b.access.allowed).length;
+  const majorityBotsAllowed = blockedBotCount < AI_BOTS.length / 2;
+  const indexingSignals = [t.isHttps, t.sitemapFound, t.canonical, !!t.htmlLang, majorityBotsAllowed];
+  const indexingPassed = indexingSignals.filter(Boolean).length;
+  const indexingStatus: "pass"|"warn"|"fail" =
+    indexingPassed >= 5 ? "pass" : indexingPassed >= 3 ? "warn" : "fail";
+  const indexingDetail =
+    indexingPassed >= 5
+      ? "Fully ready: HTTPS, sitemap, canonical, language, and AI bots accessible"
+      : indexingPassed >= 3
+      ? `Partially ready (${indexingPassed}/5): missing ${[!t.isHttps && "HTTPS", !t.sitemapFound && "sitemap", !t.canonical && "canonical", !t.htmlLang && "lang attr", !majorityBotsAllowed && "bot access"].filter(Boolean).join(", ")}`
+      : `Not ready (${indexingPassed}/5) — site may not be properly indexed by AI systems`;
+
   const techChecks: CheckItem[] = [
     { status: t.isHttps ? "pass" : "fail", label: "HTTPS enabled",
       detail: t.isHttps ? "Site uses HTTPS — trusted by AI crawlers" : "HTTP only — upgrade to HTTPS" },
     { status: t.viewport ? "pass" : "warn", label: "Mobile viewport",
-      detail: t.viewport ? "Viewport meta present — mobile-friendly" : "Missing viewport meta tag" },
-    { status: t.canonical ? "pass" : "warn", label: "Canonical URLs",
-      detail: t.canonical ? "Canonical tag present" : "No canonical tag — may cause duplicate content issues" },
+      detail: t.viewport ? "Viewport meta present" : "Missing viewport meta tag" },
+    { status: t.viewportProper ? "pass" : "warn", label: "Viewport configured correctly",
+      detail: t.viewportProper ? "width=device-width set — proper mobile rendering" : "Viewport missing width=device-width" },
+    { status: t.touchIcon ? "pass" : "warn", label: "Apple touch icon",
+      detail: t.touchIcon ? "Touch icon present — correct PWA/mobile experience" : "No apple-touch-icon — add for mobile home screen" },
+    { status: t.canonicalConflict ? "warn" : t.canonical ? "pass" : "warn", label: "Canonical URL",
+      detail: t.canonicalConflict ? "Multiple canonical tags — conflicts override each other" : t.canonical ? "Canonical tag present" : "No canonical tag — may cause duplicate content issues" },
+    { status: t.canonicalConflict ? "fail" : "pass", label: "No canonical conflict",
+      detail: t.canonicalConflict ? "Multiple canonical tags detected — keep only one" : "Single canonical tag — no conflict" },
+    { status: t.hasHreflang ? "pass" : "pass", label: "Hreflang / international",
+      detail: t.hasHreflang ? "hreflang tags found — international SEO configured" : "No hreflang (optional — only needed for multi-language sites)" },
+    { status: t.mixedContent ? "fail" : "pass", label: "No mixed content",
+      detail: t.mixedContent ? "HTTP resources found on HTTPS page — fix mixed content" : "No mixed content issues detected" },
     { status: t.htmlLang ? "pass" : "warn", label: "Language declaration",
       detail: t.htmlLang ? "lang=" + t.htmlLang : "No lang attribute on <html>" },
+    { status: indexingStatus, label: "AI indexing readiness", detail: indexingDetail },
+  ];
+
+  // Category 6: Security & Headers
+  const securityChecks: CheckItem[] = [
+    { status: t.hasHSTS ? "pass" : "warn", label: "HSTS (Strict-Transport-Security)",
+      detail: t.hasHSTS ? "HSTS header present — forces HTTPS connections" : "Missing HSTS header — add Strict-Transport-Security" },
+    { status: t.hasCSP ? "pass" : "warn", label: "Content-Security-Policy",
+      detail: t.hasCSP ? "CSP header configured" : "No CSP header — add to prevent XSS attacks" },
+    { status: t.hasXFrame ? "pass" : "warn", label: "Clickjacking protection",
+      detail: t.hasXFrame ? "X-Frame-Options or CSP frame-ancestors present" : "Missing X-Frame-Options — site may be embeddable in iframes" },
+    { status: t.hasXContent ? "pass" : "warn", label: "X-Content-Type-Options",
+      detail: t.hasXContent ? "X-Content-Type-Options: nosniff present" : "Missing — add X-Content-Type-Options: nosniff" },
+    { status: t.hasReferrer ? "pass" : "warn", label: "Referrer-Policy",
+      detail: t.hasReferrer ? "Referrer-Policy header set" : "No Referrer-Policy — controls how referrer data is shared" },
+    { status: t.hasPrivacyLink ? "pass" : "warn", label: "Privacy & terms pages",
+      detail: t.hasPrivacyLink ? "Privacy or terms page linked — trust signal" : "No privacy/terms link found on homepage" },
+  ];
+
+  // Category 7: Content Quality & EEAT
+  const wordCountStatus: "pass"|"warn"|"fail" = t.homepageWordCount >= 300 ? "pass" : t.homepageWordCount >= 100 ? "warn" : "fail";
+  const readabilityStatus: "pass"|"warn"|"fail" =
+    t.avgSentenceWords === 0 ? "warn"
+    : t.avgSentenceWords <= 20 ? "pass"
+    : t.avgSentenceWords <= 30 ? "warn"
+    : "fail";
+  const contentChecks: CheckItem[] = [
+    { status: wordCountStatus, label: "Homepage word count",
+      detail: t.homepageWordCount + " words" + (t.homepageWordCount < 300 ? " — aim for 300+ for content depth" : " — good content volume") },
+    { status: readabilityStatus, label: "Readability (sentence length)",
+      detail: t.avgSentenceWords > 0 ? "Avg " + t.avgSentenceWords + " words/sentence" + (t.avgSentenceWords > 20 ? " — simplify for better readability" : " — readable") : "Could not measure" },
+    { status: t.hasAuthorSchema ? "pass" : "warn", label: "Author / Person schema (EEAT)",
+      detail: t.hasAuthorSchema ? "Author schema found — strong EEAT signal" : "No author schema — add Person/Author markup for EEAT" },
+    { status: t.hasReviewSchema || t.hasFAQSchema ? "pass" : "warn", label: "Review or FAQ schema",
+      detail: t.hasReviewSchema ? "Review/AggregateRating schema found" : t.hasFAQSchema ? "FAQPage schema found" : "No Review or FAQ schema — add for rich results" },
+    { status: t.hasAboutLink ? "pass" : "warn", label: "About page linked (EEAT)",
+      detail: t.hasAboutLink ? "About page linked from homepage — trust signal" : "No about page link found — add for EEAT" },
+    { status: t.hasContactLink ? "pass" : "warn", label: "Contact info accessible (EEAT)",
+      detail: t.hasContactLink ? "Contact link or email found — accessible to users" : "No contact link found — critical for EEAT" },
   ];
 
   const categories: ScoredCategory[] = [
-    { name: "AI Crawler Access",       icon: "🤖",       checks: crawlerChecks,    score: scoreFromChecks(crawlerChecks),    color: colorFromScore(scoreFromChecks(crawlerChecks))    },
-    { name: "llms.txt and AI Context", icon: "📄",       checks: llmsChecks,       score: scoreFromChecks(llmsChecks),       color: colorFromScore(scoreFromChecks(llmsChecks))       },
-    { name: "Structured Data",         icon: "🏗️",      checks: structuredChecks, score: scoreFromChecks(structuredChecks), color: colorFromScore(scoreFromChecks(structuredChecks)) },
-    { name: "Content Discoverability", icon: "🔍",       checks: discoverChecks,   score: scoreFromChecks(discoverChecks),   color: colorFromScore(scoreFromChecks(discoverChecks))   },
-    { name: "Technical AI SEO",        icon: "⚙️",      checks: techChecks,       score: scoreFromChecks(techChecks),       color: colorFromScore(scoreFromChecks(techChecks))       },
+    { name: "AI Crawler Access",       icon: "🤖", checks: crawlerChecks,    score: scoreFromChecks(crawlerChecks),    color: colorFromScore(scoreFromChecks(crawlerChecks))    },
+    { name: "llms.txt and AI Context", icon: "📄", checks: llmsChecks,       score: scoreFromChecks(llmsChecks),       color: colorFromScore(scoreFromChecks(llmsChecks))       },
+    { name: "Structured Data",         icon: "🏗️", checks: structuredChecks, score: scoreFromChecks(structuredChecks), color: colorFromScore(scoreFromChecks(structuredChecks)) },
+    { name: "Content Discoverability", icon: "🔍", checks: discoverChecks,   score: scoreFromChecks(discoverChecks),   color: colorFromScore(scoreFromChecks(discoverChecks))   },
+    { name: "Technical AI SEO",        icon: "⚙️", checks: techChecks,       score: scoreFromChecks(techChecks),       color: colorFromScore(scoreFromChecks(techChecks))       },
+    { name: "Security & Headers",      icon: "🔒", checks: securityChecks,   score: scoreFromChecks(securityChecks),   color: colorFromScore(scoreFromChecks(securityChecks))   },
+    { name: "Content Quality & EEAT",  icon: "✍️", checks: contentChecks,    score: scoreFromChecks(contentChecks),    color: colorFromScore(scoreFromChecks(contentChecks))    },
   ];
 
   const allChecks = categories.flatMap(c => c.checks);
-  const overall_score = Math.round(categories.reduce((a, c) => a + c.score, 0) / categories.length);
+
+  // Weighted score — AI-focused categories count more than security/EEAT
+  // Weights: AI Crawler 25% · llms.txt 20% · Structured Data 20% ·
+  //          Discoverability 15% · Technical AI SEO 12% ·
+  //          Security 4% · EEAT 4%
+  const WEIGHTS = [0.25, 0.20, 0.20, 0.15, 0.12, 0.04, 0.04];
+  const overall_score = Math.min(100, Math.round(
+    categories.reduce((sum, cat, i) => sum + cat.score * (WEIGHTS[i] ?? 0), 0)
+  ));
 
   return {
     categories,
@@ -372,6 +560,9 @@ function buildPrompt(url: string, t: Tech, customTemplate?: string): string {
     "SITE: " + url + "\n" +
     "ROBOTS.TXT: " + (t.robotsFound ? "found" : "not found") + "\n" +
     "BOTS ALLOWED: " + t.allowedCount + "/" + AI_BOTS.length + "\n" +
+    "BLOCKED AI PLATFORMS: " + (t.blocked.length > 0
+      ? t.blocked.map(b => b.label + " (" + (b.access.blockType === "global_block" ? "via User-agent:* wildcard" : "direct Disallow:/") + ")").join(", ")
+      : "None — all AI platforms accessible") + "\n" +
     "LLMS.TXT: " + (t.llmsFound ? "found" : "not found") + "\n" +
     "LLMS-FULL.TXT: " + (t.llmsFullFound ? "found" : "not found") + "\n" +
     "JSON-LD: " + (t.jsonLd.found ? "found, types: " + t.jsonLd.types.slice(0,3).join(", ") : "not found") + "\n" +
@@ -592,6 +783,69 @@ async function callClaude(prompt: string, model = "claude-3-5-sonnet-20241022"):
   return parseJSON(content.text);
 }
 
+async function callYouCom(prompt: string, model = "smart"): Promise<object> {
+  const apiKey = process.env.YOUCOM_API_KEY;
+  if (!apiKey) throw new Error("YOUCOM_API_KEY not configured");
+
+  const res = await fetch(`https://api.you.com/${model}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": apiKey,
+    },
+    body: JSON.stringify({ query: prompt }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error("You.com " + res.status + ": " + errText.slice(0, 200));
+  }
+
+  const data = await res.json();
+  const text: string = data.answer ?? data.response ?? JSON.stringify(data);
+  return parseJSON(text);
+}
+
+async function callDuckDuckGoAI(_prompt: string): Promise<object> {
+  throw new Error(
+    "DuckDuckGo AI does not have a public API. Enable another provider for analysis generation."
+  );
+}
+
+async function callMetaAI(prompt: string, model = "meta-llama/Llama-3.3-70B-Instruct-Turbo"): Promise<object> {
+  const apiKey = process.env.META_AI_API_KEY;
+  if (!apiKey) throw new Error("META_AI_API_KEY not configured — use a Together AI key for Meta Llama models");
+
+  const res = await fetch("https://api.together.xyz/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: "You are an AI Visibility Auditor. Return ONLY a valid JSON object. No markdown. No explanation. Start with { and end with }.",
+        },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 2000,
+      temperature: 0.1,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error("Meta AI (Together AI) " + res.status + ": " + errText.slice(0, 200));
+  }
+
+  const data = await res.json();
+  const raw: string = data.choices?.[0]?.message?.content || "{}";
+  return parseJSON(raw);
+}
+
 async function callCopilot(prompt: string, model: string = "gpt-4o"): Promise<object> {
   const apiKey = process.env.AZURE_OPENAI_KEY;
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
@@ -684,6 +938,17 @@ async function runAllProviders(
       copilot: async (prompt: string, apiKey: string, model?: string) => {
         process.env.AZURE_OPENAI_KEY = apiKey;
         return callCopilot(prompt, model);
+      },
+      youcom: async (prompt: string, apiKey: string, model?: string) => {
+        process.env.YOUCOM_API_KEY = apiKey;
+        return callYouCom(prompt, model);
+      },
+      duckduckgo: async (prompt: string, _apiKey: string) => {
+        return callDuckDuckGoAI(prompt);
+      },
+      meta: async (prompt: string, apiKey: string, model?: string) => {
+        process.env.META_AI_API_KEY = apiKey;
+        return callMetaAI(prompt, model);
       },
     };
 
@@ -1222,7 +1487,7 @@ export async function POST(request: NextRequest) {
       safeFetch(base + "/sitemap.xml"),
     ]);
 
-    const tech = buildTechData(url, robots.text, homepage.text, llms.text, llmsFull.text, sitemap.status === 200 && sitemap.text.includes("<url"));
+    const tech = buildTechData(url, robots.text, homepage.text, llms.text, llmsFull.text, sitemap.status === 200 && sitemap.text.includes("<url"), homepage.headers);
     
     // Use custom analysis prompt if provided in settings
     const prompt = buildPrompt(url, tech, settings?.prompts?.analysis);
@@ -1253,7 +1518,17 @@ export async function POST(request: NextRequest) {
     // Compute deterministic scores from real fetched data
     const deterministicScores = computeScores(tech);
     const merged = mergeResults(providerResults, deterministicScores, tech.siteName, url);
-    const final = { ...merged, citations: citationResults };
+    const botResultsExport = tech.botResults.map(b => ({
+      key: b.key,
+      label: b.label,
+      company: b.company,
+      allowed: b.access.allowed,
+      reason: b.access.reason,
+      directive: b.access.directive,
+      blockType: b.access.blockType,
+    }));
+    const keywords = extractKeywords(homepage.text);
+    const final = { ...merged, citations: citationResults, _botResults: botResultsExport, keywords };
     const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic") + (storageNamespace ? `|${storageNamespace}` : "");
     
     if (enableCache) {

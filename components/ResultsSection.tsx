@@ -1,15 +1,32 @@
 "use client";
 
-import { AnalysisResult } from "@/types";
+import { AnalysisResult, BotDetail } from "@/types";
 import CategoryCard from "./CategoryCard";
 import Recommendations from "./Recommendations";
 import ScoreGauge from "./ScoreGauge";
 import PromptResponsePanel from "./PromptResponsePanel";
 import CitationsPanel from "./CitationsPanel";
+import CrawlSection from "./CrawlSection";
+import SpeedSection from "./SpeedSection";
 
 const PLATFORM_ICONS: Record<string, string> = {
   chatgpt: "⬡", claude: "◈", perplexity: "◎", gemini: "✦",
   meta_ai: "⬟", you_com: "◉", duckduckgo: "⊙", apple: "◆",
+};
+
+const COMPANY_COLORS: Record<string, { color: string }> = {
+  OpenAI:      { color: "#10a37f" },
+  Anthropic:   { color: "#c87533" },
+  Perplexity:  { color: "#20b2aa" },
+  Google:      { color: "#4285f4" },
+  Meta:        { color: "#0082fb" },
+  "You.com":   { color: "#ff6b35" },
+  DuckDuckGo:  { color: "#de5833" },
+  Apple:       { color: "#888" },
+  Cohere:      { color: "#4db69e" },
+  ByteDance:   { color: "#ff0050" },
+  CommonCrawl: { color: "#9b9b9b" },
+  Amazon:      { color: "#ff9900" },
 };
 
 const PROVIDER_COLORS: Record<string, { color: string; bg: string; border: string }> = {
@@ -43,6 +60,20 @@ export default function ResultsSection({
   const indexedCount = coverageEntries.filter(([, v]) => v === "indexed").length;
   const providers = result._providers ?? [];
   const successfulProviders = providers.filter((p) => p.status === "success");
+
+  // Enhanced bot coverage — use rich _botResults when available, fall back to ai_platform_coverage
+  const rawBotResults = result._botResults ?? null;
+  const fallbackBots = (key: string, allowed: boolean): BotDetail => ({
+    key, label: key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
+    company: "", allowed, reason: "", directive: null, blockType: "not_mentioned",
+  });
+  const botAccessible: BotDetail[] = rawBotResults
+    ? rawBotResults.filter(b => b.allowed)
+    : coverageEntries.filter(([, v]) => v === "indexed").map(([k]) => fallbackBots(k, true));
+  const botBlocked: BotDetail[] = rawBotResults
+    ? rawBotResults.filter(b => !b.allowed)
+    : coverageEntries.filter(([, v]) => v === "blocked").map(([k]) => fallbackBots(k, false));
+  const botTotal = (rawBotResults?.length ?? coverageEntries.length);
 
   // Normalize name for fuzzy matching (strips punctuation/spaces/case)
   // This handles mismatches like "ChatGPT (GPT-4o)" vs "ChatGPT (GPT-4o-mini)"
@@ -241,68 +272,117 @@ export default function ResultsSection({
         </div>
       )}
 
-      {/* ── AI Platform Coverage ────────────────────────────────────────── */}
-      {coverageEntries.length > 0 && (
+      {/* ── AI Platform Coverage (Enhanced) ─────────────────────────────── */}
+      {botTotal > 0 && (
         <div
           className="rounded-2xl border p-5 mb-6"
           style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div
-              className="text-[13px] font-mono tracking-widest uppercase"
-              style={{ color: "#8b8d9e" }}
-            >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "#8b8d9e" }}>
               AI Platform Coverage
             </div>
-            <span
-              className="text-[11px] font-mono"
-              style={{ color: "#8b8d9e" }}
-            >
-              {indexedCount}/{coverageEntries.length} indexed
+            <span className="text-[11px] font-mono" style={{ color: "#8b8d9e" }}>
+              {botAccessible.length}/{botTotal} accessible
             </span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {coverageEntries.map(([platform, status]) => {
-              const isIndexed = status === "indexed";
-              const label = platform
-                .replace(/_/g, " ")
-                .replace(/\b\w/g, (l) => l.toUpperCase());
-              return (
-                <div
-                  key={platform}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 border"
-                  style={{
-                    background: isIndexed
-                      ? "rgba(0,232,122,0.06)"
-                      : "rgba(255,90,90,0.06)",
-                    borderColor: isIndexed
-                      ? "rgba(0,232,122,0.2)"
-                      : "rgba(255,90,90,0.2)",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: isIndexed ? "#00e87a" : "#ff5a5a",
-                    }}
-                  >
-                    {PLATFORM_ICONS[platform] ?? "◎"}
-                  </span>
-                  <div>
-                    <div className="text-[11px] font-medium text-white">
-                      {label}
-                    </div>
-                    <div
-                      className="text-[10px] font-mono"
-                      style={{ color: isIndexed ? "#00e87a" : "#ff5a5a" }}
-                    >
-                      {isIndexed ? "indexed" : "blocked"}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+
+          {/* Progress bar */}
+          <div className="h-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <div
+              className="h-1 rounded-full transition-all duration-500"
+              style={{
+                width: `${Math.round((botAccessible.length / botTotal) * 100)}%`,
+                background:
+                  botAccessible.length === botTotal ? "#00e87a"
+                  : botAccessible.length > botTotal / 2 ? "#ffb830"
+                  : "#ff5a5a",
+              }}
+            />
           </div>
+
+          {/* Accessible bots */}
+          {botAccessible.length > 0 && (
+            <div className="mb-5">
+              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "#00e87a" }}>
+                Accessible — {botAccessible.length}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {botAccessible.map(bot => {
+                  const dotColor = COMPANY_COLORS[bot.company]?.color ?? "#00e87a";
+                  return (
+                    <div
+                      key={bot.key}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px]"
+                      style={{ background: "rgba(0,232,122,0.05)", borderColor: "rgba(0,232,122,0.15)" }}
+                      title={bot.reason}
+                    >
+                      <span style={{ color: dotColor, fontSize: 7, lineHeight: 1 }}>●</span>
+                      <span className="font-medium" style={{ color: "#d0d0dc" }}>{bot.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Blocked bots */}
+          {botBlocked.length > 0 && (
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "#ff5a5a" }}>
+                Blocked — {botBlocked.length}
+              </div>
+              <div className="flex flex-col gap-2">
+                {botBlocked.map(bot => {
+                  const dotColor = COMPANY_COLORS[bot.company]?.color ?? "#ff5a5a";
+                  const isGlobal = bot.blockType === "global_block";
+                  const fixHint = isGlobal
+                    ? `Add before User-agent: *  →  User-agent: ${bot.key}  then  Allow: /`
+                    : `Under User-agent: ${bot.key}  →  change Disallow: / to Allow: /`;
+                  return (
+                    <div
+                      key={bot.key}
+                      className="rounded-xl border p-3"
+                      style={{ background: "rgba(255,90,90,0.04)", borderColor: "rgba(255,90,90,0.18)" }}
+                    >
+                      {/* Bot name + badge */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span style={{ color: dotColor, fontSize: 7, lineHeight: 1 }}>●</span>
+                        <span className="text-[12px] font-semibold text-white">{bot.label}</span>
+                        <span
+                          className="text-[9px] font-mono px-1.5 py-0.5 rounded-full uppercase"
+                          style={{
+                            background: isGlobal ? "rgba(255,184,48,0.12)" : "rgba(255,90,90,0.12)",
+                            color: isGlobal ? "#ffb830" : "#ff5a5a",
+                            border: `1px solid ${isGlobal ? "rgba(255,184,48,0.25)" : "rgba(255,90,90,0.25)"}`,
+                          }}
+                        >
+                          {isGlobal ? "wildcard block" : "explicit block"}
+                        </span>
+                      </div>
+
+                      {/* Actual robots.txt directive */}
+                      {bot.directive && (
+                        <div
+                          className="font-mono text-[10px] px-2.5 py-1.5 rounded-lg mb-2"
+                          style={{ background: "rgba(0,0,0,0.4)", color: "#ff9a9a" }}
+                        >
+                          {bot.directive}
+                        </div>
+                      )}
+
+                      {/* Fix hint */}
+                      <div className="flex items-start gap-1.5">
+                        <span className="text-[10px] font-mono shrink-0" style={{ color: "#00e5ff" }}>fix →</span>
+                        <span className="text-[10px] leading-snug" style={{ color: "#8b8d9e" }}>{fixHint}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -396,6 +476,40 @@ export default function ResultsSection({
       </div>
 
       <Recommendations recommendations={result.recommendations} />
+
+      {/* ── Keyword Intelligence ─────────────────────────────────────────── */}
+      {result.keywords && result.keywords.length > 0 && (
+        <div className="rounded-2xl border p-5 mt-6" style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}>
+          <div className="text-[13px] font-mono tracking-widest uppercase mb-4" style={{ color: "#8b8d9e" }}>
+            Keyword Intelligence
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {result.keywords.map(kw => (
+              <div
+                key={kw.word}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px]"
+                style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+                title={`In title: ${kw.inTitle} · In H1: ${kw.inH1} · In meta: ${kw.inMeta}`}
+              >
+                <span className="font-medium" style={{ color: "#d0d0dc" }}>{kw.word}</span>
+                <span className="font-mono text-[9px]" style={{ color: "#8b8d9e" }}>{kw.count}×</span>
+                {kw.inTitle && <span title="In title" style={{ color: "#00e87a", fontSize: 8 }}>T</span>}
+                {kw.inH1    && <span title="In H1"    style={{ color: "#4285f4", fontSize: 8 }}>H1</span>}
+                {kw.inMeta  && <span title="In meta"  style={{ color: "#ffb830", fontSize: 8 }}>M</span>}
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] mt-3" style={{ color: "#8b8d9e" }}>
+            <span style={{ color: "#00e87a" }}>T</span> = in title · <span style={{ color: "#4285f4" }}>H1</span> = in H1 · <span style={{ color: "#ffb830" }}>M</span> = in meta description
+          </p>
+        </div>
+      )}
+
+      {/* ── Core Web Vitals & Speed ──────────────────────────────────────── */}
+      <SpeedSection url={result.url} />
+
+      {/* ── Technical Crawl ──────────────────────────────────────────────── */}
+      <CrawlSection url={result.url} />
     </div>
   );
 }
