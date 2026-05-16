@@ -64,15 +64,29 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
   if (apiKey) params.set("key", apiKey);
 
   let data: Record<string, unknown>;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25_000);
   try {
-    const res = await fetch(`${PSI}?${params}`, { headers: { Accept: "application/json" } });
+    const res = await fetch(`${PSI}?${params}`, {
+      headers: { Accept: "application/json" },
+      signal: ctrl.signal,
+    });
     if (!res.ok) {
       const errText = await res.text();
-      return emptyResult(strategy, `PSI API error ${res.status}: ${errText.slice(0, 200)}`);
+      return emptyResult(strategy, `PSI API error ${res.status}: ${errText.slice(0, 150)}`);
     }
     data = await res.json() as Record<string, unknown>;
   } catch (err) {
-    return emptyResult(strategy, String(err));
+    const raw = String(err);
+    const friendly =
+      raw.includes("abort") || raw.includes("Abort")
+        ? "Speed test timed out (25s) — the URL may be slow or PSI unavailable"
+        : raw.includes("fetch failed") || raw.includes("ENOTFOUND") || raw.includes("ECONNREFUSED")
+        ? "Cannot reach Google PageSpeed API — ensure the URL is publicly accessible and internet is available. Add PAGESPEED_API_KEY to .env for higher rate limits."
+        : raw.slice(0, 200);
+    return emptyResult(strategy, friendly);
+  } finally {
+    clearTimeout(timer);
   }
 
   const cats = (data.lighthouseResult as Record<string, unknown> | undefined)?.categories as Record<string, Record<string, unknown>> | undefined;

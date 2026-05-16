@@ -10,7 +10,7 @@ const CORS = {
 
 const MAX_PAGES = 20;
 const CONCURRENCY = 5;
-const TIMEOUT_MS = 5000;
+const TIMEOUT_MS = 8000;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

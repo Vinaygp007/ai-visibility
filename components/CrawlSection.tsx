@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { CrawlResult, CrawlPage } from "@/types";
 
 type SortKey = keyof Pick<
@@ -68,10 +68,12 @@ function ColHeader({
   );
 }
 
-export default function CrawlSection({ url }: { url: string }) {
+export default function CrawlSection({ url, autoRun = false }: { url: string; autoRun?: boolean }) {
   const [state, setState] = useState<CrawlState>("idle");
   const [result, setResult] = useState<CrawlResult | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => { if (autoRun) runCrawl(); }, []);  // eslint-disable-line react-hooks/exhaustive-deps
   const [sortCol, setSortCol] = useState<SortKey>("url");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [filter, setFilter] = useState<"all" | "issues" | "broken">("all");

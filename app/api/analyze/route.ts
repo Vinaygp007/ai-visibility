@@ -619,9 +619,8 @@ function parseJSON(raw: string): object {
 }
 
 // ── Truncated-JSON recovery ────────────────────────────────────────────────
-// When a model like Perplexity sonar truncates mid-response, the JSON is
-// syntactically broken. This function tries to close open structures so the
-// string becomes valid JSON — better than a hard failure.
+// Perplexity (and some other models) truncate mid-response.
+// Two strategies — whichever succeeds first is returned.
 function attemptJSONRecovery(raw: string): object | null {
   try {
     let s = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -629,32 +628,74 @@ function attemptJSONRecovery(raw: string): object | null {
     if (start === -1) return null;
     s = s.slice(start);
 
-    // Remove trailing comma before we start closing
-    s = s.replace(/,\s*$/, "");
+    // ── Strategy 1: truncated after a complete value (not mid-string) ────────
+    // Walk the string tracking quote/brace state. If we finish outside a string,
+    // just close the open brackets and braces — the original approach.
+    {
+      const trimmed = s.replace(/,\s*$/, "");
+      let braces = 0, brackets = 0, inStr = false, esc = false;
+      for (const ch of trimmed) {
+        if (esc)  { esc = false; continue; }
+        if (ch === "\\" && inStr) { esc = true; continue; }
+        if (ch === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (ch === "{") braces++;
+        else if (ch === "}") braces--;
+        else if (ch === "[") brackets++;
+        else if (ch === "]") brackets--;
+      }
+      if (!inStr) {
+        let suffix = "";
+        for (let i = 0; i < brackets; i++) suffix += "]";
+        for (let i = 0; i < braces; i++) suffix += "}";
+        const candidate = (trimmed + suffix).replace(/,(\s*[}\]])/g, "$1");
+        try { return JSON.parse(candidate); } catch { /* fall through */ }
+      }
+    }
 
-    // Count open braces / brackets to figure out what needs closing
-    let braces = 0, brackets = 0;
-    let inString = false, escape = false;
-    for (const ch of s) {
-      if (escape) { escape = false; continue; }
-      if (ch === "\\" && inString) { escape = true; continue; }
-      if (ch === '"') { inString = !inString; continue; }
-      if (inString) continue;
+    // ── Strategy 2: truncated mid-string (e.g. "pr" from "priority") ─────────
+    // Walk forward tracking state. Every time a } closes an inner object while
+    // still inside the outer object (braces >= 1 after decrement), record that
+    // position as a safe truncation point. Then cut there and close remaining
+    // open brackets/braces.
+    let lastSafeClose = -1;
+    {
+      let braces = 0, brackets = 0, inStr = false, esc = false;
+      for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        if (esc) { esc = false; continue; }
+        if (ch === "\\" && inStr) { esc = true; continue; }
+        if (ch === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (ch === "{") braces++;
+        else if (ch === "}") {
+          braces--;
+          if (braces >= 1) lastSafeClose = i; // inside outer object = safe cutpoint
+        }
+        else if (ch === "[") brackets++;
+        else if (ch === "]") brackets--;
+      }
+    }
+
+    if (lastSafeClose === -1) return null;
+
+    const truncated = s.slice(0, lastSafeClose + 1).replace(/,\s*$/, "");
+    let braces = 0, brackets = 0, inStr = false, esc = false;
+    for (const ch of truncated) {
+      if (esc) { esc = false; continue; }
+      if (ch === "\\" && inStr) { esc = true; continue; }
+      if (ch === '"') { inStr = !inStr; continue; }
+      if (inStr) continue;
       if (ch === "{") braces++;
       else if (ch === "}") braces--;
       else if (ch === "[") brackets++;
       else if (ch === "]") brackets--;
     }
-
-    // Close any open structures
     let suffix = "";
     for (let i = 0; i < brackets; i++) suffix += "]";
     for (let i = 0; i < braces; i++) suffix += "}";
-    const candidate = s + suffix;
-
-    // Strip trailing comma inside the now-closed object/array
-    const cleaned = candidate.replace(/,(\s*[}\]])/g, "$1");
-    return JSON.parse(cleaned);
+    const candidate = (truncated + suffix).replace(/,(\s*[}\]])/g, "$1");
+    try { return JSON.parse(candidate); } catch { return null; }
   } catch {
     return null;
   }
@@ -736,8 +777,8 @@ async function callPerplexity(prompt: string, model = "sonar"): Promise<object> 
         },
         { role: "user", content: prompt },
       ],
-      // 800 tokens is plenty for the summary + 4 recommendations; 2000 caused truncation
-      max_tokens: 800,
+      // 1200 tokens: enough for summary + 5 recommendations; 2000 caused truncation, 800 now too small
+      max_tokens: 1200,
       temperature: 0.1,
     }),
   });

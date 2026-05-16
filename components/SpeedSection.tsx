@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { SpeedResult } from "@/types";
 
 type SpeedState = "idle" | "loading" | "done" | "error";
@@ -113,10 +113,12 @@ function StrategyPanel({ data, keywords }: { data: SpeedResult; keywords: string
   );
 }
 
-export default function SpeedSection({ url }: { url: string }) {
+export default function SpeedSection({ url, autoRun = false }: { url: string; autoRun?: boolean }) {
   const [state, setState] = useState<SpeedState>("idle");
   const [data, setData] = useState<SpeedData | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => { if (autoRun) run(); }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async () => {
     setState("loading");
@@ -130,6 +132,10 @@ export default function SpeedSection({ url }: { url: string }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Speed test failed");
+      // If BOTH strategies failed at network level, surface it as an error state
+      if (json.mobile?.error && json.desktop?.error) {
+        throw new Error(json.mobile.error);
+      }
       setData(json);
       setState("done");
     } catch (err) {
@@ -190,11 +196,16 @@ export default function SpeedSection({ url }: { url: string }) {
 
       {state === "error" && (
         <div className="px-5 py-8 text-center">
-          <p className="text-sm font-medium mb-1" style={{ color: "#ff5a5a" }}>Speed test failed</p>
-          <p className="text-[11px] mb-4" style={{ color: "#8b8d9e" }}>{error}</p>
-          <p className="text-[10px]" style={{ color: "#8b8d9e" }}>
-            Add <code className="font-mono" style={{ color: "#00e5ff" }}>PAGESPEED_API_KEY</code> to your .env for higher rate limits.
-          </p>
+          <div className="text-2xl mb-3">⚡</div>
+          <p className="text-sm font-medium mb-2" style={{ color: "#ff5a5a" }}>Speed test unavailable</p>
+          <p className="text-[11px] max-w-sm mx-auto leading-relaxed mb-4" style={{ color: "#8b8d9e" }}>{error}</p>
+          <div className="rounded-xl border p-3 max-w-sm mx-auto text-left" style={{ background: "rgba(0,229,255,0.04)", borderColor: "rgba(0,229,255,0.15)" }}>
+            <p className="text-[10px] font-mono mb-1" style={{ color: "#00e5ff" }}>How to fix:</p>
+            <p className="text-[10px] leading-relaxed" style={{ color: "#8b8d9e" }}>
+              1. The scanned URL must be <strong style={{ color: "#d0d0dc" }}>publicly accessible</strong> (not localhost or private network).<br />
+              2. Add <code className="font-mono" style={{ color: "#00e5ff" }}>PAGESPEED_API_KEY</code> to <code className="font-mono" style={{ color: "#00e5ff" }}>.env.local</code> for higher rate limits and reliability.
+            </p>
+          </div>
         </div>
       )}
 

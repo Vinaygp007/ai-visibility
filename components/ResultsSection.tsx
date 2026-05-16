@@ -506,10 +506,10 @@ export default function ResultsSection({
       )}
 
       {/* ── Core Web Vitals & Speed ──────────────────────────────────────── */}
-      <SpeedSection url={result.url} />
+      <SpeedSection url={result.url} autoRun />
 
       {/* ── Technical Crawl ──────────────────────────────────────────────── */}
-      <CrawlSection url={result.url} />
+      <CrawlSection url={result.url} autoRun />
     </div>
   );
 }
