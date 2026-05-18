@@ -132,7 +132,7 @@ export default function HomePage() {
   const isRateLimit = errorCode === "QUOTA_EXCEEDED";
 
   return (
-    <div className="min-h-screen pl-64" style={{ background: "#0a0b10" }}>
+    <div className="min-h-screen md:pl-64" style={{ background: "#0a0b10" }}>
       <Navbar />
       <HeroSection
         onAnalyze={(url, citations) => handleAnalyze(url, citations === true)}

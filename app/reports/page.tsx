@@ -1147,7 +1147,7 @@ export default function PreviousReportsPage() {
     promptError;
 
   return (
-    <div className="min-h-screen pl-64" style={{ background: "#0a0b10" }}>
+    <div className="min-h-screen md:pl-64" style={{ background: "#0a0b10" }}>
       <div className="max-w-5xl mx-auto px-8 py-12">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}

@@ -3,7 +3,7 @@
 export default function Navbar() {
   return (
     <nav
-      className="flex items-center justify-between px-12 py-4 border-b sticky top-0 z-50"
+      className="flex items-center justify-between px-4 sm:px-8 py-4 border-b sticky top-0 z-50"
       style={{
         borderColor: "rgba(255,255,255,0.07)",
         background: "rgba(10,11,16,0.92)",

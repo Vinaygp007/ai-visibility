@@ -899,8 +899,8 @@ export default function BulkPage() {
   // ── IDLE / INPUT PHASE ─────────────────────────────────────────────────
   if (phase === "idle") {
     return (
-      <div className="min-h-screen pl-64" style={{ background: "#0a0b10" }}>
-        <div className="max-w-3xl mx-auto px-6 pt-16 pb-20">
+      <div className="min-h-screen md:pl-64" style={{ background: "#0a0b10" }}>
+        <div className="max-w-3xl mx-auto px-6 pt-20 md:pt-16 pb-20">
 
           <div className="mb-10">
             <div
@@ -1045,8 +1045,8 @@ export default function BulkPage() {
 
   // ── RUNNING / DONE PHASE ───────────────────────────────────────────────
   return (
-    <div className="min-h-screen pl-64" style={{ background: "#0a0b10" }}>
-      <div className="max-w-[1100px] mx-auto px-6 pt-10 pb-20">
+    <div className="min-h-screen md:pl-64" style={{ background: "#0a0b10" }}>
+      <div className="max-w-[1100px] mx-auto px-6 pt-16 md:pt-10 pb-20">
 
         {/* Top stats bar */}
         <div
@@ -1209,11 +1209,13 @@ export default function BulkPage() {
           className="rounded-2xl border overflow-hidden"
           style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
         >
+          <div className="overflow-x-auto">
           {/* Table header */}
           <div
             className="grid text-[10px] font-mono tracking-widest uppercase px-5 py-3 border-b"
             style={{
               gridTemplateColumns: "2fr 90px 60px 60px 1fr 110px",
+              minWidth: 600,
               borderColor: "rgba(255,255,255,0.07)",
               color: "#4b5563",
             }}
@@ -1253,6 +1255,7 @@ export default function BulkPage() {
                       className="grid items-center px-5 py-3.5 transition-colors"
                       style={{
                         gridTemplateColumns: "2fr 90px 60px 60px 1fr 110px",
+                        minWidth: 600,
                         background: isRunning
                           ? "rgba(0,229,255,0.03)"
                           : isExpanded
@@ -1364,6 +1367,7 @@ export default function BulkPage() {
               })
             )}
           </div>
+          </div>{/* end overflow-x-auto */}
         </div>
 
         {/* Tip */}

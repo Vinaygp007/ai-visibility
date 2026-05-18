@@ -762,8 +762,10 @@ export default function MultiPromptPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0b10", color: "#f0f0f5" }}>
-      <div style={{ paddingLeft: 256 }}>
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 32px 80px" }}>
+      <div className="md:pl-64">
+        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "60px 20px 80px" }}
+          className="md:!px-8 md:!pt-8"
+        >
 
           {/* Page header */}
           <div style={{ marginBottom: 28 }}>
@@ -788,8 +790,8 @@ export default function MultiPromptPage() {
           {/* Global controls bar */}
           <div style={{
             background: "#111219", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 14, padding: "14px 18px", marginBottom: 24,
-            display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+            borderRadius: 14, padding: "12px 14px", marginBottom: 24,
+            display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
           }}>
 
             {/* Run all */}
@@ -960,7 +962,7 @@ export default function MultiPromptPage() {
           ) : (
             <div style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 420px), 1fr))",
               gap: 14,
             }}>
               {containers.map((c, i) => (

@@ -266,15 +266,15 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen pl-64 flex items-center justify-center" style={{ background: "#0a0b10" }}>
+      <div className="min-h-screen md:pl-64 flex items-center justify-center" style={{ background: "#0a0b10" }}>
         <div className="text-white">Loading settings...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pl-64" style={{ background: "#0a0b10" }}>
-      <div className="max-w-5xl mx-auto px-8 py-12">
+    <div className="min-h-screen md:pl-64" style={{ background: "#0a0b10" }}>
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-16 md:pt-12 pb-12">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>

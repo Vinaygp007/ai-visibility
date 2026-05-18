@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   const links = [
@@ -16,9 +21,20 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 h-screen w-64 border-r flex flex-col z-10"
+      className={`fixed left-0 top-0 h-screen w-64 border-r flex flex-col z-40 transition-transform duration-300 ${
+        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      }`}
       style={{ background: "#0a0b10", borderColor: "rgba(255,255,255,0.07)" }}
     >
+      {/* Mobile close button */}
+      <button
+        onClick={onClose}
+        className="md:hidden absolute top-4 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-xl leading-none"
+        style={{ color: "#8b8d9e", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+        aria-label="Close menu"
+      >
+        ×
+      </button>
       {/* Logo / Brand */}
       <div className="px-6 py-6 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
         <div className="flex items-center gap-3">
