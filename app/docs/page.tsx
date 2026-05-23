@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Navbar from "@/components/Navbar";
 
 type CitationPrompts = {
   system?: string;
@@ -123,51 +124,8 @@ export default function DocsPage() {
           min-height: 100vh;
         }
 
-        /* ── Hide Swagger's own top bar (we have our own) ── */
+        /* ── Hide Swagger's own top bar ── */
         .swagger-ui .topbar { display: none !important; }
-
-        /* ── Our custom header ── */
-        .aiscope-header {
-          background: linear-gradient(135deg, #0f1117 0%, #1a1f2e 100%);
-          border-bottom: 1px solid rgba(99,102,241,0.25);
-          padding: 16px 32px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          position: sticky;
-          top: 0;
-          z-index: 1000;
-          box-shadow: 0 1px 20px rgba(0,0,0,0.4);
-        }
-        .aiscope-logo {
-          font-size: 20px;
-          font-weight: 800;
-          background: linear-gradient(90deg, #818cf8, #a78bfa, #38bdf8);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          letter-spacing: -0.5px;
-        }
-        .aiscope-badge {
-          background: rgba(99,102,241,0.2);
-          border: 1px solid rgba(99,102,241,0.4);
-          color: #818cf8;
-          font-size: 11px;
-          font-weight: 600;
-          padding: 2px 9px;
-          border-radius: 20px;
-        }
-        .aiscope-cors {
-          margin-left: auto;
-          background: rgba(16,185,129,0.15);
-          border: 1px solid rgba(16,185,129,0.3);
-          color: #34d399;
-          font-size: 11px;
-          font-weight: 600;
-          padding: 3px 10px;
-          border-radius: 20px;
-        }
-        .aiscope-cors::before { content: "● "; font-size: 8px; }
 
         /* ── Swagger UI wrapper ── */
         #swagger-ui {
@@ -402,11 +360,7 @@ export default function DocsPage() {
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
       `}</style>
 
-      <div className="aiscope-header">
-        <span className="aiscope-logo">⬡ AiScope</span>
-        <span className="aiscope-badge">API v2.0</span>
-        <span className="aiscope-cors">CORS Enabled</span>
-      </div>
+      <Navbar />
 
       <div className="aiscope-prompts">
         <div className="aiscope-prompts-card">

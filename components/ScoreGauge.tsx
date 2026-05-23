@@ -20,7 +20,7 @@ export default function ScoreGauge({ value, label, color, fillPercent }: ScoreGa
   return (
     <div
       className="rounded-2xl border p-7 text-center min-w-[170px]"
-      style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
     >
       <div
         className="text-5xl font-bold tracking-tighter leading-none"
@@ -30,13 +30,13 @@ export default function ScoreGauge({ value, label, color, fillPercent }: ScoreGa
       </div>
       <div
         className="text-[12px] font-mono mt-1.5 tracking-widest"
-        style={{ color: "#8b8d9e" }}
+        style={{ color: "var(--c-muted)" }}
       >
         {label}
       </div>
       <div
         className="w-full h-1 rounded-sm mt-3 overflow-hidden"
-        style={{ background: "rgba(255,255,255,0.1)" }}
+        style={{ background: "var(--c-border-strong)" }}
       >
         <div
           className="h-full rounded-sm score-fill"

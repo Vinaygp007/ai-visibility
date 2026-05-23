@@ -37,7 +37,7 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
     <section className="max-w-3xl mx-auto px-6 pt-20 pb-12 text-center">
       <div className="inline-block text-xs font-mono px-4 py-1.5 rounded-full border mb-6 tracking-widest"
         style={{ color: "#00e5ff", background: "rgba(0,229,255,0.07)", borderColor: "rgba(0,229,255,0.2)" }}>
-        // AI VISIBILITY SCANNER
+        // AI SCOPE — VISIBILITY PLATFORM
       </div>
 
       <h1 className="text-5xl md:text-6xl font-bold leading-none tracking-tight mb-5"

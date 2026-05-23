@@ -35,7 +35,7 @@ const ISSUE_COLORS: Record<string, string> = {
 };
 
 function statusColor(code: number): string {
-  if (code === 0)         return "#8b8d9e";
+  if (code === 0)         return "var(--c-muted)";
   if (code < 300)         return "#00e87a";
   if (code < 400)         return "#ffb830";
   if (code < 500)         return "#ff5a5a";
@@ -60,7 +60,7 @@ function ColHeader({
   return (
     <th
       className="px-3 py-2.5 text-left text-[10px] font-mono uppercase tracking-wider cursor-pointer select-none whitespace-nowrap"
-      style={{ color: active ? "#00e5ff" : "#8b8d9e" }}
+      style={{ color: active ? "#00e5ff" : "var(--c-muted)" }}
       onClick={() => onSort(col)}
     >
       {label}{active ? (dir === "asc" ? " ↑" : " ↓") : ""}
@@ -125,16 +125,16 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
   return (
     <div
       className="rounded-2xl border mt-6"
-      style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
     >
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+      <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--c-border)" }}>
         <div>
-          <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "#8b8d9e" }}>
+          <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "var(--c-muted)" }}>
             Technical Crawl
           </div>
           {state === "done" && result && (
-            <div className="text-[11px] mt-0.5" style={{ color: "#8b8d9e" }}>
+            <div className="text-[11px] mt-0.5" style={{ color: "var(--c-muted)" }}>
               {result.pagesCrawled} pages · {fmt(result.crawlDurationMs)} total
             </div>
           )}
@@ -154,8 +154,8 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
       {state === "idle" && (
         <div className="px-5 py-10 text-center">
           <div className="text-2xl mb-3">🕷️</div>
-          <p className="text-sm font-medium text-white mb-1">Deep Technical Crawl</p>
-          <p className="text-[12px] max-w-sm mx-auto leading-relaxed" style={{ color: "#8b8d9e" }}>
+          <p className="text-sm font-medium mb-1" style={{ color: "var(--c-text)" }}>Deep Technical Crawl</p>
+          <p className="text-[12px] max-w-sm mx-auto leading-relaxed" style={{ color: "var(--c-muted)" }}>
             Crawls up to 20 pages — checks status codes, broken links, word count, H1/H2 structure,
             text ratio, meta titles, and more. Takes 10–30 seconds.
           </p>
@@ -172,7 +172,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
             />
             <span className="text-sm font-medium" style={{ color: "#00e5ff" }}>Crawling pages…</span>
           </div>
-          <p className="text-[12px]" style={{ color: "#8b8d9e" }}>Following internal links, analysing each page</p>
+          <p className="text-[12px]" style={{ color: "var(--c-muted)" }}>Following internal links, analysing each page</p>
         </div>
       )}
 
@@ -180,7 +180,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
       {state === "error" && (
         <div className="px-5 py-8 text-center">
           <p className="text-sm font-medium mb-1" style={{ color: "#ff5a5a" }}>Crawl failed</p>
-          <p className="text-[11px]" style={{ color: "#8b8d9e" }}>{error}</p>
+          <p className="text-[11px]" style={{ color: "var(--c-muted)" }}>{error}</p>
         </div>
       )}
 
@@ -201,10 +201,10 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
               <div
                 key={label}
                 className="rounded-xl border px-4 py-3 text-center"
-                style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+                style={{ background: "var(--c-surface2)", borderColor: "var(--c-border)" }}
               >
                 <div className="text-xl font-bold font-mono" style={{ color }}>{value}</div>
-                <div className="text-[10px] font-mono uppercase tracking-wider mt-0.5" style={{ color: "#8b8d9e" }}>{label}</div>
+                <div className="text-[10px] font-mono uppercase tracking-wider mt-0.5" style={{ color: "var(--c-muted)" }}>{label}</div>
               </div>
             ))}
           </div>
@@ -245,7 +245,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                     style={{ background: cfg.bg, borderColor: cfg.border, color: cfg.color }}
                   >
                     <span className="font-bold">{bucket}</span>
-                    <span style={{ color: "#d0d0dc" }}>{result.statusBreakdown[bucket]} pages</span>
+                    <span style={{ color: "var(--c-text-sub)" }}>{result.statusBreakdown[bucket]} pages</span>
                   </div>
                 );
               })}
@@ -278,9 +278,9 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                 onClick={() => setFilter(f)}
                 className="px-3 py-1 rounded-lg text-[11px] font-medium transition-all"
                 style={{
-                  background: filter === f ? "rgba(0,229,255,0.1)" : "rgba(255,255,255,0.03)",
-                  color: filter === f ? "#00e5ff" : "#8b8d9e",
-                  border: filter === f ? "1px solid rgba(0,229,255,0.25)" : "1px solid rgba(255,255,255,0.07)",
+                  background: filter === f ? "rgba(0,229,255,0.1)" : "var(--c-surface2)",
+                  color: filter === f ? "#00e5ff" : "var(--c-muted)",
+                  border: filter === f ? "1px solid rgba(0,229,255,0.25)" : "1px solid var(--c-border)",
                 }}
               >
                 {f === "all" ? `All pages (${result.pages.length})`
@@ -291,10 +291,10 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           </div>
 
           {/* Page table */}
-          <div className="rounded-xl border overflow-x-auto" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+          <div className="rounded-xl border overflow-x-auto" style={{ borderColor: "var(--c-border)" }}>
             <table className="w-full text-[12px] border-collapse">
               <thead>
-                <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                <tr style={{ background: "var(--c-surface2)", borderBottom: "1px solid var(--c-border)" }}>
                   <ColHeader label="URL"     col="url"              current={sortCol} dir={sortDir} onSort={handleSort} />
                   <ColHeader label="Status"  col="status"           current={sortCol} dir={sortDir} onSort={handleSort} />
                   <ColHeader label="Time"    col="responseTimeMs"   current={sortCol} dir={sortDir} onSort={handleSort} />
@@ -305,13 +305,13 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                   <ColHeader label="Title"   col="metaTitleLength"  current={sortCol} dir={sortDir} onSort={handleSort} />
                   <ColHeader label="Depth"   col="linkDepth"        current={sortCol} dir={sortDir} onSort={handleSort} />
                   <ColHeader label="Inbound" col="inboundLinkCount" current={sortCol} dir={sortDir} onSort={handleSort} />
-                  <th className="px-3 py-2.5 text-left text-[10px] font-mono uppercase tracking-wider" style={{ color: "#8b8d9e" }}>Issues</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-mono uppercase tracking-wider" style={{ color: "var(--c-muted)" }}>Issues</th>
                 </tr>
               </thead>
               <tbody>
                 {sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-6 text-center text-[12px]" style={{ color: "#8b8d9e" }}>
+                    <td colSpan={9} className="px-3 py-6 text-center text-[12px]" style={{ color: "var(--c-muted)" }}>
                       No pages match this filter
                     </td>
                   </tr>
@@ -324,8 +324,8 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                     <tr
                       key={page.url}
                       style={{
-                        borderBottom: i < sorted.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                        background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
+                        borderBottom: i < sorted.length - 1 ? "1px solid var(--c-border)" : "none",
+                        background: i % 2 === 0 ? "transparent" : "var(--c-surface2)",
                       }}
                     >
                       {/* URL */}
@@ -333,7 +333,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                         <a
                           href={page.url} target="_blank" rel="noreferrer"
                           className="hover:underline truncate block"
-                          style={{ color: isOk ? "#d0d0dc" : "#ff5a5a" }}
+                          style={{ color: isOk ? "var(--c-text-sub)" : "#ff5a5a" }}
                           title={page.url}
                         >
                           {shortUrl(page.url, baseUrl)}
@@ -346,30 +346,30 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                       </td>
 
                       {/* Response time */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.responseTimeMs > 800 ? "#ff5a5a" : page.responseTimeMs > 400 ? "#ffb830" : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.responseTimeMs > 800 ? "#ff5a5a" : page.responseTimeMs > 400 ? "#ffb830" : "var(--c-muted)" }}>
                         {fmt(page.responseTimeMs)}
                       </td>
 
                       {/* Word count */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.wordCount < 100 ? "#ffb830" : "#8b8d9e") : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.wordCount < 100 ? "#ffb830" : "var(--c-muted)") : "var(--c-muted)" }}>
                         {isOk ? page.wordCount : "—"}
                       </td>
 
                       {/* H1 */}
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        {!isOk ? <span style={{ color: "#8b8d9e" }}>—</span>
+                        {!isOk ? <span style={{ color: "var(--c-muted)" }}>—</span>
                           : page.h1Count === 0 ? <span style={{ color: "#ff5a5a" }}>✕</span>
                           : page.h1Count > 1 ? <span style={{ color: "#ffb830" }}>{page.h1Count}x</span>
                           : <span style={{ color: "#00e87a" }}>✓</span>}
                       </td>
 
                       {/* H2 count */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: "var(--c-muted)" }}>
                         {isOk ? page.h2Count : "—"}
                       </td>
 
                       {/* Text ratio */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.textRatioPercent < 10 ? "#ffb830" : "#8b8d9e") : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.textRatioPercent < 10 ? "#ffb830" : "var(--c-muted)") : "var(--c-muted)" }}>
                         {isOk ? page.textRatioPercent + "%" : "—"}
                       </td>
 
@@ -379,12 +379,12 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                       </td>
 
                       {/* Link depth */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.linkDepth > 3 ? "#ffb830" : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.linkDepth > 3 ? "#ffb830" : "var(--c-muted)" }}>
                         {page.linkDepth}
                       </td>
 
                       {/* Inbound links */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.inboundLinkCount === 0 && page.linkDepth > 0 ? "#ffb830" : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.inboundLinkCount === 0 && page.linkDepth > 0 ? "#ffb830" : "var(--c-muted)" }}>
                         {page.inboundLinkCount}
                       </td>
 
@@ -404,7 +404,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                               </span>
                             ))}
                             {page.issues.length > 3 && (
-                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style={{ color: "#8b8d9e" }}>
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style={{ color: "var(--c-muted)" }}>
                                 +{page.issues.length - 3}
                               </span>
                             )}
@@ -419,7 +419,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           </div>
 
           {result.pagesCrawled >= 20 && (
-            <p className="text-[10px] mt-3 text-center font-mono" style={{ color: "#8b8d9e" }}>
+            <p className="text-[10px] mt-3 text-center font-mono" style={{ color: "var(--c-muted)" }}>
               Crawl capped at 20 pages. Deeper crawls available via the API with maxPages parameter.
             </p>
           )}

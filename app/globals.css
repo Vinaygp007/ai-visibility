@@ -6,6 +6,48 @@
 :root {
   --font-space: "Space Grotesk", sans-serif;
   --font-jetbrains: "JetBrains Mono", monospace;
+
+  /* Light mode tokens */
+  --c-bg: #ffffff;
+  --c-heading-grad: linear-gradient(135deg, #0f172a 40%, rgba(15, 23, 42, 0.55));
+  --c-input-bg: #f1f5f9;
+  --c-surface: #f8fafc;
+  --c-surface2: #f1f5f9;
+  --c-text: #0f172a;
+  --c-text-sub: #334155;
+  --c-muted: #64748b;
+  --c-accent: #0099bb;
+  --c-accent2: #6d59f0;
+  --c-accent3: #00a862;
+  --c-border: rgba(0, 0, 0, 0.07);
+  --c-border-strong: rgba(0, 0, 0, 0.14);
+  --c-nav-bg: rgba(255, 255, 255, 0.92);
+  --c-error: #dc2626;
+  --c-warning: #d97706;
+  --c-success: #059669;
+  --c-blue: #3b82f6;
+}
+
+.dark {
+  /* Dark mode tokens */
+  --c-bg: #0a0b10;
+  --c-heading-grad: linear-gradient(135deg, #ffffff 30%, rgba(255, 255, 255, 0.45));
+  --c-input-bg: #111219;
+  --c-surface: #111219;
+  --c-surface2: #181a25;
+  --c-text: #f0f0f5;
+  --c-text-sub: #cbd5e1;
+  --c-muted: #8b8d9e;
+  --c-accent: #00e5ff;
+  --c-accent2: #7c6fff;
+  --c-accent3: #00ff94;
+  --c-border: rgba(255, 255, 255, 0.07);
+  --c-border-strong: rgba(255, 255, 255, 0.15);
+  --c-nav-bg: rgba(10, 11, 16, 0.92);
+  --c-error: #ff5a5a;
+  --c-warning: #ffb830;
+  --c-success: #00e87a;
+  --c-blue: #4285f4;
 }
 
 * {
@@ -19,11 +61,12 @@ html {
 }
 
 body {
-  background-color: #0a0b10;
-  color: #f0f0f5;
+  background-color: var(--c-bg);
+  color: var(--c-text);
   font-family: var(--font-space);
   min-height: 100vh;
   line-height: 1.6;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 @layer components {
@@ -32,12 +75,16 @@ body {
   }
 
   .search-box:focus-within {
-    border-color: #00e5ff;
+    border-color: var(--c-accent) !important;
     box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.08);
   }
 
+  .hover-surface:hover {
+    background: var(--c-surface2) !important;
+  }
+
   .cat-card:hover {
-    border-color: rgba(255, 255, 255, 0.13);
+    border-color: var(--c-border-strong) !important;
   }
 
   .animate-fade-up {
@@ -65,15 +112,46 @@ body {
     animation: spin 0.8s linear infinite;
   }
 
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.85); }
+  }
+
   .step-active {
-    color: #00e5ff;
+    color: var(--c-accent);
   }
 
   .step-done {
-    color: #00e87a;
+    color: var(--c-success);
   }
 
   .step-pending {
-    color: #8b8d9e;
+    color: var(--c-muted);
   }
+
 }
+
+/* ── Global theme-aware overrides (outside layers so they win) ── */
+
+/* Make hardcoded "text-white" respect the active theme */
+.text-white {
+  color: var(--c-text) !important;
+}
+
+/* Input / textarea placeholder */
+input::placeholder,
+textarea::placeholder {
+  color: var(--c-muted);
+  opacity: 0.7;
+}
+
+/* Select element theme */
+select {
+  color: var(--c-text);
+  background-color: var(--c-surface);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--c-bg); }
+::-webkit-scrollbar-thumb { background: var(--c-border-strong); border-radius: 3px; }
