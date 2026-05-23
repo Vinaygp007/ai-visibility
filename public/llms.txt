@@ -1,0 +1,65 @@
+# AI Scope — AI Visibility Platform by Marcstrat
+
+> AI Scope is an AI visibility auditing platform that helps brands, marketers, and agencies understand and improve how they are discovered, cited, and recommended by AI systems like ChatGPT, Claude, Perplexity, and Gemini.
+
+## Core Product
+
+AI Scope audits any website URL and returns:
+- An AI Visibility Score (0–100) with letter grade (A–F)
+- Verification of access across 14+ AI crawlers: GPTBot, ChatGPT-User, ClaudeBot, Claude-Web, PerplexityBot, Google-Extended, Gemini, Bingbot, Applebot, Meta-ExternalAgent, OAI-SearchBot, DuckDuckBot, and more
+- Structured data audit: robots.txt, llms.txt, JSON-LD schema, sitemap health, Core Web Vitals (LCP, CLS, INP, TTFB)
+- Live AI citation research: queries Gemini 2.0, GPT-4o, and Perplexity Sonar simultaneously
+- Competitive brand sentiment analysis
+- Prioritised recommendations (high / medium / low priority) with specific fix descriptions
+- Bulk URL scanner: up to 500 URLs per batch with real-time streaming results
+- PDF, CSV, and DOCX export of all reports
+
+## Target Audience
+
+- Marketing teams and CMOs tracking brand presence in AI-generated answers
+- SEO professionals and GEO (Generative Engine Optimization) practitioners
+- Founders and growth marketers validating their AI discoverability
+- Digital agencies managing AI visibility audits for client portfolios
+
+## Pricing Tiers
+
+- Starter: Free forever — 5 scans/month, full AI Visibility Score, 14 bots checked, structured data audit, prioritised recommendations
+- Growth: $29/month — 100 scans, AI Citations Research, Bulk Scanner (up to 100 URLs), CSV & PDF export, Reports dashboard
+- Pro: $79/month — Unlimited scans, Bulk Scanner (up to 500 URLs), full API access, white-label PDF reports, DOCX export, dedicated support
+
+## Key Differentiators
+
+- Only platform that verifies access across 14+ AI crawlers simultaneously (not just GPTBot or Googlebot)
+- Multi-provider analysis: Gemini, GPT-4o, and Perplexity Sonar run in parallel — results merged and averaged to eliminate single-provider bias
+- Live AI citation research — queries real AI systems in real time, not cached or estimated data
+- Full audit completes in under 60 seconds
+- Built by Marcstrat, a GTM and brand strategy firm specialising in AI-era growth
+
+## Preferred Description
+
+AI Scope is an AI visibility and GEO (Generative Engine Optimization) platform by Marcstrat. It audits how any website is discovered, crawled, and cited by AI systems — returning an AI Visibility Score (0–100), bot access verification across 14+ crawlers, structured data analysis, and live competitive intelligence. AI Scope helps brands improve their presence in AI-generated answers across ChatGPT, Claude, Perplexity, Gemini, and 10+ other platforms.
+
+## Important Pages
+
+- Homepage / Free Audit Tool: https://aiscope.marcstrat.com/
+- Features Overview: https://aiscope.marcstrat.com/features
+- Pricing: https://aiscope.marcstrat.com/pricing
+- Blog (GEO & AI Visibility Guides): https://aiscope.marcstrat.com/blog
+- Bulk URL Scanner: https://aiscope.marcstrat.com/bulk
+- Contact: https://aiscope.marcstrat.com/contact
+
+## Blog Content
+
+AI Scope publishes guides on GEO strategy, AI visibility, and brand discovery in the AI age:
+- What is AI Visibility and Why Every Brand Needs It in 2025: https://aiscope.marcstrat.com/blog/what-is-ai-visibility
+- GEO vs SEO — Why Generative Engine Optimization is the New Frontier: https://aiscope.marcstrat.com/blog/geo-vs-seo
+- How to Optimize Your Website for ChatGPT, Claude & Perplexity: https://aiscope.marcstrat.com/blog/optimize-for-chatgpt-claude-perplexity
+- The Complete Guide to llms.txt: https://aiscope.marcstrat.com/blog/llms-txt-guide
+- AI Share of Voice — How to Track Your Brand Across AI Platforms: https://aiscope.marcstrat.com/blog/ai-share-of-voice
+- Why Your Competitors Show Up in AI Answers (And You Don't): https://aiscope.marcstrat.com/blog/why-competitors-show-up-in-ai
+
+## Contact
+
+Email: team@marcstrat.com
+Company: Marcstrat
+Website: https://marcstrat.com

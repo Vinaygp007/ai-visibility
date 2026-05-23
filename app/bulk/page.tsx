@@ -910,7 +910,7 @@ export default function BulkPage() {
     return (
       <div className="min-h-screen" style={{ background: "var(--c-bg)" }}>
         <Navbar />
-        <div className="max-w-3xl mx-auto px-6 pt-8 pb-20">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-8 pb-20">
 
           <div className="mb-10">
             <div
@@ -1057,7 +1057,7 @@ export default function BulkPage() {
   return (
     <div className="min-h-screen" style={{ background: "var(--c-bg)" }}>
       <Navbar />
-      <div className="max-w-[1100px] mx-auto px-6 pt-8 pb-20">
+      <div className="max-w-[1100px] mx-auto px-4 sm:px-6 pt-8 pb-20">
 
         {/* Top stats bar */}
         <div
@@ -1106,7 +1106,7 @@ export default function BulkPage() {
             </div>
           )}
 
-          <div className="ml-auto flex gap-3">
+          <div className="flex flex-wrap gap-3 sm:ml-auto w-full sm:w-auto">
             {phase === "running" && (
               <button
                 onClick={handleStop}

@@ -1,5 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import FaqAccordion from "@/components/FaqAccordion";
+import PricingCards from "@/components/PricingCards";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -8,76 +10,6 @@ export const metadata: Metadata = {
   description:
     "Simple, transparent pricing for AI Scope. Start free, scale when you're ready. No hidden fees.",
 };
-
-const TIERS = [
-  {
-    name: "Starter",
-    price: "Free",
-    per: "forever",
-    desc: "For founders and marketers validating their AI presence.",
-    accent: "#00ff94",
-    highlight: false,
-    cta: "Get Started Free",
-    href: "/",
-    features: [
-      { text: "5 scans / month", included: true },
-      { text: "Full AI Visibility Score (0–100)", included: true },
-      { text: "14 AI bots checked", included: true },
-      { text: "3 AI providers (Gemini, ChatGPT, Perplexity)", included: true },
-      { text: "Prioritised recommendations", included: true },
-      { text: "Structured data audit (robots.txt, llms.txt, schema)", included: true },
-      { text: "AI Citations Research", included: false },
-      { text: "Bulk URL Scanner", included: false },
-      { text: "CSV & PDF export", included: false },
-      { text: "API access", included: false },
-    ],
-  },
-  {
-    name: "Growth",
-    price: "$29",
-    per: "/ month",
-    desc: "For marketers and growth teams tracking multiple properties.",
-    accent: "#00e5ff",
-    highlight: true,
-    badge: "Most Popular",
-    cta: "Start Growth Plan",
-    href: "/",
-    features: [
-      { text: "100 scans / month", included: true },
-      { text: "Everything in Starter", included: true },
-      { text: "AI Citations Research", included: true },
-      { text: "Bulk Scanner (up to 100 URLs)", included: true },
-      { text: "CSV & PDF export", included: true },
-      { text: "Reports dashboard & history", included: true },
-      { text: "Prompt Runner (multi-prompt analysis)", included: true },
-      { text: "Priority support", included: true },
-      { text: "API access", included: false },
-      { text: "White-label reports", included: false },
-    ],
-  },
-  {
-    name: "Pro",
-    price: "$79",
-    per: "/ month",
-    desc: "For agencies and teams needing unlimited scale.",
-    accent: "#7c6fff",
-    highlight: false,
-    cta: "Start Pro Plan",
-    href: "/",
-    features: [
-      { text: "Unlimited scans", included: true },
-      { text: "Everything in Growth", included: true },
-      { text: "Bulk Scanner (up to 500 URLs)", included: true },
-      { text: "Full API access", included: true },
-      { text: "White-label PDF reports", included: true },
-      { text: "Word (DOCX) export", included: true },
-      { text: "Custom prompt configuration", included: true },
-      { text: "Dedicated support", included: true },
-      { text: "Early access to new features", included: true },
-      { text: "Usage analytics dashboard", included: true },
-    ],
-  },
-];
 
 const MATRIX = [
   { label: "Scans / month",            starter: "5",      growth: "100",     pro: "Unlimited" },
@@ -129,9 +61,23 @@ const FAQS = [
   },
 ];
 
+const FAQ_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((faq) => ({
+    "@type": "Question",
+    name: faq.q,
+    acceptedAnswer: { "@type": "Answer", text: faq.a },
+  })),
+};
+
 export default function PricingPage() {
   return (
     <div className="min-h-screen" style={{ background: "var(--c-bg)" }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
+      />
       <Navbar />
 
       {/* Hero */}
@@ -146,7 +92,7 @@ export default function PricingPage() {
         >
           Pricing
         </div>
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-5 max-w-3xl mx-auto" style={{ color: "var(--c-text)" }}>
+        <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-5 max-w-3xl mx-auto" style={{ color: "var(--c-text)" }}>
           Simple, transparent{" "}
           <span style={{ background: "linear-gradient(135deg, var(--c-accent2), var(--c-accent))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
             pricing
@@ -160,68 +106,8 @@ export default function PricingPage() {
         </p>
       </section>
 
-      {/* Tier cards */}
-      <section className="px-6 pb-24">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          {TIERS.map((tier) => (
-            <div
-              key={tier.name}
-              className="rounded-2xl border p-7 relative"
-              style={{
-                background: tier.highlight ? "var(--c-surface2)" : "var(--c-surface)",
-                borderColor: tier.highlight ? `${tier.accent}50` : "var(--c-border)",
-                boxShadow: tier.highlight ? `0 0 50px ${tier.accent}08` : "none",
-              }}
-            >
-              {tier.badge && (
-                <div
-                  className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[11px] font-mono font-bold px-4 py-1 rounded-full"
-                  style={{ background: tier.accent, color: "#000" }}
-                >
-                  {tier.badge}
-                </div>
-              )}
-
-              <div className="mb-6">
-                <div
-                  className="text-[11px] font-mono font-bold uppercase tracking-widest mb-3"
-                  style={{ color: tier.accent }}
-                >
-                  {tier.name}
-                </div>
-                <div className="flex items-baseline gap-1.5 mb-2">
-                  <span className="text-4xl font-bold" style={{ color: "var(--c-text)" }}>{tier.price}</span>
-                  <span className="text-sm" style={{ color: "var(--c-muted)" }}>{tier.per}</span>
-                </div>
-                <p className="text-sm" style={{ color: "var(--c-muted)" }}>{tier.desc}</p>
-              </div>
-
-              <Link
-                href={tier.href}
-                className="block w-full py-3 rounded-xl text-sm font-semibold text-center transition-all hover:opacity-85 active:scale-95 mb-6"
-                style={
-                  tier.highlight
-                    ? { background: tier.accent, color: "#000" }
-                    : { background: "transparent", color: "var(--c-text)", border: "1px solid var(--c-border-strong)" }
-                }
-              >
-                {tier.cta}
-              </Link>
-
-              <ul className="space-y-2.5">
-                {tier.features.map((f) => (
-                  <li key={f.text} className="flex items-start gap-2.5 text-sm" style={{ color: f.included ? "var(--c-text)" : "var(--c-muted)", opacity: f.included ? 1 : 0.5 }}>
-                    <span style={{ color: f.included ? "var(--c-accent3)" : "var(--c-muted)", fontSize: 13, flexShrink: 0, marginTop: 1 }}>
-                      {f.included ? "✓" : "—"}
-                    </span>
-                    {f.text}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Tier cards with billing toggle */}
+      <PricingCards />
 
       {/* Full comparison matrix */}
       <section className="py-24 px-6 border-t" style={{ borderColor: "var(--c-border)" }}>
@@ -235,7 +121,8 @@ export default function PricingPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--c-border)" }}>
+          <div className="overflow-x-auto rounded-2xl border" style={{ borderColor: "var(--c-border)" }}>
+            <div className="min-w-[520px]">
             <div className="grid grid-cols-4 border-b" style={{ background: "var(--c-surface2)", borderColor: "var(--c-border)" }}>
               <div className="px-5 py-4 text-sm font-semibold" style={{ color: "var(--c-muted)" }}>Feature</div>
               {["Starter", "Growth", "Pro"].map((t, i) => (
@@ -262,6 +149,7 @@ export default function PricingPage() {
                 ))}
               </div>
             ))}
+            </div>
           </div>
         </div>
       </section>
@@ -270,22 +158,20 @@ export default function PricingPage() {
       <section className="py-24 px-6 border-t" style={{ borderColor: "var(--c-border)" }}>
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold tracking-tight mb-3" style={{ color: "var(--c-text)" }}>
+            <div
+              className="inline-block text-[11px] font-mono px-3 py-1 rounded-full border mb-4 tracking-widest uppercase"
+              style={{ color: "var(--c-accent2)", background: "rgba(124,111,255,0.06)", borderColor: "rgba(124,111,255,0.2)" }}
+            >
+              FAQ
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3" style={{ color: "var(--c-text)" }}>
               Frequently asked questions
             </h2>
+            <p className="text-lg" style={{ color: "var(--c-muted)" }}>
+              Everything you need to know about AI Scope and pricing.
+            </p>
           </div>
-          <div className="space-y-4">
-            {FAQS.map((faq) => (
-              <div
-                key={faq.q}
-                className="rounded-2xl border p-6"
-                style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
-              >
-                <h3 className="text-[15px] font-semibold mb-2" style={{ color: "var(--c-text)" }}>{faq.q}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--c-muted)" }}>{faq.a}</p>
-              </div>
-            ))}
-          </div>
+          <FaqAccordion faqs={FAQS} />
         </div>
       </section>
 

@@ -131,6 +131,27 @@ body {
 
 }
 
+/* ── Hero grid background pattern ── */
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.dark .hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+}
+
+/* ── Floating orb animation ── */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-24px); }
+}
+.float-slow { animation: float-slow 10s ease-in-out infinite; }
+.float-slow-delay { animation: float-slow 10s ease-in-out infinite; animation-delay: -4s; }
+
 /* ── Global theme-aware overrides (outside layers so they win) ── */
 
 /* Make hardcoded "text-white" respect the active theme */

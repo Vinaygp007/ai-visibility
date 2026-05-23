@@ -33,7 +33,7 @@ export default function BlogPage() {
         >
           Blog
         </div>
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-5 max-w-3xl mx-auto" style={{ color: "var(--c-text)" }}>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-5 max-w-3xl mx-auto" style={{ color: "var(--c-text)" }}>
           Insights on{" "}
           <span style={{ background: "linear-gradient(135deg, var(--c-accent3), var(--c-accent))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
             AI Visibility
@@ -54,7 +54,7 @@ export default function BlogPage() {
           <div className="grid grid-cols-1 md:grid-cols-2">
             {/* Color panel */}
             <div
-              className="flex items-center justify-center p-16 text-6xl"
+              className="flex items-center justify-center p-8 sm:p-16 text-6xl"
               style={{
                 background: `linear-gradient(135deg, ${featured.accent}20, ${featured.accent}08)`,
                 borderRight: "1px solid var(--c-border)",

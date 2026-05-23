@@ -160,7 +160,7 @@ export default function FeaturesPage() {
         >
           Features
         </div>
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-5 max-w-3xl mx-auto" style={{ color: "var(--c-text)" }}>
+        <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-5 max-w-3xl mx-auto" style={{ color: "var(--c-text)" }}>
           Everything You Need to{" "}
           <span style={{ background: "linear-gradient(135deg, var(--c-accent), var(--c-accent2))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
             Own AI Search
@@ -208,7 +208,7 @@ export default function FeaturesPage() {
       <section className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold tracking-tight mb-4" style={{ color: "var(--c-text)" }}>
+            <h2 className="text-2xl sm:text-4xl font-bold tracking-tight mb-4" style={{ color: "var(--c-text)" }}>
               Built for every use case
             </h2>
             <p className="text-lg max-w-xl mx-auto" style={{ color: "var(--c-muted)" }}>
@@ -243,7 +243,7 @@ export default function FeaturesPage() {
                     <p className="text-sm leading-relaxed" style={{ color: "var(--c-muted)" }}>{feat.description}</p>
                   </div>
                 </div>
-                <ul className="space-y-1.5 pl-16">
+                <ul className="space-y-1.5 pl-4 sm:pl-16">
                   {feat.bullets.map((b) => (
                     <li key={b} className="flex items-start gap-2 text-sm" style={{ color: "var(--c-muted)" }}>
                       <span style={{ color: feat.accent, fontSize: 11, marginTop: 3, flexShrink: 0 }}>▸</span>
@@ -261,7 +261,7 @@ export default function FeaturesPage() {
       <section className="py-24 px-6 border-t" style={{ borderColor: "var(--c-border)" }}>
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold tracking-tight mb-4" style={{ color: "var(--c-text)" }}>
+            <h2 className="text-2xl sm:text-4xl font-bold tracking-tight mb-4" style={{ color: "var(--c-text)" }}>
               AI Scope vs the alternatives
             </h2>
             <p className="text-lg" style={{ color: "var(--c-muted)" }}>
@@ -269,16 +269,17 @@ export default function FeaturesPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--c-border)" }}>
+          <div className="overflow-x-auto rounded-2xl border" style={{ borderColor: "var(--c-border)" }}>
+            <div className="min-w-[500px]">
             {/* Header */}
             <div
               className="grid grid-cols-4 gap-0 border-b"
               style={{ background: "var(--c-surface2)", borderColor: "var(--c-border)" }}
             >
-              <div className="px-6 py-4 text-sm font-semibold" style={{ color: "var(--c-muted)" }}>Feature</div>
-              <div className="px-6 py-4 text-sm font-bold text-center" style={{ color: "var(--c-accent)" }}>AI Scope</div>
-              <div className="px-6 py-4 text-sm font-semibold text-center" style={{ color: "var(--c-muted)" }}>Manual</div>
-              <div className="px-6 py-4 text-sm font-semibold text-center" style={{ color: "var(--c-muted)" }}>Other Tools</div>
+              <div className="px-4 sm:px-6 py-4 text-sm font-semibold" style={{ color: "var(--c-muted)" }}>Feature</div>
+              <div className="px-4 sm:px-6 py-4 text-sm font-bold text-center" style={{ color: "var(--c-accent)" }}>AI Scope</div>
+              <div className="px-4 sm:px-6 py-4 text-sm font-semibold text-center" style={{ color: "var(--c-muted)" }}>Manual</div>
+              <div className="px-4 sm:px-6 py-4 text-sm font-semibold text-center" style={{ color: "var(--c-muted)" }}>Other Tools</div>
             </div>
             {COMPARISON.map((row, i) => (
               <div
@@ -289,12 +290,13 @@ export default function FeaturesPage() {
                   background: i % 2 === 0 ? "var(--c-bg)" : "var(--c-surface)",
                 }}
               >
-                <div className="px-6 py-3.5 text-sm" style={{ color: "var(--c-text)" }}>{row.feature}</div>
-                <div className="px-6 py-3.5 text-center"><Check val={row.aiscope} /></div>
-                <div className="px-6 py-3.5 text-center"><Check val={row.manual} /></div>
-                <div className="px-6 py-3.5 text-center"><Check val={row.others} /></div>
+                <div className="px-4 sm:px-6 py-3.5 text-sm" style={{ color: "var(--c-text)" }}>{row.feature}</div>
+                <div className="px-4 sm:px-6 py-3.5 text-center"><Check val={row.aiscope} /></div>
+                <div className="px-4 sm:px-6 py-3.5 text-center"><Check val={row.manual} /></div>
+                <div className="px-4 sm:px-6 py-3.5 text-center"><Check val={row.others} /></div>
               </div>
             ))}
+            </div>
           </div>
         </div>
       </section>
@@ -302,7 +304,7 @@ export default function FeaturesPage() {
       {/* CTA */}
       <section className="py-24 px-6 border-t" style={{ borderColor: "var(--c-border)" }}>
         <div
-          className="max-w-3xl mx-auto rounded-3xl border p-12 text-center relative overflow-hidden"
+          className="max-w-3xl mx-auto rounded-3xl border p-8 sm:p-12 text-center relative overflow-hidden"
           style={{ background: "var(--c-surface)", borderColor: "var(--c-border-strong)" }}
         >
           <div className="pointer-events-none absolute inset-0 opacity-20" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 100%, rgba(0,229,255,0.3), transparent 70%)" }} />

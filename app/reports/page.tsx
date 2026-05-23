@@ -1150,7 +1150,7 @@ export default function PreviousReportsPage() {
   return (
     <div className="min-h-screen" style={{ background: "var(--c-bg)" }}>
       <Navbar />
-      <div className="max-w-5xl mx-auto px-8 pt-8 pb-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-8 pb-16">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">

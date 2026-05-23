@@ -11,10 +11,10 @@ export default function Footer() {
       <div className="max-w-5xl mx-auto">
 
         {/* Main columns */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 mb-10">
 
           {/* Brand column */}
-          <div className="col-span-2 md:col-span-1 flex flex-col gap-4">
+          <div className="col-span-2 lg:col-span-1 flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
@@ -40,10 +40,23 @@ export default function Footer() {
             <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "var(--c-text)" }}>
               Product
             </p>
-            <Link href="/#features" className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>Features</Link>
-            <Link href="/pricing"   className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>Pricing</Link>
-            <Link href="/bulk"      className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>Bulk Scan</Link>
+            <Link href="/#features"   className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>Features</Link>
+            <Link href="/pricing"     className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>Pricing</Link>
+            <Link href="/bulk"        className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>Bulk Scan</Link>
             <Link href="/bulk-prompt" className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>Prompt Runner</Link>
+            <Link href="/agencies"    className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>For Agencies</Link>
+            <Link href="/founders"    className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>For Founders</Link>
+          </div>
+
+          {/* Free Tools column */}
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "var(--c-text)" }}>
+              Free Tools
+            </p>
+            <Link href="/tools/llms-txt-generator"    className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>llms.txt Generator</Link>
+            <Link href="/tools/llms-txt-validator"     className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>llms.txt Validator</Link>
+            <Link href="/tools/robots-txt-ai-checker"  className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>robots.txt AI Checker</Link>
+            <Link href="/tools/ai-bot-list"            className="text-sm transition-opacity hover:opacity-100" style={{ color: "var(--c-muted)", opacity: 0.8 }}>AI Bot List</Link>
           </div>
 
           {/* Company column */}
