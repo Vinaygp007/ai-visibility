@@ -5,9 +5,15 @@ import { CitationResult } from "@/types";
 
 const PROVIDER_COLORS: Record<string, { color: string; bg: string; border: string; icon: string }> = {
   "Gemini 2.0 Flash":      { color: "#4285f4", bg: "rgba(66,133,244,0.08)",  border: "rgba(66,133,244,0.25)", icon: "✦" },
+  "Google AI Overview":    { color: "#34a853", bg: "rgba(52,168,83,0.08)",   border: "rgba(52,168,83,0.25)",  icon: "◇" },
   "ChatGPT (GPT-4o)":      { color: "#10a37f", bg: "rgba(16,163,127,0.08)", border: "rgba(16,163,127,0.25)", icon: "⬡" },
   "ChatGPT (GPT-4o-mini)": { color: "#10a37f", bg: "rgba(16,163,127,0.08)", border: "rgba(16,163,127,0.25)", icon: "⬡" },
   "Perplexity Sonar":      { color: "#20b2aa", bg: "rgba(32,178,170,0.08)",  border: "rgba(32,178,170,0.25)", icon: "◎" },
+  "Claude (Anthropic)":    { color: "#c17c4e", bg: "rgba(193,124,78,0.08)",  border: "rgba(193,124,78,0.25)",  icon: "◆" },
+  "Meta AI (Llama)":       { color: "#0668e1", bg: "rgba(6,104,225,0.08)",   border: "rgba(6,104,225,0.25)",   icon: "▲" },
+  "You.com":               { color: "#a855f7", bg: "rgba(168,85,247,0.08)",  border: "rgba(168,85,247,0.25)",  icon: "◉" },
+  "Microsoft Copilot":     { color: "#00b4d8", bg: "rgba(0,180,216,0.08)",   border: "rgba(0,180,216,0.25)",   icon: "⬟" },
+  "DuckDuckGo AI":         { color: "#de5833", bg: "rgba(222,88,51,0.08)",   border: "rgba(222,88,51,0.25)",   icon: "◈" },
 };
 
 const MENTION_COLORS = [
@@ -329,7 +335,9 @@ export default function CitationsPanel({
               >
                 {active.rawAnswer
                   ? renderAnswer(active.rawAnswer)
-                  : <span style={{ color: "#4b5563" }}>No answer captured</span>}
+                  : active.error
+                    ? <span style={{ color: "#ff5a5a", fontSize: 12 }}>Error: {active.error}</span>
+                    : <span style={{ color: "#4b5563" }}>No answer captured</span>}
               </div>
 
               {/* Inline cited snippets */}

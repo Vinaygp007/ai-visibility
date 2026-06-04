@@ -31,7 +31,7 @@ export type CitationDataSource = "live_search" | "fetched_content" | "training_d
 export type CitationStatus = "success" | "failed" | "unavailable";
 
 export interface CitationResult {
-  provider: "Gemini 2.0 Flash" | "ChatGPT (GPT-4o)" | "Perplexity Sonar";
+  provider: string;
   query: string;
   systemPrompt?: string;
   rawAnswer: string;

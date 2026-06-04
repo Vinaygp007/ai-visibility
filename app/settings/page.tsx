@@ -6,62 +6,31 @@ import type { AppSettings } from "@/types";
 // Available models per providr
 const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
   gemini: [
-    { label: "Gemini 3.1 Pro", value: "gemini-3.1-pro" },
-    { label: "Gemini 3.1 Flash", value: "gemini-3.1-flash" },
-    { label: "Gemini 3.0 Pro", value: "gemini-3.0-pro" },
-    { label: "Gemini 3.0 Flash", value: "gemini-3.0-flash" },
-    { label: "Gemini 2.0 Flash (Exp)", value: "gemini-2.0-flash-exp" },
     { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
-    { label: "Gemini 1.5 Pro", value: "gemini-1.5-pro" },
-    { label: "Gemini 1.5 Flash", value: "gemini-1.5-flash" },
-    { label: "Gemini 1.0 Pro", value: "gemini-1.0-pro" },
   ],
   "ai-overview": [
     { label: "Gemini 2.5 Pro", value: "gemini-2.5-pro" },
   ],
   openai: [
-    { label: "GPT-4o", value: "gpt-4o" },
     { label: "GPT-4o Mini", value: "gpt-4o-mini" },
-    { label: "GPT-4 Turbo", value: "gpt-4-turbo" },
-    { label: "GPT-4", value: "gpt-4" },
-    { label: "GPT-3.5 Turbo", value: "gpt-3.5-turbo" },
-    { label: "o1", value: "o1" },
-    { label: "o1 Mini", value: "o1-mini" },
-    { label: "o3 Mini", value: "o3-mini" },
   ],
   perplexity: [
     { label: "Sonar", value: "sonar" },
-    { label: "Sonar Pro", value: "sonar-pro" },
-    { label: "Sonar Reasoning", value: "sonar-reasoning" },
-    { label: "Sonar Reasoning Pro", value: "sonar-reasoning-pro" },
-    { label: "Sonar Deep Research", value: "sonar-deep-research" },
   ],
   claude: [
-    { label: "Claude 3.5 Sonnet", value: "claude-3-5-sonnet-20241022" },
-    { label: "Claude 3.5 Haiku", value: "claude-3-5-haiku-20241022" },
-    { label: "Claude 3 Opus", value: "claude-3-opus-20240229" },
-    { label: "Claude 3 Sonnet", value: "claude-3-sonnet-20240229" },
-    { label: "Claude 3 Haiku", value: "claude-3-haiku-20240307" },
+    { label: "Claude 3.5 Sonnet", value: "claude-sonnet-4-6" },
   ],
   copilot: [
     { label: "GPT-4o", value: "gpt-4o" },
-    { label: "GPT-4o Mini", value: "gpt-4o-mini" },
-    { label: "GPT-4 Turbo", value: "gpt-4-turbo" },
-    { label: "o1", value: "o1" },
-    { label: "o1 Mini", value: "o1-mini" },
-    { label: "o3 Mini", value: "o3-mini" },
   ],
   youcom: [
     { label: "You.com Smart", value: "smart" },
-    { label: "You.com Research", value: "research" },
   ],
   duckduckgo: [
     { label: "DuckDuckGo AI Chat", value: "ddg-default" },
   ],
   meta: [
     { label: "Llama 3.3 70B Instruct", value: "meta-llama/Llama-3.3-70B-Instruct-Turbo" },
-    { label: "Llama 3.1 70B Instruct", value: "meta-llama/Llama-3.1-70B-Instruct-Turbo" },
-    { label: "Llama 3.1 8B Instruct", value: "meta-llama/Llama-3.1-8B-Instruct-Turbo" },
   ],
 };
 
@@ -72,7 +41,7 @@ const DEFAULT_SETTINGS: AppSettings = {
       name: "Gemini",
       enabled: true,
       apiKey: "",
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
     },
     {
       id: "ai-overview",
@@ -100,7 +69,7 @@ const DEFAULT_SETTINGS: AppSettings = {
       name: "Claude (Anthropic)",
       enabled: false,
       apiKey: "",
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
     },
     {
       id: "copilot",
@@ -370,49 +339,18 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  {/* Model Dropdown */}
+                  {/* Model Display */}
                   <div>
                     <label className="block text-xs font-medium text-white mb-2">Model</label>
-                    <div className="relative">
-                      <select
-                        value={provider.model}
-                        onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
-                        className="w-full px-4 py-2 rounded-xl border text-sm appearance-none cursor-pointer"
-                        style={{
-                          background: "rgba(255,255,255,0.03)",
-                          borderColor: "rgba(255,255,255,0.1)",
-                          color: "#f0f0f5",
-                          paddingRight: "2.5rem",
-                        }}
-                      >
-                        {(PROVIDER_MODELS[provider.id] ?? []).map((m) => (
-                          <option
-                            key={m.value}
-                            value={m.value}
-                            style={{ background: "#1a1b26", color: "#f0f0f5" }}
-                          >
-                            {m.label}
-                          </option>
-                        ))}
-                        {/* Fallback: if the current model isn't in the list, show it */}
-                        {!(PROVIDER_MODELS[provider.id] ?? []).some((m) => m.value === provider.model) && (
-                          <option
-                            value={provider.model}
-                            style={{ background: "#1a1b26", color: "#f0f0f5" }}
-                          >
-                            {provider.model} (custom)
-                          </option>
-                        )}
-                      </select>
-                      {/* Chevron icon */}
-                      <div
-                        className="pointer-events-none absolute inset-y-0 right-3 flex items-center"
-                        style={{ color: "#8b8d9e" }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                          <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
+                    <div
+                      className="w-full px-4 py-2 rounded-xl border text-sm"
+                      style={{
+                        background: "rgba(255,255,255,0.03)",
+                        borderColor: "rgba(255,255,255,0.1)",
+                        color: "#f0f0f5",
+                      }}
+                    >
+                      {(PROVIDER_MODELS[provider.id] ?? []).find((m) => m.value === provider.model)?.label ?? provider.model}
                     </div>
                   </div>
                 </div>

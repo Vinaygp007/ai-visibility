@@ -37,12 +37,10 @@ function getGeminiModelCandidates(): string[] {
     process.env.GEMINI_MODEL
       ? [process.env.GEMINI_MODEL]
       : [
-          // Prefer stable aliases that exist in v1beta ListModels.
-          "gemini-flash-latest",
-          "gemini-2.5-flash",
-          "gemini-flash-lite-latest",
-          "gemini-2.0-flash-lite",
+          // Only stable GA models — preview models (gemini-2.5-flash, gemini-flash-latest)
+          // have "preview" in their API URL and require separate access tiers.
           "gemini-2.0-flash",
+          "gemini-2.0-flash-lite",
         ]
   )
     .filter(Boolean)
@@ -134,13 +132,35 @@ async function safeFetch(url: string, ms = 7000): Promise<{ text: string; status
 }
 
 // ── Settings Loader ────────────────────────────────────────────────────────
+const MODEL_MIGRATIONS: Record<string, string> = {
+  "gemini-2.0-flash-exp":          "gemini-2.0-flash",
+  "gemini-2.0-flash-thinking-exp": "gemini-2.0-flash",
+  "gemini-2.5-pro":                "gemini-2.5-flash",
+  "claude-3-5-sonnet-20241022":    "claude-sonnet-4-6",
+  "claude-3-5-haiku-20241022":     "claude-haiku-4-5-20251001",
+  "claude-3-opus-20240229":        "claude-opus-4-8",
+  "claude-3-sonnet-20240229":      "claude-sonnet-4-6",
+  "claude-3-haiku-20240307":       "claude-haiku-4-5-20251001",
+};
+
+function migrateSettings(settings: AppSettings): AppSettings {
+  if (!settings.providers) return settings;
+  return {
+    ...settings,
+    providers: settings.providers.map(p => {
+      const migrated = MODEL_MIGRATIONS[p.model];
+      return migrated ? { ...p, model: migrated } : p;
+    }),
+  };
+}
+
 async function loadSettings(): Promise<AppSettings | null> {
   const db = await getDb();
   if (!db) return null;
   try {
     const doc = await db.collection("settings").doc("config").get();
     if (!doc.exists) return null;
-    return doc.data() as AppSettings;
+    return migrateSettings(doc.data() as AppSettings);
   } catch (e) {
     console.warn("[settings] load error:", e);
     return null;
@@ -706,9 +726,11 @@ async function callGemini(prompt: string, preferredModel?: string): Promise<obje
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
-  const models = preferredModel
-    ? [normalizeGeminiModelName(String(preferredModel))]
-    : getGeminiModelCandidates();
+  const preferred = preferredModel ? normalizeGeminiModelName(String(preferredModel)) : null;
+  const candidates = getGeminiModelCandidates();
+  const models = preferred
+    ? [preferred, ...candidates.filter(m => m !== preferred)]
+    : candidates;
 
   const errors: string[] = [];
   for (const modelName of models) {
@@ -798,7 +820,7 @@ async function callPerplexity(prompt: string, model = "sonar"): Promise<object> 
   }
 }
 
-async function callClaude(prompt: string, model = "claude-3-5-sonnet-20241022"): Promise<object> {
+async function callClaude(prompt: string, model = "claude-sonnet-4-6"): Promise<object> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
@@ -993,49 +1015,82 @@ async function runAllProviders(
       },
     };
 
-    return Promise.all(
-      enabledProviders.map(async (provider): Promise<ProviderResult> => {
-        const t0 = Date.now();
-        const fn = providerFunctions[provider.id];
-        
-        if (!fn) {
-          return {
-            name: provider.name,
-            data: null,
-            error: `Provider ${provider.id} not implemented`,
-            durationMs: 0,
-            prompt,
-            rawResponse: "",
-          };
-        }
+  // If both gemini and ai-overview are enabled they share the same API key and model.
+  // Run Gemini once and clone the result for ai-overview to halve quota usage.
+  const geminiConfig = enabledProviders.find(p => p.id === "gemini");
+  const aiOverviewConfig = enabledProviders.find(p => p.id === "ai-overview" || p.id === "ai_overview");
+  let sharedGeminiPromise: Promise<ProviderResult> | null = null;
 
-        try {
-          console.log("[AI] calling " + provider.name + "...");
-          const data = await fn(prompt, provider.apiKey, provider.model) as Record<string, unknown>;
-          const rawResponse = JSON.stringify(data, null, 2);
-          console.log("[AI] " + provider.name + " done in " + (Date.now() - t0) + "ms");
-          return { 
-            name: provider.name, 
-            data, 
-            error: null, 
-            durationMs: Date.now() - t0,
-            prompt,
-            rawResponse
-          };
-        } catch (err) {
-          const msg = briefProviderError(err);
-          console.warn("[AI] " + provider.name + " failed:", msg.slice(0, 200));
-          return { 
-            name: provider.name, 
-            data: null, 
-            error: msg, 
-            durationMs: Date.now() - t0,
-            prompt,
-            rawResponse: ""
-          };
-        }
-      })
-    );
+  if (geminiConfig && aiOverviewConfig) {
+    const t0 = Date.now();
+    console.log("[AI] calling " + geminiConfig.name + " (shared with ai-overview to save quota)...");
+    process.env.GEMINI_API_KEY = geminiConfig.apiKey;
+    sharedGeminiPromise = (async (): Promise<ProviderResult> => {
+      try {
+        const data = await callGemini(prompt, geminiConfig.model) as Record<string, unknown>;
+        const rawResponse = JSON.stringify(data, null, 2);
+        console.log("[AI] " + geminiConfig.name + " done in " + (Date.now() - t0) + "ms");
+        return { name: geminiConfig.name, data, error: null, durationMs: Date.now() - t0, prompt, rawResponse };
+      } catch (err) {
+        const msg = briefProviderError(err);
+        console.warn("[AI] " + geminiConfig.name + " failed:", msg.slice(0, 200));
+        return { name: geminiConfig.name, data: null, error: msg, durationMs: Date.now() - t0, prompt, rawResponse: "" };
+      }
+    })();
+  }
+
+  return Promise.all(
+    enabledProviders.map(async (provider): Promise<ProviderResult> => {
+      // Reuse the shared Gemini result for both gemini and ai-overview
+      if (provider.id === "gemini" && sharedGeminiPromise) {
+        return sharedGeminiPromise;
+      }
+      if ((provider.id === "ai-overview" || provider.id === "ai_overview") && sharedGeminiPromise) {
+        const r = await sharedGeminiPromise;
+        return { ...r, name: provider.name };
+      }
+
+      const t0 = Date.now();
+      const fn = providerFunctions[provider.id];
+
+      if (!fn) {
+        return {
+          name: provider.name,
+          data: null,
+          error: `Provider ${provider.id} not implemented`,
+          durationMs: 0,
+          prompt,
+          rawResponse: "",
+        };
+      }
+
+      try {
+        console.log("[AI] calling " + provider.name + "...");
+        const data = await fn(prompt, provider.apiKey, provider.model) as Record<string, unknown>;
+        const rawResponse = JSON.stringify(data, null, 2);
+        console.log("[AI] " + provider.name + " done in " + (Date.now() - t0) + "ms");
+        return {
+          name: provider.name,
+          data,
+          error: null,
+          durationMs: Date.now() - t0,
+          prompt,
+          rawResponse
+        };
+      } catch (err) {
+        const msg = briefProviderError(err);
+        console.warn("[AI] " + provider.name + " failed:", msg.slice(0, 200));
+        return {
+          name: provider.name,
+          data: null,
+          error: msg,
+          durationMs: Date.now() - t0,
+          prompt,
+          rawResponse: ""
+        };
+      }
+    })
+  );
 }
 
 // ── Merge results ──────────────────────────────────────────────────────────
@@ -1214,10 +1269,11 @@ async function getGeminiCitations(siteUrl: string, companyName: string): Promise
       for (let i = 0; i < 2; i++) {
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
-          // NOTE: keep options minimal for SDK compatibility.
           const model = genAI.getGenerativeModel({
             model: modelName,
             systemInstruction: sysPrompt,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            tools: [{ googleSearch: {} } as any],
           });
           const result = await model.generateContent(query);
           const response = result.response;
@@ -1381,6 +1437,138 @@ async function getPerplexityCitations(siteUrl: string, companyName: string): Pro
   }
 }
 
+// ── Claude citations ──────────────────────────────────────────────────────
+async function getClaudeCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+  const urlObj = new URL(siteUrl);
+  const domain = urlObj.hostname.replace("www.", "");
+  const query = citationQuery(companyName || domain, urlObj.origin);
+  const sysPrompt = citationSystemPrompt();
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+    const client = new Anthropic({ apiKey });
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 800,
+      system: sysPrompt,
+      messages: [{ role: "user", content: query }],
+    });
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+    return {
+      provider: "Claude (Anthropic)", query, systemPrompt: sysPrompt, rawAnswer: text,
+      count: mentionCount,
+      urls: [], allCitationUrls: [], dataSource: "live_search",
+      snippets: text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      status: "success",
+    };
+  } catch (err) {
+    return { provider: "Claude (Anthropic)", query, systemPrompt: sysPrompt, rawAnswer: "", count: 0, urls: [], allCitationUrls: [], dataSource: "live_search", snippets: [], status: "failed", error: String(err).slice(0, 150) };
+  }
+}
+
+// ── Meta AI citations ─────────────────────────────────────────────────────
+async function getMetaCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+  const urlObj = new URL(siteUrl);
+  const domain = urlObj.hostname.replace("www.", "");
+  const query = citationQuery(companyName || domain, urlObj.origin);
+  const sysPrompt = citationSystemPrompt();
+  try {
+    const apiKey = process.env.META_AI_API_KEY;
+    if (!apiKey) throw new Error("META_AI_API_KEY not configured");
+    const res = await fetch("https://api.together.xyz/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        messages: [{ role: "system", content: sysPrompt }, { role: "user", content: query }],
+        max_tokens: 800,
+      }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const text: string = data.choices?.[0]?.message?.content ?? "";
+    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+    return {
+      provider: "Meta AI (Llama)", query, systemPrompt: sysPrompt, rawAnswer: text,
+      count: mentionCount,
+      urls: [], allCitationUrls: [], dataSource: "live_search",
+      snippets: text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      status: "success",
+    };
+  } catch (err) {
+    return { provider: "Meta AI (Llama)", query, systemPrompt: sysPrompt, rawAnswer: "", count: 0, urls: [], allCitationUrls: [], dataSource: "live_search", snippets: [], status: "failed", error: String(err).slice(0, 150) };
+  }
+}
+
+// ── You.com citations ─────────────────────────────────────────────────────
+async function getYouComCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+  const urlObj = new URL(siteUrl);
+  const domain = urlObj.hostname.replace("www.", "");
+  const query = citationQuery(companyName || domain, urlObj.origin);
+  const sysPrompt = citationSystemPrompt();
+  try {
+    const apiKey = process.env.YOUCOM_API_KEY;
+    if (!apiKey) throw new Error("YOUCOM_API_KEY not configured");
+    const res = await fetch("https://api.you.com/smart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+      body: JSON.stringify({ query: sysPrompt + "\n\n" + query }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const text: string = data.answer ?? data.response ?? "";
+    const hits: string[] = (data.hits ?? []).map((h: Record<string, string>) => h.url ?? "").filter(Boolean);
+    const matchingUrls = hits.filter(u => u.toLowerCase().includes(domain.toLowerCase()));
+    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+    return {
+      provider: "You.com", query, systemPrompt: sysPrompt, rawAnswer: text,
+      count: matchingUrls.length + mentionCount,
+      urls: matchingUrls.slice(0, 8), allCitationUrls: hits.slice(0, 10), dataSource: "live_search",
+      snippets: text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      status: "success",
+    };
+  } catch (err) {
+    return { provider: "You.com", query, systemPrompt: sysPrompt, rawAnswer: "", count: 0, urls: [], allCitationUrls: [], dataSource: "live_search", snippets: [], status: "failed", error: String(err).slice(0, 150) };
+  }
+}
+
+// ── Copilot citations ─────────────────────────────────────────────────────
+async function getCopilotCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+  const urlObj = new URL(siteUrl);
+  const domain = urlObj.hostname.replace("www.", "");
+  const query = citationQuery(companyName || domain, urlObj.origin);
+  const sysPrompt = citationSystemPrompt();
+  try {
+    const apiKey = process.env.AZURE_OPENAI_KEY;
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+    if (!apiKey || !endpoint) throw new Error("Azure OpenAI not configured");
+    const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o";
+    const url = `${endpoint}/openai/deployments/${deploymentName}/chat/completions?api-version=2024-02-15-preview`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "api-key": apiKey },
+      body: JSON.stringify({
+        messages: [{ role: "system", content: sysPrompt }, { role: "user", content: query }],
+        max_tokens: 800,
+      }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const text: string = data.choices?.[0]?.message?.content ?? "";
+    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+    return {
+      provider: "Microsoft Copilot", query, systemPrompt: sysPrompt, rawAnswer: text,
+      count: mentionCount,
+      urls: [], allCitationUrls: [], dataSource: "live_search",
+      snippets: text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      status: "success",
+    };
+  } catch (err) {
+    return { provider: "Microsoft Copilot", query, systemPrompt: sysPrompt, rawAnswer: "", count: 0, urls: [], allCitationUrls: [], dataSource: "live_search", snippets: [], status: "failed", error: String(err).slice(0, 150) };
+  }
+}
+
 // ── Run citation checks (after main analysis) ──────────────────────────────
 async function runCitationChecks(
   siteUrl: string,
@@ -1424,41 +1612,75 @@ async function runCitationChecks(
       error: String(err).slice(0, 150),
     }));
 
-  // Always return a stable set of providers so integrators can rely on a consistent shape.
-  // Each provider is either executed (success/failed) or marked unavailable with a reason.
-  
-  // Check settings for configured providers
-  const geminiProvider = settings?.providers?.find(p => p.id === "gemini" && p.enabled && p.apiKey);
-  const openaiProvider = settings?.providers?.find(p => p.id === "openai" && p.enabled && p.apiKey);
-  const perplexityProvider = settings?.providers?.find(p => p.id === "perplexity" && p.enabled && p.apiKey);
-  
-  if (geminiProvider && !skipGemini) {
-    // Temporarily set env var for citation function
+  const citationFns: Record<string, (siteUrl: string, companyName: string) => Promise<CitationResult>> = {
+    gemini: getGeminiCitations,
+    openai: getOpenAICitations,
+    perplexity: getPerplexityCitations,
+    claude: getClaudeCitations,
+    meta: getMetaCitations,
+    youcom: getYouComCitations,
+    copilot: getCopilotCitations,
+  };
+
+  const envKeyMap: Record<string, [string, string]> = {
+    gemini: ["GEMINI_API_KEY", "apiKey"],
+    "ai-overview": ["GEMINI_API_KEY", "apiKey"],
+    openai: ["OPENAI_API_KEY", "apiKey"],
+    perplexity: ["PERPLEXITY_API_KEY", "apiKey"],
+    claude: ["ANTHROPIC_API_KEY", "apiKey"],
+    meta: ["META_AI_API_KEY", "apiKey"],
+    youcom: ["YOUCOM_API_KEY", "apiKey"],
+    copilot: ["AZURE_OPENAI_KEY", "apiKey"],
+  };
+
+  const enabledProviders = settings?.providers?.filter(p => p.enabled && p.apiKey) ?? [];
+
+  // Step 1: handle gemini first so ai-overview can reuse its result
+  let geminiCitationPromise: Promise<CitationResult> | null = null;
+  const geminiProvider = enabledProviders.find(p => p.id === "gemini");
+  if (geminiProvider) {
     process.env.GEMINI_API_KEY = geminiProvider.apiKey;
-    tasks.push(wrap("Gemini 2.0 Flash", () => getGeminiCitations(siteUrl, companyName)));
-  } else {
-    tasks.push(Promise.resolve(
-      unavailable(
-        "Gemini 2.0 Flash",
-        !geminiProvider
-          ? "Gemini not configured or disabled in settings"
-          : "Skipped because Gemini failed during main analysis"
-      )
-    ));
+    if (skipGemini) {
+      geminiCitationPromise = Promise.resolve(unavailable("Gemini 2.0 Flash", "Skipped because Gemini failed during main analysis"));
+    } else {
+      geminiCitationPromise = wrap("Gemini 2.0 Flash", () => getGeminiCitations(siteUrl, companyName));
+    }
+    tasks.push(geminiCitationPromise);
   }
 
-  if (openaiProvider) {
-    process.env.OPENAI_API_KEY = openaiProvider.apiKey;
-    tasks.push(wrap("ChatGPT (GPT-4o)", () => getOpenAICitations(siteUrl, companyName)));
-  } else {
-    tasks.push(Promise.resolve(unavailable("ChatGPT (GPT-4o)", "ChatGPT not configured or disabled in settings")));
-  }
+  // Step 2: remaining providers
+  for (const provider of enabledProviders) {
+    if (provider.id === "gemini") continue; // already handled above
 
-  if (perplexityProvider) {
-    process.env.PERPLEXITY_API_KEY = perplexityProvider.apiKey;
-    tasks.push(wrap("Perplexity Sonar", () => getPerplexityCitations(siteUrl, companyName)));
-  } else {
-    tasks.push(Promise.resolve(unavailable("Perplexity Sonar", "Perplexity not configured or disabled in settings")));
+    if (provider.id === "duckduckgo") {
+      tasks.push(Promise.resolve(unavailable("DuckDuckGo AI", "DuckDuckGo does not have a citation API")));
+      continue;
+    }
+
+    if (provider.id === "ai-overview") {
+      // Reuse the Gemini citation result (same API key) — just relabel as Google AI Overview
+      if (geminiCitationPromise) {
+        tasks.push(geminiCitationPromise.then(r => ({ ...r, provider: "Google AI Overview" })));
+      } else {
+        // Gemini provider not separately configured — run independently
+        process.env.GEMINI_API_KEY = provider.apiKey;
+        tasks.push(wrap("Google AI Overview", () =>
+          getGeminiCitations(siteUrl, companyName).then(r => ({ ...r, provider: "Google AI Overview" }))
+        ));
+      }
+      continue;
+    }
+
+    const envEntry = envKeyMap[provider.id];
+    if (envEntry) process.env[envEntry[0]] = provider.apiKey;
+
+    const fn = citationFns[provider.id];
+    if (!fn) {
+      tasks.push(Promise.resolve(unavailable(provider.name, `${provider.name} citations not implemented`)));
+      continue;
+    }
+
+    tasks.push(wrap(provider.name, () => fn(siteUrl, companyName)));
   }
 
   const results = await Promise.all(tasks);
@@ -1537,14 +1759,16 @@ export async function POST(request: NextRequest) {
     console.log("[analysis] running main analysis...");
     const providerResults = await runAllProviders(prompt, settings);
 
-    // Check if Gemini succeeded in main analysis
-    const geminiSucceededInMain = providerResults.some(r => r.name.toLowerCase().includes("gemini") && r.error === null);
+    // Check if Gemini (or ai-overview, which shares the same key) succeeded in main analysis
+    const geminiSucceededInMain = providerResults.some(r =>
+      (r.name.toLowerCase().includes("gemini") || r.name.toLowerCase().includes("overview")) && r.error === null
+    );
 
     // If Gemini was used, wait for quota recovery before citations
     if (geminiSucceededInMain) {
-      console.log("[citations] waiting 10s for Gemini quota recovery...");
-      await new Promise(r => setTimeout(r, 10000));
-    } else if (providerResults.some(r => r.name.toLowerCase().includes("gemini"))) {
+      console.log("[citations] waiting 30s for Gemini quota recovery...");
+      await new Promise(r => setTimeout(r, 30000));
+    } else if (providerResults.some(r => r.name.toLowerCase().includes("gemini") || r.name.toLowerCase().includes("overview"))) {
       console.log("[citations] Gemini failed in main analysis — skipping Gemini citations to avoid further quota waste");
     }
 
