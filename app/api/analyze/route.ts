@@ -22,6 +22,18 @@ function isGeminiRateLimitError(err: unknown): boolean {
   );
 }
 
+// Billing errors won't resolve with retries — fail fast to avoid 56s of wasted backoff.
+function isGeminiPermanentError(err: unknown): boolean {
+  const msg = String(err ?? "").toLowerCase();
+  return (
+    msg.includes("prepayment") ||
+    msg.includes("credits are depleted") ||
+    msg.includes("billing") ||
+    msg.includes("payment required") ||
+    msg.includes("[402")
+  );
+}
+
 function briefProviderError(err: unknown): string {
   const msg = String(err ?? "Unknown error");
   // Keep it reasonably sized for UI, but more informative than 150 chars.
@@ -37,10 +49,12 @@ function getGeminiModelCandidates(): string[] {
     process.env.GEMINI_MODEL
       ? [process.env.GEMINI_MODEL]
       : [
-          // Only stable GA models — preview models (gemini-2.5-flash, gemini-flash-latest)
-          // have "preview" in their API URL and require separate access tiers.
+          // Each model version has its own separate quota pool on Google's free tier,
+          // so falling back to older versions can recover from per-model quota exhaustion.
           "gemini-2.0-flash",
           "gemini-2.0-flash-lite",
+          "gemini-1.5-flash",
+          "gemini-1.5-flash-8b",
         ]
   )
     .filter(Boolean)
@@ -743,6 +757,10 @@ async function callGemini(prompt: string, preferredModel?: string): Promise<obje
         return parseJSON(res.response.text());
       } catch (err) {
         errors.push(`${modelName} (attempt ${attempt + 1}): ${briefProviderError(err)}`);
+        if (isGeminiPermanentError(err)) {
+          console.log(`[Gemini] Billing error on ${modelName} — skipping all retries.`);
+          break; // permanent billing failure, no point retrying any model
+        }
         if (isGeminiRateLimitError(err) && attempt < 2) {
           const waitMs = attempt === 0 ? 8_000 : 20_000;
           console.log(`[Gemini] 429/quota on ${modelName}. Retrying in ${waitMs}ms...`);
@@ -1289,6 +1307,10 @@ async function getGeminiCitations(siteUrl: string, companyName: string): Promise
           return { text, allSourceUrls, matchingUrls, mentionCount };
         } catch (err) {
           lastErr = err;
+          if (isGeminiPermanentError(err)) {
+            console.log(`[Gemini] Billing error on ${modelName} — skipping citation retries.`);
+            break;
+          }
           if (isGeminiRateLimitError(err) && i === 0) {
             await sleep(12_000);
             continue;
@@ -1314,7 +1336,7 @@ async function getGeminiCitations(siteUrl: string, companyName: string): Promise
   } catch (err) {
     const msg = String(err);
     const isLimit = msg.includes("429") || msg.toLowerCase().includes("resource_exhausted") || msg.toLowerCase().includes("quota");
-    if (isLimit) {
+    if (isLimit && !isGeminiPermanentError(err)) {
       console.log("[citations] Gemini rate limit — waiting 20s...");
       await new Promise(r => setTimeout(r, 20000));
       try {
@@ -1796,7 +1818,8 @@ export async function POST(request: NextRequest) {
     const final = { ...merged, citations: citationResults, _botResults: botResultsExport, keywords };
     const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic") + (storageNamespace ? `|${storageNamespace}` : "");
     
-    if (enableCache) {
+    const allProvidersFailed = providerResults.every(r => r.error !== null);
+    if (enableCache && !allProvidersFailed) {
       writeCache(cacheKey, final, storageCollection, {
         storageNamespace: storageNamespace || null,
         source: storageCollection === COLLECTION ? "scan" : "bulk",

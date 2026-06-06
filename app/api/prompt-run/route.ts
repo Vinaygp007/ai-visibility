@@ -15,6 +15,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/firebase";
 import type { AppSettings } from "@/types";
 
+const MODEL_MIGRATIONS: Record<string, string> = {
+  "gemini-2.0-flash-exp":          "gemini-2.0-flash",
+  "gemini-2.0-flash-thinking-exp": "gemini-2.0-flash",
+  "gemini-2.5-pro":                "gemini-2.5-flash",
+  "claude-3-5-sonnet-20241022":    "claude-sonnet-4-6",
+  "claude-3-5-haiku-20241022":     "claude-haiku-4-5-20251001",
+  "claude-3-opus-20240229":        "claude-opus-4-8",
+  "claude-3-sonnet-20240229":      "claude-sonnet-4-6",
+  "claude-3-haiku-20240307":       "claude-haiku-4-5-20251001",
+};
+
+function migrateSettings(settings: AppSettings): AppSettings {
+  if (!settings.providers) return settings;
+  return {
+    ...settings,
+    providers: settings.providers.map(p => {
+      const migrated = MODEL_MIGRATIONS[p.model];
+      return migrated ? { ...p, model: migrated } : p;
+    }),
+  };
+}
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -72,7 +94,7 @@ async function loadSettings(): Promise<AppSettings | null> {
   try {
     const doc = await db.collection("settings").doc("config").get();
     if (!doc.exists) return null;
-    return doc.data() as AppSettings;
+    return migrateSettings(doc.data() as AppSettings);
   } catch (e) {
     console.warn("[prompt-run] settings load error:", e);
     return null;
@@ -131,7 +153,7 @@ async function saveRunSubDoc(
   }
 }
 
-async function callGemini(apiKey: string, model: string, prompt: string): Promise<string> {
+async function callGeminiModel(apiKey: string, model: string, prompt: string): Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -146,6 +168,34 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
   if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
   const data = await res.json();
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+}
+
+async function callGemini(apiKey: string, model: string, prompt: string): Promise<string> {
+  // Each Gemini model version has its own separate quota pool, so exhausting one
+  // doesn't necessarily mean the others are exhausted too.
+  const fallbackChain = [
+    model,
+    model === "gemini-2.0-flash-lite" ? "gemini-2.0-flash" : "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+  ].filter((m, i, arr) => arr.indexOf(m) === i); // de-dupe
+
+  for (let i = 0; i < fallbackChain.length; i++) {
+    const candidate = fallbackChain[i];
+    try {
+      return await callGeminiModel(apiKey, candidate, prompt);
+    } catch (err) {
+      const msg = String(err);
+      const is429 = msg.includes("429");
+      if (!is429) throw err; // non-quota error — fail immediately
+      if (i < fallbackChain.length - 1) {
+        const waitMs = i === 0 ? 5000 : 10000;
+        console.warn(`[prompt-run] Gemini ${candidate} rate-limited, waiting ${waitMs}ms then trying ${fallbackChain[i + 1]}...`);
+        await sleep(waitMs);
+      }
+    }
+  }
+  throw new Error(`All Gemini model fallbacks exhausted (tried: ${fallbackChain.join(", ")}). Quota exceeded — try again later or switch to another provider.`);
 }
 
 async function callOpenAI(
@@ -227,21 +277,28 @@ async function runCitationQuery(
   allCitationUrls: string[];
   error?: string;
 }> {
-  const query = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each, give a brief reason and their URL if known.`;
+  const query = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each source include: a brief reason AND its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.`;
   try {
     const raw = await withRetry(callFn, {
       retries: 2,
       baseDelayMs: 2000,
       label: `citation:${providerName}`,
     });
-    const urlMatches = raw.match(/https?:\/\/[^\s\)\"]+/g) ?? [];
+    // Extract full https:// URLs
+    const fullUrls = raw.match(/https?:\/\/[^\s\)\"\]]+/g) ?? [];
+    // Also extract bare domains (e.g. "hubspot.com", "www.salesforce.com") and prefix them
+    const bareDomains = raw.match(/(?<![/@\w])(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s\)\"\]]*)?(?=[\s\)\"\],]|$)/g) ?? [];
+    const fromBare = bareDomains
+      .filter(d => !d.startsWith("http") && d.includes(".") && d.length > 4)
+      .map(d => "https://" + (d.startsWith("www.") ? d : d));
+    const allUrls = [...new Set([...fullUrls, ...fromBare])].map(u => u.replace(/[.,;]+$/, ""));
     return {
       provider: providerName,
       status: "success",
-      count: urlMatches.length,
+      count: allUrls.length,
       rawAnswer: raw,
       query,
-      allCitationUrls: [...new Set(urlMatches)],
+      allCitationUrls: allUrls,
     };
   } catch (e) {
     return {
@@ -335,20 +392,43 @@ export async function POST(request: NextRequest) {
       error?: string;
     }[] = [];
 
+    // Cache Gemini main-analysis result so ai-overview reuses it (halves quota usage)
+    let geminiMainResult: { text: string; durationMs: number; error?: string } | null = null;
+
     for (let i = 0; i < providers.length; i++) {
       const prov = providers[i];
       if (i > 0) await sleep(INTER_PROVIDER_DELAY_MS);
+
+      const isGeminiVariant = prov.id === "ai-overview" || prov.id === "ai_overview";
+
+      // Reuse cached Gemini result for ai-overview to avoid a second API call
+      if (isGeminiVariant && geminiMainResult) {
+        responses.push({
+          provider: prov.name,
+          response: geminiMainResult.text,
+          durationMs: geminiMainResult.durationMs,
+          error: geminiMainResult.error,
+        });
+        continue;
+      }
 
       const start = Date.now();
       try {
         const text = await withRetry(buildCaller(prov, finalPrompt), {
           retries: 3,
-          baseDelayMs: 1500,
+          baseDelayMs: 2000,
           label: `main:${prov.name}`,
         });
+        if (prov.id === "gemini") {
+          geminiMainResult = { text, durationMs: Date.now() - start };
+        }
         responses.push({ provider: prov.name, response: text, durationMs: Date.now() - start });
       } catch (e) {
-        responses.push({ provider: prov.name, response: "", durationMs: Date.now() - start, error: String(e) });
+        const errMsg = String(e);
+        if (prov.id === "gemini") {
+          geminiMainResult = { text: "", durationMs: Date.now() - start, error: errMsg };
+        }
+        responses.push({ provider: prov.name, response: "", durationMs: Date.now() - start, error: errMsg });
       }
     }
 
@@ -357,14 +437,27 @@ export async function POST(request: NextRequest) {
     const INTER_CITATION_DELAY_MS = 1000;
 
     let citations: Awaited<ReturnType<typeof runCitationQuery>>[] = [];
+
+    // Cache Gemini citation result so ai-overview reuses it
+    let geminiCitationResult: Awaited<ReturnType<typeof runCitationQuery>> | null = null;
+
     if (runCitations) {
       for (let i = 0; i < providers.length; i++) {
         const prov = providers[i];
         if (i > 0) await sleep(INTER_CITATION_DELAY_MS);
 
-        const citationPrompt = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each, give a brief reason and their URL if known.`;
+        const isGeminiVariant = prov.id === "ai-overview" || prov.id === "ai_overview";
+
+        if (isGeminiVariant && geminiCitationResult) {
+          citations.push({ ...geminiCitationResult, provider: prov.name });
+          continue;
+        }
+
+        const citationPrompt = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each source include: a brief reason AND its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.`;
         const callFn = buildCaller(prov, citationPrompt);
         const result = await runCitationQuery(prov.name, callFn, topic);
+
+        if (prov.id === "gemini") geminiCitationResult = result;
         citations.push(result);
       }
     }

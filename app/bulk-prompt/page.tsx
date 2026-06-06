@@ -35,6 +35,13 @@ interface PromptContainer {
   activeCitProvider: string;
 }
 
+function providerSortRank(name: string): number {
+  const n = name.toLowerCase();
+  if (n.includes("overview")) return 0;
+  if (n.includes("gemini")) return 2;
+  return 1;
+}
+
 // ── Provider colours ──────────────────────────────────────────────────────
 const PROVIDER_CONFIG: Record<string, { color: string; bg: string; border: string; icon: string }> = {
   "Gemini 2.0 Flash":      { color: "#4285f4", bg: "rgba(66,133,244,0.1)",  border: "rgba(66,133,244,0.28)", icon: "✦" },
@@ -273,7 +280,7 @@ function PromptCard({
           {/* Provider responses — accordion/dropdown style */}
           {responses.length > 0 && activeTab === "responses" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {responses.map((r) => {
+              {[...responses].sort((a, b) => providerSortRank(a.provider) - providerSortRank(b.provider)).map((r) => {
                 const pCfg = PROVIDER_CONFIG[r.provider] ?? DEFAULT_PROVIDER_CFG;
                 const isOpen = activeProvider === r.provider;
                 return (
@@ -367,7 +374,7 @@ function PromptCard({
           {/* Citations tab — accordion style */}
           {citations.length > 0 && activeTab === "citations" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {citations.map((c) => {
+              {[...citations].sort((a, b) => providerSortRank(a.provider) - providerSortRank(b.provider)).map((c) => {
                 const pCfg = PROVIDER_CONFIG[c.provider] ?? DEFAULT_PROVIDER_CFG;
                 const isOpen = activeCitProvider === c.provider;
                 return (

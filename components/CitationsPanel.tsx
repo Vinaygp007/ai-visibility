@@ -57,19 +57,30 @@ function extractMentions(rawAnswer: string, urls: string[]): string[] {
   return [...new Set(fromUrls)].slice(0, 8);
 }
 
+function providerSortRank(name: string): number {
+  const n = name.toLowerCase();
+  if (n.includes("overview")) return 0;
+  if (n.includes("gemini")) return 2;
+  return 1;
+}
+
 export default function CitationsPanel({
   citations,
   maxCitations,
   totalCitations,
 }: CitationsPanelProps) {
+  const sortedCitations = [...citations].sort(
+    (a, b) => providerSortRank(a.provider) - providerSortRank(b.provider)
+  );
+
   const [activeProvider, setActiveProvider] = useState<string>(
-    citations[0]?.provider ?? ""
+    sortedCitations[0]?.provider ?? ""
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (citations.length > 0) setActiveProvider(citations[0].provider);
+    if (sortedCitations.length > 0) setActiveProvider(sortedCitations[0].provider);
   }, [citations]);
 
   // Close dropdown on outside click
@@ -84,11 +95,11 @@ export default function CitationsPanel({
   }, []);
 
   const resolvedProvider =
-    citations.find((c) => c.provider === activeProvider)?.provider ??
-    citations[0]?.provider ??
+    sortedCitations.find((c) => c.provider === activeProvider)?.provider ??
+    sortedCitations[0]?.provider ??
     "";
 
-  const active = citations.find((c) => c.provider === resolvedProvider);
+  const active = sortedCitations.find((c) => c.provider === resolvedProvider);
   const cfg = PROVIDER_COLORS[resolvedProvider] ?? {
     color: "#8b8d9e",
     bg: "rgba(255,255,255,0.03)",
@@ -96,9 +107,9 @@ export default function CitationsPanel({
     icon: "◎",
   };
 
-  const successCount = citations.filter((c) => c.status === "success").length;
+  const successCount = sortedCitations.filter((c) => c.status === "success").length;
 
-  if (citations.length === 0) return null;
+  if (sortedCitations.length === 0) return null;
 
   const dotColor = (count: number, hasAnswer = true) =>
     !hasAnswer ? "#4b5563" : count === 0 ? "#ff5a5a" : count < 3 ? "#ffb830" : "#00e87a";
@@ -215,7 +226,7 @@ export default function CitationsPanel({
                 boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
               }}
             >
-              {citations.map((c) => {
+              {sortedCitations.map((c) => {
                 const pCfg = PROVIDER_COLORS[c.provider] ?? {
                   color: "#8b8d9e", bg: "rgba(255,255,255,0.03)",
                   border: "rgba(255,255,255,0.1)", icon: "◎",

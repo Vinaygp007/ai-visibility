@@ -85,21 +85,35 @@ interface PromptResponsePanelProps {
   citations?: CitationResult[];
 }
 
+function providerSortRank(name: string): number {
+  const n = name.toLowerCase();
+  if (n.includes("overview")) return 0;
+  if (n.includes("gemini")) return 2;
+  return 1;
+}
+
 export default function PromptResponsePanel({ providers, citations = [] }: PromptResponsePanelProps) {
+  const sortedProviders = [...providers].sort(
+    (a, b) => providerSortRank(a.name) - providerSortRank(b.name)
+  );
+  const sortedCitations = [...citations].sort(
+    (a, b) => providerSortRank(a.provider) - providerSortRank(b.provider)
+  );
+
   const [section, setSection] = useState<"analysis" | "citations">("analysis");
-  const [activeProvider, setActiveProvider] = useState<string>(providers[0]?.name || "");
-  const [activeCitation, setActiveCitation] = useState<string>(citations[0]?.provider || "");
+  const [activeProvider, setActiveProvider] = useState<string>(sortedProviders[0]?.name || "");
+  const [activeCitation, setActiveCitation] = useState<string>(sortedCitations[0]?.provider || "");
   const [analysisDropdownOpen, setAnalysisDropdownOpen] = useState(false);
   const [citationDropdownOpen, setCitationDropdownOpen] = useState(false);
   const analysisDropdownRef = useRef<HTMLDivElement>(null);
   const citationDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (providers.length > 0 && !activeProvider) setActiveProvider(providers[0].name);
+    if (sortedProviders.length > 0 && !activeProvider) setActiveProvider(sortedProviders[0].name);
   }, [providers, activeProvider]);
 
   useEffect(() => {
-    if (citations.length > 0) setActiveCitation(citations[0].provider);
+    if (sortedCitations.length > 0) setActiveCitation(sortedCitations[0].provider);
   }, [citations]);
 
   // Close dropdowns on outside click
@@ -117,13 +131,13 @@ export default function PromptResponsePanel({ providers, citations = [] }: Promp
   const hasCitations = citations.length > 0;
 
   // ── Analysis section data ──
-  const activeData = providers.find((p) => p.name === activeProvider) ?? providers[0];
+  const activeData = sortedProviders.find((p) => p.name === activeProvider) ?? sortedProviders[0];
   const cfg = PROVIDER_CONFIG[activeData?.name ?? ""] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
   const responseText = activeData?.status === "success" ? extractResponseText(activeData.rawResponse ?? "") : null;
   const mentions = responseText ? extractMentions(responseText) : [];
 
   // ── Citation section data ──
-  const activeCitationData = citations.find((c) => c.provider === activeCitation) ?? citations[0];
+  const activeCitationData = sortedCitations.find((c) => c.provider === activeCitation) ?? sortedCitations[0];
   const citCfg = PROVIDER_CONFIG[activeCitationData?.provider ?? ""] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
   const citedUrls = activeCitationData?.allCitationUrls ?? [];
   const citMentions = citedUrls.map((u) => {
@@ -192,7 +206,7 @@ export default function PromptResponsePanel({ providers, citations = [] }: Promp
                   className="absolute right-0 top-full mt-1.5 rounded-xl border z-20 overflow-hidden min-w-[220px]"
                   style={{ background: "#181a25", borderColor: "rgba(255,255,255,0.1)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
                 >
-                  {providers.map((p) => {
+                  {sortedProviders.map((p) => {
                     const pCfg = PROVIDER_CONFIG[p.name] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
                     const isSelected = activeData?.name === p.name;
                     return (
@@ -240,7 +254,7 @@ export default function PromptResponsePanel({ providers, citations = [] }: Promp
                   className="absolute right-0 top-full mt-1.5 rounded-xl border z-20 overflow-hidden min-w-[220px]"
                   style={{ background: "#181a25", borderColor: "rgba(255,255,255,0.1)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
                 >
-                  {citations.map((c) => {
+                  {sortedCitations.map((c) => {
                     const pCfg = PROVIDER_CONFIG[c.provider] ?? { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
                     const isSelected = activeCitationData?.provider === c.provider;
                     return (

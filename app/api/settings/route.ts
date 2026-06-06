@@ -46,7 +46,7 @@ const DEFAULT_SETTINGS: AppSettings = {
       name: "ai-overview",
       enabled: false,
       apiKey: "",
-      model: "gemini-2.5-pro",
+      model: "gemini-2.0-flash",
     },
     {
       id: "openai",

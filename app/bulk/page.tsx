@@ -27,6 +27,13 @@ interface BulkRow {
 
 type JobPhase = "idle" | "running" | "done" | "error";
 
+function providerSortRank(name: string): number {
+  const n = name.toLowerCase();
+  if (n.includes("overview")) return 0;
+  if (n.includes("gemini")) return 2;
+  return 1;
+}
+
 function scoreColor(score?: number) {
   if (score == null) return "#8b8d9e";
   if (score >= 70) return "#00e87a";
@@ -612,7 +619,7 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {providers.map((p) => {
+            {[...providers].sort((a, b) => providerSortRank(a.name) - providerSortRank(b.name)).map((p) => {
               const cfg = PROVIDER_COLORS[p.name] ?? {
                 color: "#8b8d9e",
                 bg: "rgba(255,255,255,0.03)",
