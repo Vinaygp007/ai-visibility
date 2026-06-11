@@ -16,13 +16,13 @@ export default function Recommendations({ recommendations }: RecommendationsProp
   return (
     <div
       className="rounded-2xl border p-6"
-      style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
     >
-      <h3 className="text-base font-semibold flex items-center gap-2.5 mb-4">
+      <h3 className="text-base font-semibold flex items-center gap-2.5 mb-4" style={{ color: "var(--c-text)" }}>
         🎯 Recommendations to Boost AI Visibility
       </h3>
 
-      <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+      <div className="divide-y" style={{ borderColor: "var(--c-border)" }}>
         {recommendations.map((rec, i) => {
           const pCfg = PRIORITY_CONFIG[rec.priority] ?? PRIORITY_CONFIG.medium;
           return (
@@ -42,7 +42,7 @@ export default function Recommendations({ recommendations }: RecommendationsProp
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="text-sm font-medium text-white">{rec.title}</span>
+                  <span className="text-sm font-medium" style={{ color: "var(--c-text)" }}>{rec.title}</span>
                   <span
                     className="text-[10px] font-mono px-1.5 py-0.5 rounded tracking-wide"
                     style={{ color: pCfg.cls.replace("text-[", "").replace("]", ""), background: pCfg.bg }}
@@ -50,7 +50,7 @@ export default function Recommendations({ recommendations }: RecommendationsProp
                     {pCfg.label}
                   </span>
                 </div>
-                <p className="text-[13px] leading-relaxed" style={{ color: "#8b8d9e" }}>
+                <p className="text-[13px] leading-relaxed" style={{ color: "var(--c-muted)" }}>
                   {rec.description}
                   {rec.impact && (
                     <span className="font-medium" style={{ color: "#00e5ff" }}>

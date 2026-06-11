@@ -22,11 +22,11 @@ export default function CategoryCard({ category }: CategoryCardProps) {
   return (
     <div
       className="cat-card rounded-2xl border p-5 transition-colors"
-      style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2.5 text-sm font-medium">
+        <div className="flex items-center gap-2.5 text-sm font-medium" style={{ color: "var(--c-text)" }}>
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center text-[15px]"
             style={{ background: colorCfg.iconBg }}
@@ -52,8 +52,8 @@ export default function CategoryCard({ category }: CategoryCardProps) {
               >
                 {cfg.sym}
               </div>
-              <div style={{ color: "#8b8d9e" }} className="leading-snug">
-                <span className="font-medium text-white">{check.label}</span>
+              <div style={{ color: "var(--c-muted)" }} className="leading-snug">
+                <span className="font-medium" style={{ color: "var(--c-text)" }}>{check.label}</span>
                 {check.detail ? ` — ${check.detail}` : ""}
               </div>
             </div>

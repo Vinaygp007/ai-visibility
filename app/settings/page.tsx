@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Navbar from "@/components/Navbar";
 import type { AppSettings } from "@/types";
 
 // Available models per providr
@@ -235,21 +236,58 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen md:pl-64 flex items-center justify-center" style={{ background: "#0a0b10" }}>
-        <div className="text-white">Loading settings...</div>
+      <div className="min-h-screen" style={{ background: "var(--c-bg)" }}>
+        <Navbar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 64px)" }}>
+          <div style={{ color: "var(--c-muted)" }}>Loading settings...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen md:pl-64" style={{ background: "#0a0b10" }}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-16 md:pt-12 pb-12">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
-          <p className="text-sm" style={{ color: "#8b8d9e" }}>
-            Configure AI providers, prompts, and analysis options
-          </p>
+    <div className="min-h-screen" style={{ background: "var(--c-bg)" }}>
+      <Navbar />
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-8 pb-12">
+
+        {/* Admin Panel Header */}
+        <div
+          className="rounded-2xl border p-6 mb-8"
+          style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, rgba(124,111,255,0.15), rgba(0,229,255,0.15))", border: "1px solid rgba(124,111,255,0.25)" }}
+            >
+              🛡️
+            </div>
+            <div className="flex-1">
+              {/* Breadcrumb */}
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[11px] font-mono" style={{ color: "var(--c-muted)" }}>AI Scope</span>
+                <span className="text-[11px]" style={{ color: "var(--c-border-strong)" }}>›</span>
+                <span
+                  className="text-[11px] font-mono font-semibold tracking-wide uppercase"
+                  style={{ color: "var(--c-accent2)" }}
+                >
+                  Admin Panel
+                </span>
+              </div>
+              <h1 className="text-2xl font-bold" style={{ color: "var(--c-text)" }}>Admin Panel</h1>
+              <p className="text-sm mt-0.5" style={{ color: "var(--c-muted)" }}>
+                Manage AI providers, API keys, analysis prompts, and feature toggles
+              </p>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+              <span
+                className="text-[11px] font-mono px-2.5 py-1 rounded-lg border"
+                style={{ color: "var(--c-accent2)", background: "rgba(124,111,255,0.08)", borderColor: "rgba(124,111,255,0.2)" }}
+              >
+                RESTRICTED
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Message Banner */}
@@ -258,28 +296,37 @@ export default function SettingsPage() {
             className="mb-6 px-6 py-3 rounded-xl text-sm font-medium"
             style={{
               background: message.type === "success" ? "rgba(0, 229, 255, 0.1)" : "rgba(255, 87, 87, 0.1)",
-              color: message.type === "success" ? "#00e5ff" : "#ff5757",
-              borderLeft: `3px solid ${message.type === "success" ? "#00e5ff" : "#ff5757"}`,
+              color: message.type === "success" ? "var(--c-accent)" : "#ff5757",
+              borderLeft: `3px solid ${message.type === "success" ? "var(--c-accent)" : "#ff5757"}`,
             }}
           >
             {message.text}
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          {["providers", "prompts", "features"].map((tab) => (
+        {/* Admin Tabs */}
+        <div
+          className="flex gap-1 mb-6 p-1 rounded-xl border"
+          style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
+        >
+          {[
+            { id: "providers", label: "AI Providers", icon: "🤖" },
+            { id: "prompts",   label: "Prompts",      icon: "✏️" },
+            { id: "features",  label: "Features",     icon: "⚙️" },
+          ].map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab as typeof activeTab)}
-              className="px-6 py-2 rounded-lg text-sm font-medium transition-all"
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className="flex items-center gap-2 flex-1 justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
               style={{
-                background: activeTab === tab ? "rgba(0, 229, 255, 0.1)" : "rgba(255,255,255,0.02)",
-                color: activeTab === tab ? "#00e5ff" : "#8b8d9e",
-                borderBottom: activeTab === tab ? "2px solid #00e5ff" : "none",
+                background: activeTab === tab.id ? "var(--c-bg)" : "transparent",
+                color: activeTab === tab.id ? "var(--c-text)" : "var(--c-muted)",
+                boxShadow: activeTab === tab.id ? "0 1px 4px rgba(0,0,0,0.12)" : "none",
+                border: activeTab === tab.id ? "1px solid var(--c-border)" : "1px solid transparent",
               }}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              <span style={{ fontSize: 13 }}>{tab.icon}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -292,14 +339,14 @@ export default function SettingsPage() {
                 key={provider.id}
                 className="rounded-2xl border p-6 transition-all"
                 style={{
-                  background: "rgba(255,255,255,0.02)",
-                  borderColor: provider.enabled ? "rgba(0, 229, 255, 0.2)" : "rgba(255,255,255,0.07)",
+                  background: "var(--c-surface)",
+                  borderColor: provider.enabled ? "rgba(0, 229, 255, 0.2)" : "var(--c-border)",
                 }}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">{provider.name}</h3>
-                    <p className="text-xs mt-1" style={{ color: "#8b8d9e" }}>
+                    <h3 className="text-lg font-semibold" style={{ color: "var(--c-text)" }}>{provider.name}</h3>
+                    <p className="text-xs mt-1" style={{ color: "var(--c-muted)" }}>
                       Provider ID: {provider.id}
                     </p>
                   </div>
@@ -307,7 +354,7 @@ export default function SettingsPage() {
                     onClick={() => updateProvider(provider.id, { enabled: !provider.enabled })}
                     className="relative w-12 h-6 rounded-full transition-colors"
                     style={{
-                      background: provider.enabled ? "#00e5ff" : "rgba(255,255,255,0.1)",
+                      background: provider.enabled ? "var(--c-accent)" : "var(--c-border-strong)",
                     }}
                   >
                     <div
@@ -332,9 +379,9 @@ export default function SettingsPage() {
                       placeholder={`Enter ${provider.name} API key...`}
                       className="w-full px-4 py-2 rounded-xl border text-sm"
                       style={{
-                        background: "rgba(255,255,255,0.03)",
-                        borderColor: "rgba(255,255,255,0.1)",
-                        color: "#f0f0f5",
+                        background: "var(--c-surface)",
+                        borderColor: "var(--c-border-strong)",
+                        color: "var(--c-text)",
                       }}
                     />
                   </div>
@@ -342,6 +389,7 @@ export default function SettingsPage() {
                   {/* Model Display */}
                   <div>
                     <label className="block text-xs font-medium text-white mb-2">Model</label>
+<<<<<<< HEAD
                     <div
                       className="w-full px-4 py-2 rounded-xl border text-sm"
                       style={{
@@ -351,6 +399,48 @@ export default function SettingsPage() {
                       }}
                     >
                       {(PROVIDER_MODELS[provider.id] ?? []).find((m) => m.value === provider.model)?.label ?? provider.model}
+=======
+                    <div className="relative">
+                      <select
+                        value={provider.model}
+                        onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl border text-sm appearance-none cursor-pointer"
+                        style={{
+                          background: "var(--c-surface)",
+                          borderColor: "var(--c-border-strong)",
+                          color: "var(--c-text)",
+                          paddingRight: "2.5rem",
+                        }}
+                      >
+                        {(PROVIDER_MODELS[provider.id] ?? []).map((m) => (
+                          <option
+                            key={m.value}
+                            value={m.value}
+                            style={{ background: "var(--c-surface)", color: "var(--c-text)" }}
+                          >
+                            {m.label}
+                          </option>
+                        ))}
+                        {/* Fallback: if the current model isn't in the list, show it */}
+                        {!(PROVIDER_MODELS[provider.id] ?? []).some((m) => m.value === provider.model) && (
+                          <option
+                            value={provider.model}
+                            style={{ background: "var(--c-surface)", color: "var(--c-text)" }}
+                          >
+                            {provider.model} (custom)
+                          </option>
+                        )}
+                      </select>
+                      {/* Chevron icon */}
+                      <div
+                        className="pointer-events-none absolute inset-y-0 right-3 flex items-center"
+                        style={{ color: "var(--c-muted)" }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+>>>>>>> 8901276d822b8664fbde2b0d52dea00f2dc90a05
                     </div>
                   </div>
                 </div>
@@ -366,12 +456,12 @@ export default function SettingsPage() {
             <div
               className="rounded-2xl border p-6"
               style={{
-                background: "rgba(255,255,255,0.02)",
-                borderColor: "rgba(255,255,255,0.07)",
+                background: "var(--c-surface)",
+                borderColor: "var(--c-border)",
               }}
             >
-              <h3 className="text-lg font-semibold text-white mb-2">Analysis Prompt</h3>
-              <p className="text-xs mb-4" style={{ color: "#8b8d9e" }}>
+              <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--c-text)" }}>Analysis Prompt</h3>
+              <p className="text-xs mb-4" style={{ color: "var(--c-muted)" }}>
                 Used for main AI visibility analysis. Variables: <code>{"{url}"}</code>, <code>{"{facts}"}</code>
               </p>
               <textarea
@@ -380,9 +470,9 @@ export default function SettingsPage() {
                 rows={12}
                 className="w-full px-4 py-3 rounded-xl border text-sm font-mono"
                 style={{
-                  background: "rgba(255,255,255,0.03)",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  color: "#f0f0f5",
+                  background: "var(--c-surface)",
+                  borderColor: "var(--c-border-strong)",
+                  color: "var(--c-text)",
                 }}
               />
             </div>
@@ -391,12 +481,12 @@ export default function SettingsPage() {
             <div
               className="rounded-2xl border p-6"
               style={{
-                background: "rgba(255,255,255,0.02)",
-                borderColor: "rgba(255,255,255,0.07)",
+                background: "var(--c-surface)",
+                borderColor: "var(--c-border)",
               }}
             >
-              <h3 className="text-lg font-semibold text-white mb-2">Citation Prompt</h3>
-              <p className="text-xs mb-4" style={{ color: "#8b8d9e" }}>
+              <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--c-text)" }}>Citation Prompt</h3>
+              <p className="text-xs mb-4" style={{ color: "var(--c-muted)" }}>
                 Used for competitive landscape analysis. Variables: <code>{"{company_name}"}</code>, <code>{"{company_url}"}</code>
               </p>
               <textarea
@@ -405,9 +495,9 @@ export default function SettingsPage() {
                 rows={12}
                 className="w-full px-4 py-3 rounded-xl border text-sm font-mono"
                 style={{
-                  background: "rgba(255,255,255,0.03)",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  color: "#f0f0f5",
+                  background: "var(--c-surface)",
+                  borderColor: "var(--c-border-strong)",
+                  color: "var(--c-text)",
                 }}
               />
             </div>
@@ -419,18 +509,18 @@ export default function SettingsPage() {
           <div
             className="rounded-2xl border p-6"
             style={{
-              background: "rgba(255,255,255,0.02)",
-              borderColor: "rgba(255,255,255,0.07)",
+              background: "var(--c-surface)",
+              borderColor: "var(--c-border)",
             }}
           >
-            <h3 className="text-lg font-semibold text-white mb-6">Feature Toggles</h3>
+            <h3 className="text-lg font-semibold mb-6" style={{ color: "var(--c-text)" }}>Feature Toggles</h3>
 
             <div className="space-y-6">
               {/* Enable Cache */}
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-white">Enable Cache</div>
-                  <p className="text-xs mt-1" style={{ color: "#8b8d9e" }}>
+                  <div className="text-sm font-medium" style={{ color: "var(--c-text)" }}>Enable Cache</div>
+                  <p className="text-xs mt-1" style={{ color: "var(--c-muted)" }}>
                     Store and reuse scan results for 1 hour (faster analysis, reduced API costs)
                   </p>
                 </div>
@@ -438,7 +528,7 @@ export default function SettingsPage() {
                   onClick={() => updateFeature("enableCache", !settings.features.enableCache)}
                   className="relative w-12 h-6 rounded-full transition-colors"
                   style={{
-                    background: settings.features.enableCache ? "#00e5ff" : "rgba(255,255,255,0.1)",
+                    background: settings.features.enableCache ? "var(--c-accent)" : "var(--c-border-strong)",
                   }}
                 >
                   <div
@@ -453,8 +543,8 @@ export default function SettingsPage() {
               {/* Enable Citations */}
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-white">Enable Citations</div>
-                  <p className="text-xs mt-1" style={{ color: "#8b8d9e" }}>
+                  <div className="text-sm font-medium" style={{ color: "var(--c-text)" }}>Enable Citations</div>
+                  <p className="text-xs mt-1" style={{ color: "var(--c-muted)" }}>
                     Run competitive landscape analysis (adds 30-60s to scan time)
                   </p>
                 </div>
@@ -462,7 +552,7 @@ export default function SettingsPage() {
                   onClick={() => updateFeature("enableCitations", !settings.features.enableCitations)}
                   className="relative w-12 h-6 rounded-full transition-colors"
                   style={{
-                    background: settings.features.enableCitations ? "#00e5ff" : "rgba(255,255,255,0.1)",
+                    background: settings.features.enableCitations ? "var(--c-accent)" : "var(--c-border-strong)",
                   }}
                 >
                   <div
@@ -482,7 +572,7 @@ export default function SettingsPage() {
           onClick={saveSettings}
           disabled={saving}
           className="mt-8 w-full px-6 py-4 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-95 disabled:opacity-50"
-          style={{ background: "#00e5ff", color: "#000" }}
+          style={{ background: "var(--c-accent)", color: "#000" }}
         >
           {saving ? "Saving..." : "Save All Settings"}
         </button>
@@ -495,8 +585,8 @@ export default function SettingsPage() {
             borderColor: "rgba(66,133,244,0.15)",
           }}
         >
-          <p className="text-xs" style={{ color: "#8b8d9e" }}>
-            <strong className="text-white">💡 Tip:</strong> Enable at least one AI provider with a valid API key.
+          <p className="text-xs" style={{ color: "var(--c-muted)" }}>
+            <strong style={{ color: "var(--c-text)" }}>💡 Tip:</strong> Enable at least one AI provider with a valid API key.
             Settings are stored in Firebase and apply to all future scans.
           </p>
         </div>

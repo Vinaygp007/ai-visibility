@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Force | Select-Object Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"Directory\"}else{\"File\"}}} | Format-Table -AutoSize)",
+      "Bash(node -e ' *)",
+      "Bash(git stash *)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('React:', p.dependencies?.react, 'TypeScript:', p.devDependencies?.typescript, '@types/react:', p.devDependencies?.['@types/react']\\)\")",
+      "Bash(node --input-type=module --check)",
+      "Bash(git checkout *)",
+      "Bash(mkdir \"c:\\\\Users\\\\TIGER\\\\ai-visibility\\\\app\\\\blog\\\\[slug]\" 2>&1; echo \"done\")",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('firebase:', p.dependencies?.firebase\\); console.log\\('firebase-admin:', p.dependencies?.['firebase-admin']\\);\")",
+      "Bash(mkdir \"app/api/admin\")",
+      "Bash(mkdir \"app/api/admin/auth\")",
+      "Bash(mkdir \"app/admin/login\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\TIGER\\ai-visibility\\app\\blog"
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import Navbar from "@/components/Navbar";
 import { useRouter } from "next/navigation";
 import ReportModal from "@/components/ReportModal";
 import { AnalysisResult } from "@/types";
@@ -403,7 +404,7 @@ function makePdfHelpers(doc: any) {
     for (let p = 1; p <= pageCount; p++) {
       doc.setPage(p);
       doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150);
-      doc.text(`AiScope — ${label} — by Marcstrat`, MARGIN, PAGE_H - 8);
+      doc.text(`AI Scope — ${label} — by Marcstrat`, MARGIN, PAGE_H - 8);
       doc.text(`Page ${p} of ${pageCount}`, PAGE_W - MARGIN, PAGE_H - 8, { align: "right" });
     }
   };
@@ -417,7 +418,7 @@ async function exportHomepagePDF(reports: ReportSummary[]) {
   const h = makePdfHelpers(doc);
 
   doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(20, 20, 20);
-  doc.text("AiScope — Homepage Scan Report", 16, 16);
+  doc.text("AI Scope — Homepage Scan Report", 16, 16);
   doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(90, 90, 90);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 16, 22);
   doc.text("by Marcstrat", 16, 27);
@@ -477,7 +478,7 @@ async function exportBulkPDF(jobs: BulkJob[]) {
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(20, 20, 20);
-  doc.text("AiScope — AI Visibility Bulk Report", 16, 16);
+  doc.text("AI Scope — Bulk Scan Report", 16, 16);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(90, 90, 90);
@@ -671,7 +672,7 @@ async function exportBulkPromptPDF(batches: BulkPromptBatch[]) {
   const h = makePdfHelpers(doc);
 
   doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(20, 20, 20);
-  doc.text("AiScope — Bulk Prompt Report", 16, 16);
+  doc.text("AI Scope — Bulk Prompt Report", 16, 16);
   doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(90, 90, 90);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 16, 22);
   doc.text("by Marcstrat", 16, 27);
@@ -753,14 +754,14 @@ function SkeletonRow() {
   return (
     <div
       className="flex items-center gap-4 px-5 py-4 rounded-xl animate-pulse"
-      style={{ background: "rgba(255,255,255,0.03)" }}
+      style={{ background: "var(--c-surface)" }}
     >
-      <div className="w-12 h-12 rounded-xl flex-shrink-0" style={{ background: "rgba(255,255,255,0.06)" }} />
+      <div className="w-12 h-12 rounded-xl flex-shrink-0" style={{ background: "var(--c-surface2)" }} />
       <div className="flex-1 min-w-0 space-y-2">
-        <div className="h-3.5 w-1/3 rounded" style={{ background: "rgba(255,255,255,0.08)" }} />
-        <div className="h-2.5 w-2/3 rounded" style={{ background: "rgba(255,255,255,0.05)" }} />
+        <div className="h-3.5 w-1/3 rounded" style={{ background: "var(--c-border)" }} />
+        <div className="h-2.5 w-2/3 rounded" style={{ background: "var(--c-surface2)" }} />
       </div>
-      <div className="w-16 h-8 rounded-lg" style={{ background: "rgba(255,255,255,0.05)" }} />
+      <div className="w-16 h-8 rounded-lg" style={{ background: "var(--c-surface2)" }} />
     </div>
   );
 }
@@ -776,7 +777,7 @@ function EmptyState({
   return (
     <div
       className="rounded-2xl border p-12 text-center"
-      style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
     >
       <div
         className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4"
@@ -785,12 +786,12 @@ function EmptyState({
         {icon}
       </div>
       <p className="text-sm font-medium text-white mb-1">{title}</p>
-      <p className="text-[12px] mb-4" style={{ color: "#8b8d9e" }}>{desc}</p>
+      <p className="text-[12px] mb-4" style={{ color: "var(--c-muted)" }}>{desc}</p>
       {action && (
         <button
           onClick={action.onClick}
           className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-          style={{ background: "#00e5ff", color: "#000" }}
+          style={{ background: "var(--c-accent)", color: "#000" }}
         >
           {action.label}
         </button>
@@ -833,9 +834,9 @@ function HamburgerMenu({
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all"
         style={{
-          background: open ? "rgba(0,229,255,0.07)" : "rgba(255,255,255,0.03)",
-          borderColor: open ? "rgba(0,229,255,0.3)" : "rgba(255,255,255,0.1)",
-          color: "#f0f0f5",
+          background: open ? "rgba(0,229,255,0.07)" : "var(--c-surface)",
+          borderColor: open ? "rgba(0,229,255,0.3)" : "var(--c-border-strong)",
+          color: "var(--c-text)",
         }}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -848,9 +849,9 @@ function HamburgerMenu({
       {open && (
         <div
           className="absolute left-0 top-full mt-2 rounded-xl border overflow-hidden z-50 min-w-[240px]"
-          style={{ background: "#0e0f17", borderColor: "rgba(255,255,255,0.1)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}
+          style={{ background: "#0e0f17", borderColor: "var(--c-border-strong)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}
         >
-          <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="px-3 py-2" style={{ borderBottom: "1px solid var(--c-surface2)" }}>
             <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "#555869" }}>View type</p>
           </div>
           {tabs.map((tab) => {
@@ -865,22 +866,22 @@ function HamburgerMenu({
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0"
                   style={{
-                    background: isActive ? "rgba(0,229,255,0.12)" : "rgba(255,255,255,0.04)",
-                    border: isActive ? "1px solid rgba(0,229,255,0.25)" : "1px solid rgba(255,255,255,0.07)",
+                    background: isActive ? "rgba(0,229,255,0.12)" : "var(--c-surface2)",
+                    border: isActive ? "1px solid rgba(0,229,255,0.25)" : "1px solid var(--c-border)",
                   }}
                 >
                   {tab.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold" style={{ color: isActive ? "#00e5ff" : "#f0f0f5" }}>{tab.label}</div>
-                  <div className="text-[11px]" style={{ color: "#8b8d9e" }}>{tab.desc}</div>
+                  <div className="text-sm font-semibold" style={{ color: isActive ? "var(--c-accent)" : "var(--c-text)" }}>{tab.label}</div>
+                  <div className="text-[11px]" style={{ color: "var(--c-muted)" }}>{tab.desc}</div>
                 </div>
                 <span
                   className="text-[10px] font-mono px-1.5 py-0.5 rounded-full flex-shrink-0"
                   style={{
-                    background: isActive ? "rgba(0,229,255,0.1)" : "rgba(255,255,255,0.05)",
-                    color: isActive ? "#00e5ff" : "#6f7280",
-                    border: isActive ? "1px solid rgba(0,229,255,0.2)" : "1px solid rgba(255,255,255,0.06)",
+                    background: isActive ? "rgba(0,229,255,0.1)" : "var(--c-surface2)",
+                    color: isActive ? "var(--c-accent)" : "#6f7280",
+                    border: isActive ? "1px solid rgba(0,229,255,0.2)" : "1px solid var(--c-surface2)",
                   }}
                 >
                   {counts[tab.key]}
@@ -941,9 +942,9 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches }:
         disabled={!!exporting}
         className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[#00e5ff]/40 disabled:opacity-50"
         style={{
-          background: "rgba(255,255,255,0.03)",
-          borderColor: open ? "rgba(0,229,255,0.3)" : "rgba(255,255,255,0.1)",
-          color: "#f0f0f5",
+          background: "var(--c-surface)",
+          borderColor: open ? "rgba(0,229,255,0.3)" : "var(--c-border-strong)",
+          color: "var(--c-text)",
         }}
       >
         {exporting ? (
@@ -957,7 +958,7 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches }:
               <path d="M7 1v8M4 6.5L7 10l3-3.5M1.5 12.5h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Export
-            <span style={{ color: "#8b8d9e", fontSize: 10 }}>▾</span>
+            <span style={{ color: "var(--c-muted)", fontSize: 10 }}>▾</span>
           </>
         )}
       </button>
@@ -965,9 +966,9 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches }:
       {open && (
         <div
           className="absolute right-0 top-full mt-2 rounded-xl border overflow-hidden z-50 min-w-[160px]"
-          style={{ background: "#0e0f17", borderColor: "rgba(255,255,255,0.1)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}
+          style={{ background: "#0e0f17", borderColor: "var(--c-border-strong)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}
         >
-          <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="px-3 py-2" style={{ borderBottom: "1px solid var(--c-surface2)" }}>
             <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "#555869" }}>Export as</p>
           </div>
           {(["csv", "pdf"] as const).map((fmt) => (
@@ -975,12 +976,12 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches }:
               key={fmt}
               onClick={() => handleExport(fmt)}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-all hover:bg-white/[0.04] text-left"
-              style={{ color: "#f0f0f5" }}
+              style={{ color: "var(--c-text)" }}
             >
               <span className="text-base">{fmt === "csv" ? "📊" : "📄"}</span>
               <div>
                 <div className="font-medium">.{fmt.toUpperCase()}</div>
-                <div className="text-[11px]" style={{ color: "#8b8d9e" }}>
+                <div className="text-[11px]" style={{ color: "var(--c-muted)" }}>
                   {fmt === "csv" ? "Spreadsheet data" : "Formatted document"}
                 </div>
               </div>
@@ -1147,15 +1148,22 @@ export default function PreviousReportsPage() {
     promptError;
 
   return (
-    <div className="min-h-screen md:pl-64" style={{ background: "#0a0b10" }}>
-      <div className="max-w-5xl mx-auto px-8 py-12">
+    <div className="min-h-screen" style={{ background: "var(--c-bg)" }}>
+      <Navbar />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-8 pb-16">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Previous Reports</h1>
-            <p className="text-sm" style={{ color: "#8b8d9e" }}>
-              View and manage all your AI visibility scan results
+            <div
+              className="inline-block text-[11px] font-mono px-3 py-1 rounded-full border mb-3 tracking-widest uppercase"
+              style={{ color: "var(--c-accent)", background: "rgba(0,229,255,0.06)", borderColor: "rgba(0,229,255,0.2)" }}
+            >
+              Reports
+            </div>
+            <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--c-text)" }}>Previous Reports</h1>
+            <p className="text-sm" style={{ color: "var(--c-muted)" }}>
+              View and manage all your AI Scope scan results
             </p>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0 pt-1">
@@ -1173,7 +1181,7 @@ export default function PreviousReportsPage() {
           <HamburgerMenu activeTab={activeTab} onTabChange={setActiveTab} counts={counts} />
           <div
             className="flex items-center rounded-xl border p-1 gap-1"
-            style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.08)" }}
+            style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
           >
             {([
               { key: "homepage" as ScanType, label: "Homepage", icon: "🔍" },
@@ -1186,7 +1194,7 @@ export default function PreviousReportsPage() {
                 className="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
                   background: activeTab === tab.key ? "rgba(0,229,255,0.12)" : "transparent",
-                  color: activeTab === tab.key ? "#00e5ff" : "#8b8d9e",
+                  color: activeTab === tab.key ? "var(--c-accent)" : "var(--c-muted)",
                   border: activeTab === tab.key ? "1px solid rgba(0,229,255,0.25)" : "1px solid transparent",
                 }}
               >
@@ -1201,9 +1209,9 @@ export default function PreviousReportsPage() {
         <div className="mb-6">
           <div
             className="flex items-center gap-2 rounded-xl border px-4 py-3"
-            style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.1)" }}
+            style={{ background: "var(--c-surface)", borderColor: "var(--c-border-strong)" }}
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ color: "#8b8d9e", flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ color: "var(--c-muted)", flexShrink: 0 }}>
               <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4" />
               <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
@@ -1217,10 +1225,10 @@ export default function PreviousReportsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 bg-transparent border-none outline-none text-sm"
-              style={{ color: "#f0f0f5", caretColor: "#00e5ff" }}
+              style={{ color: "var(--c-text)", caretColor: "var(--c-accent)" }}
             />
             {search && (
-              <button onClick={() => setSearch("")} style={{ color: "#8b8d9e", fontSize: 11 }}>✕</button>
+              <button onClick={() => setSearch("")} style={{ color: "var(--c-muted)", fontSize: 11 }}>✕</button>
             )}
           </div>
         </div>
@@ -1273,7 +1281,7 @@ export default function PreviousReportsPage() {
                     onClick={() => fetchReports(nextCursor ?? undefined)}
                     disabled={loadingMoreReports}
                     className="w-full px-5 py-3 rounded-xl border text-sm font-medium transition-all hover:border-[#00e5ff]/30"
-                    style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.1)", color: "#f0f0f5" }}
+                    style={{ background: "var(--c-surface)", borderColor: "var(--c-border-strong)", color: "var(--c-text)" }}
                   >
                     {loadingMoreReports ? "Loading…" : "Load more"}
                   </button>
@@ -1327,7 +1335,7 @@ function HomepageRow({ report, onClick }: { report: ReportSummary; onClick: () =
   return (
     <div
       className="flex items-center gap-4 px-5 py-4 rounded-xl border transition-all hover:border-[#00e5ff]/30 cursor-pointer"
-      style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
       onClick={onClick}
     >
       <div
@@ -1343,7 +1351,7 @@ function HomepageRow({ report, onClick }: { report: ReportSummary; onClick: () =
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold text-white truncate mb-1">{report.site_name}</div>
-        <div className="text-xs font-mono truncate" style={{ color: "#8b8d9e" }}>{domainFromUrl(report.url)}</div>
+        <div className="text-xs font-mono truncate" style={{ color: "var(--c-muted)" }}>{domainFromUrl(report.url)}</div>
       </div>
       <div className="flex items-center gap-3 flex-shrink-0">
         {report._cached && (
@@ -1353,7 +1361,7 @@ function HomepageRow({ report, onClick }: { report: ReportSummary; onClick: () =
           </span>
         )}
         <div className="text-xs font-mono" style={{ color: "#6f7280" }}>{timeAgo(report.createdAt)}</div>
-        <div className="text-sm" style={{ color: "#8b8d9e" }}>→</div>
+        <div className="text-sm" style={{ color: "var(--c-muted)" }}>→</div>
       </div>
     </div>
   );
@@ -1376,7 +1384,7 @@ function BulkResultRow({
   const citations = fd?.citations ?? [];
 
   return (
-    <div className="border-b last:border-b-0" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+    <div className="border-b last:border-b-0" style={{ borderColor: "var(--c-surface2)" }}>
       {/* ── Summary row ── */}
       <div
         className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-white/[0.01] transition-all"
@@ -1388,7 +1396,7 @@ function BulkResultRow({
         <div className="flex-1 min-w-0">
           <div className="text-xs text-white truncate font-mono">{domainFromUrl(r.url)}</div>
           {r.site_name && r.site_name !== r.url && (
-            <div className="text-[10px] truncate" style={{ color: "#8b8d9e" }}>{r.site_name}</div>
+            <div className="text-[10px] truncate" style={{ color: "var(--c-muted)" }}>{r.site_name}</div>
           )}
           {r.summary && (
             <div className="text-[10px] truncate mt-0.5" style={{ color: "#555869" }}>{r.summary}</div>
@@ -1410,7 +1418,7 @@ function BulkResultRow({
             <button
               onClick={(e) => { e.stopPropagation(); onViewReport(r.fullData as AnalysisResult); }}
               className="text-[10px] font-mono px-2 py-1 rounded transition-all"
-              style={{ background: "rgba(0,229,255,0.08)", color: "#00e5ff", border: "1px solid rgba(0,229,255,0.2)" }}
+              style={{ background: "rgba(0,229,255,0.08)", color: "var(--c-accent)", border: "1px solid rgba(0,229,255,0.2)" }}
             >
               Full Report →
             </button>
@@ -1428,7 +1436,7 @@ function BulkResultRow({
             <div className="text-[9px] font-mono uppercase tracking-widest mb-1" style={{ color: "#555869" }}>URL</div>
             <a href={r.url} target="_blank" rel="noopener noreferrer"
               className="text-[11px] font-mono break-all hover:underline"
-              style={{ color: "#00e5ff" }}
+              style={{ color: "var(--c-accent)" }}
               onClick={(e) => e.stopPropagation()}
             >{r.url}</a>
           </div>
@@ -1436,7 +1444,7 @@ function BulkResultRow({
           {/* Duration */}
           {r.duration != null && (
             <div className="text-[10px] font-mono" style={{ color: "#555869" }}>
-              Scan duration: <span style={{ color: "#8b8d9e" }}>{(r.duration / 1000).toFixed(1)}s</span>
+              Scan duration: <span style={{ color: "var(--c-muted)" }}>{(r.duration / 1000).toFixed(1)}s</span>
             </div>
           )}
 
@@ -1444,15 +1452,15 @@ function BulkResultRow({
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(0,232,122,0.08)", border: "1px solid rgba(0,232,122,0.2)" }}>
                 <div className="text-sm font-bold" style={{ color: "#00e87a" }}>{fd.stats.checks_passed}</div>
-                <div className="text-[10px] mt-0.5" style={{ color: "#8b8d9e" }}>Passed</div>
+                <div className="text-[10px] mt-0.5" style={{ color: "var(--c-muted)" }}>Passed</div>
               </div>
               <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(255,184,48,0.08)", border: "1px solid rgba(255,184,48,0.2)" }}>
                 <div className="text-sm font-bold" style={{ color: "#ffb830" }}>{fd.stats.checks_warned}</div>
-                <div className="text-[10px] mt-0.5" style={{ color: "#8b8d9e" }}>Warnings</div>
+                <div className="text-[10px] mt-0.5" style={{ color: "var(--c-muted)" }}>Warnings</div>
               </div>
               <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(255,90,90,0.08)", border: "1px solid rgba(255,90,90,0.2)" }}>
                 <div className="text-sm font-bold" style={{ color: "#ff5a5a" }}>{fd.stats.checks_failed}</div>
-                <div className="text-[10px] mt-0.5" style={{ color: "#8b8d9e" }}>Failed</div>
+                <div className="text-[10px] mt-0.5" style={{ color: "var(--c-muted)" }}>Failed</div>
               </div>
             </div>
           )}
@@ -1475,10 +1483,10 @@ function BulkResultRow({
                   <div
                     key={i}
                     className="rounded-lg px-3 py-2"
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                    style={{ background: "var(--c-surface)", border: "1px solid var(--c-surface2)" }}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] truncate pr-2" style={{ color: "#f0f0f5" }}>
+                      <span className="text-[10px] truncate pr-2" style={{ color: "var(--c-text)" }}>
                         {cat.icon ? `${cat.icon} ` : ""}{cat.name ?? cat.category ?? "Unknown"}
                       </span>
                       <span
@@ -1495,7 +1503,7 @@ function BulkResultRow({
                             <span style={{ color: check.status === "pass" ? "#00e87a" : check.status === "warn" ? "#ffb830" : "#ff5a5a" }}>
                               {check.status === "pass" ? "✓" : check.status === "warn" ? "!" : "✗"}
                             </span>
-                            <span style={{ color: "#8b8d9e" }}>
+                            <span style={{ color: "var(--c-muted)" }}>
                               {check.label}
                               {check.detail ? ` — ${check.detail}` : ""}
                             </span>
@@ -1548,7 +1556,7 @@ function BulkResultRow({
                     <span style={{ color: "#555869" }}>{i + 1}.</span>
                     <a href={c.url ?? c.source ?? c.allCitationUrls?.[0] ?? c} target="_blank" rel="noopener noreferrer"
                       className="truncate hover:underline"
-                      style={{ color: "#00e5ff" }}
+                      style={{ color: "var(--c-accent)" }}
                       onClick={(e) => e.stopPropagation()}>
                       {c.url ?? c.source ?? c.allCitationUrls?.[0] ?? String(c)}
                     </a>
@@ -1575,7 +1583,7 @@ function BulkResultRow({
                     style={{ background: "rgba(255,184,48,0.05)", border: "1px solid rgba(255,184,48,0.1)", color: "#c8a840" }}>
                     {rec.title ?? rec.text ?? rec.recommendation ?? String(rec)}
                     {(rec.description || rec.impact) && (
-                      <div className="mt-1 text-[10px] leading-relaxed" style={{ color: "#8b8d9e" }}>
+                      <div className="mt-1 text-[10px] leading-relaxed" style={{ color: "var(--c-muted)" }}>
                         {rec.description ?? ""}
                         {rec.impact ? ` ${rec.impact}` : ""}
                       </div>
@@ -1599,13 +1607,13 @@ function BulkResultRow({
               </div>
               <div className="space-y-2">
                 {providers.map((provider: any, i: number) => (
-                  <div key={i} className="rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div key={i} className="rounded-lg px-3 py-2" style={{ background: "var(--c-surface)", border: "1px solid var(--c-surface2)" }}>
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-[10px] font-mono font-bold" style={{ color: "#00e5ff" }}>
+                      <span className="text-[10px] font-mono font-bold" style={{ color: "var(--c-accent)" }}>
                         {provider.name ?? provider.provider ?? `Provider ${i + 1}`}
                       </span>
                       {provider.status && (
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,229,255,0.08)", color: "#00e5ff" }}>
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,229,255,0.08)", color: "var(--c-accent)" }}>
                           {provider.status}
                         </span>
                       )}
@@ -1623,7 +1631,7 @@ function BulkResultRow({
                     {provider.error ? (
                       <p className="text-[10px] font-mono" style={{ color: "#ff5a5a" }}>{provider.error}</p>
                     ) : (
-                      <p className="text-[10px] leading-relaxed whitespace-pre-wrap" style={{ color: "#8b8d9e" }}>
+                      <p className="text-[10px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--c-muted)" }}>
                         {extractProviderText(provider.rawResponse).slice(0, 300)}
                         {extractProviderText(provider.rawResponse).length > 300 ? "…" : ""}
                       </p>
@@ -1639,7 +1647,7 @@ function BulkResultRow({
             <button
               onClick={(e) => { e.stopPropagation(); onViewReport(fd); }}
               className="w-full py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-85 mt-1"
-              style={{ background: "rgba(0,229,255,0.1)", color: "#00e5ff", border: "1px solid rgba(0,229,255,0.25)" }}
+              style={{ background: "rgba(0,229,255,0.1)", color: "var(--c-accent)", border: "1px solid rgba(0,229,255,0.25)" }}
             >
               View Full Report →
             </button>
@@ -1677,7 +1685,7 @@ function BulkJobCard({ job }: { job: BulkJob }) {
     <>
       <div
         className="rounded-xl border overflow-hidden transition-all"
-        style={{ background: "rgba(255,255,255,0.02)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "rgba(255,255,255,0.07)" }}
+        style={{ background: "var(--c-surface)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "var(--c-border)" }}
       >
         <div
           className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/[0.01] transition-all"
@@ -1707,7 +1715,7 @@ function BulkJobCard({ job }: { job: BulkJob }) {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 text-xs font-mono" style={{ color: "#8b8d9e" }}>
+            <div className="flex items-center gap-3 text-xs font-mono" style={{ color: "var(--c-muted)" }}>
               <span style={{ color: "#00e87a" }}>{job.passed}✓</span>
               <span style={{ color: "#ff5a5a" }}>{job.failed}✗</span>
               <span>·</span>
@@ -1719,7 +1727,7 @@ function BulkJobCard({ job }: { job: BulkJob }) {
                 onClick={(e) => { e.stopPropagation(); void handleExport("csv"); }}
                 disabled={!!exporting}
                 className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
-                style={{ background: "rgba(255,255,255,0.04)", color: "#f0f0f5", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{ background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)" }}
               >
                 {exporting === "csv" ? "Exporting…" : "CSV"}
               </button>
@@ -1727,13 +1735,13 @@ function BulkJobCard({ job }: { job: BulkJob }) {
                 onClick={(e) => { e.stopPropagation(); void handleExport("pdf"); }}
                 disabled={!!exporting}
                 className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
-                style={{ background: "rgba(0,229,255,0.08)", color: "#00e5ff", border: "1px solid rgba(0,229,255,0.18)" }}
+                style={{ background: "rgba(0,229,255,0.08)", color: "var(--c-accent)", border: "1px solid rgba(0,229,255,0.18)" }}
               >
                 {exporting === "pdf" ? "Exporting…" : "PDF"}
               </button>
               <div
                 className="text-sm transition-transform duration-200 flex-shrink-0"
-                style={{ color: "#8b8d9e", transform: expanded ? "rotate(180deg)" : "none" }}
+                style={{ color: "var(--c-muted)", transform: expanded ? "rotate(180deg)" : "none" }}
               >
                 ▼
               </div>
@@ -1741,12 +1749,12 @@ function BulkJobCard({ job }: { job: BulkJob }) {
         </div>
 
         {expanded && (
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ borderTop: "1px solid var(--c-surface2)" }}>
             <div className="max-h-[600px] overflow-y-auto">
               {job.results.length > 0 ? job.results.map((r, i) => (
                 <BulkResultRow key={i} r={r} onViewReport={setModalReport} />
               )) : (
-                <p className="px-5 py-4 text-sm" style={{ color: "#8b8d9e" }}>No result details stored.</p>
+                <p className="px-5 py-4 text-sm" style={{ color: "var(--c-muted)" }}>No result details stored.</p>
               )}
             </div>
           </div>
@@ -1769,7 +1777,7 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
   const [showDetail, setShowDetail] = useState(false);
 
   return (
-    <div className="px-5 py-3.5 border-b last:border-b-0" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+    <div className="px-5 py-3.5 border-b last:border-b-0" style={{ borderColor: "var(--c-surface2)" }}>
       {/* Header row */}
       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full"
@@ -1779,7 +1787,7 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
           }}>
           {run.status}
         </span>
-        <span className="text-[11px] font-mono" style={{ color: "#8b8d9e" }}>{run.promptId}</span>
+        <span className="text-[11px] font-mono" style={{ color: "var(--c-muted)" }}>{run.promptId}</span>
         {run.provider && (
           <span className="text-[11px] font-mono" style={{ color: "#555869" }}>via {run.provider}</span>
         )}
@@ -1799,14 +1807,14 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
 
       {/* Prompt text */}
       {run.prompt && (
-        <div className="text-[10px] font-mono mb-1.5 px-2 py-1 rounded" style={{ background: "rgba(255,255,255,0.03)", color: "#6f7280", border: "1px solid rgba(255,255,255,0.05)" }}>
+        <div className="text-[10px] font-mono mb-1.5 px-2 py-1 rounded" style={{ background: "var(--c-surface)", color: "#6f7280", border: "1px solid var(--c-surface2)" }}>
           <span style={{ color: "#555869" }}>Prompt: </span>{run.prompt}
         </div>
       )}
 
       {/* Primary response preview */}
       {run.response && (
-        <p className="text-[11px] leading-relaxed mb-1.5" style={{ color: "#8b8d9e" }}>
+        <p className="text-[11px] leading-relaxed mb-1.5" style={{ color: "var(--c-muted)" }}>
           {showDetail ? run.response : `${run.response.slice(0, 300)}${run.response.length > 300 ? "…" : ""}`}
         </p>
       )}
@@ -1816,7 +1824,7 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
         <div className="flex items-center gap-2 mt-1 mb-1.5 flex-wrap">
           {run.citations.map((c) => (
             <span key={c.provider} className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-              style={{ background: "rgba(0,229,255,0.07)", color: "#00e5ff", border: "1px solid rgba(0,229,255,0.15)" }}>
+              style={{ background: "rgba(0,229,255,0.07)", color: "var(--c-accent)", border: "1px solid rgba(0,229,255,0.15)" }}>
               {c.provider}: {c.count} citation{c.count !== 1 ? "s" : ""}
             </span>
           ))}
@@ -1827,7 +1835,7 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
       <button
         onClick={() => setShowDetail((v) => !v)}
         className="text-[10px] font-mono mt-1 px-2 py-1 rounded transition-all"
-        style={{ background: showDetail ? "rgba(0,229,255,0.08)" : "rgba(255,255,255,0.04)", color: showDetail ? "#00e5ff" : "#8b8d9e", border: `1px solid ${showDetail ? "rgba(0,229,255,0.2)" : "rgba(255,255,255,0.07)"}` }}
+        style={{ background: showDetail ? "rgba(0,229,255,0.08)" : "var(--c-surface2)", color: showDetail ? "var(--c-accent)" : "var(--c-muted)", border: `1px solid ${showDetail ? "rgba(0,229,255,0.2)" : "var(--c-border)"}` }}
       >
         {showDetail ? "▲ Hide details" : "▼ Show full details"}
       </button>
@@ -1841,9 +1849,9 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
                 All Provider Responses ({run.responses.length})
               </div>
               {run.responses.map((resp, i) => (
-                <div key={i} className="mb-2 rounded-lg p-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div key={i} className="mb-2 rounded-lg p-2.5" style={{ background: "var(--c-surface)", border: "1px solid var(--c-surface2)" }}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-mono font-bold" style={{ color: "#00e5ff" }}>{resp.provider}</span>
+                    <span className="text-[10px] font-mono font-bold" style={{ color: "var(--c-accent)" }}>{resp.provider}</span>
                     {resp.durationMs != null && (
                       <span className="text-[10px] font-mono" style={{ color: "#555869" }}>{resp.durationMs}ms</span>
                     )}
@@ -1854,7 +1862,7 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
                   {resp.error ? (
                     <p className="text-[10px] font-mono" style={{ color: "#ff5a5a" }}>{resp.error}</p>
                   ) : (
-                    <p className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: "#8b8d9e" }}>{resp.response}</p>
+                    <p className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--c-muted)" }}>{resp.response}</p>
                   )}
                 </div>
               ))}
@@ -1870,8 +1878,8 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
               {run.citations.map((c, i) => (
                 <div key={i} className="mb-2 rounded-lg p-2.5" style={{ background: "rgba(0,229,255,0.03)", border: "1px solid rgba(0,229,255,0.08)" }}>
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[10px] font-mono font-bold" style={{ color: "#00e5ff" }}>{c.provider}</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: "rgba(0,229,255,0.08)", color: "#00e5ff" }}>
+                    <span className="text-[10px] font-mono font-bold" style={{ color: "var(--c-accent)" }}>{c.provider}</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: "rgba(0,229,255,0.08)", color: "var(--c-accent)" }}>
                       {c.count} URL{c.count !== 1 ? "s" : ""}
                     </span>
                     <span className="text-[10px] font-mono" style={{ color: c.status === "success" ? "#00e87a" : "#ff5a5a" }}>{c.status}</span>
@@ -1889,7 +1897,7 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
                   {c.rawAnswer && (
                     <div>
                       <div className="text-[9px] font-mono uppercase mb-1" style={{ color: "#555869" }}>Raw Answer</div>
-                      <p className="text-[10px] leading-relaxed whitespace-pre-wrap" style={{ color: "#8b8d9e" }}>{c.rawAnswer}</p>
+                      <p className="text-[10px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--c-muted)" }}>{c.rawAnswer}</p>
                     </div>
                   )}
                 </div>
@@ -1928,7 +1936,7 @@ function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
   return (
     <div
       className="rounded-xl border overflow-hidden transition-all"
-      style={{ background: "rgba(255,255,255,0.02)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--c-surface)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "var(--c-border)" }}
     >
       <div
         className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/[0.01] transition-all"
@@ -1944,7 +1952,7 @@ function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-sm font-semibold text-white">{runs.length} run{runs.length !== 1 ? "s" : ""}</span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(0,229,255,0.1)", color: "#00e5ff", border: "1px solid rgba(0,229,255,0.2)" }}>
+              style={{ background: "rgba(0,229,255,0.1)", color: "var(--c-accent)", border: "1px solid rgba(0,229,255,0.2)" }}>
               {batch.status}
             </span>
             {batch.passedRuns > 0 && (
@@ -1954,7 +1962,7 @@ function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
               <span className="text-[10px] font-mono" style={{ color: "#ff5a5a" }}>{batch.failedRuns}✗</span>
             )}
           </div>
-          <div className="text-xs font-mono truncate" style={{ color: "#8b8d9e" }}>
+          <div className="text-xs font-mono truncate" style={{ color: "var(--c-muted)" }}>
             {batch.topic ? `${batch.topic.slice(0, 60)}${batch.topic.length > 60 ? "…" : ""}` : batch.batchId}
             {" · "}
             {timeAgo(batch.createdAt ?? batch.updatedAt)}
@@ -1965,7 +1973,7 @@ function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
             onClick={(e) => { e.stopPropagation(); void handleExport("csv"); }}
             disabled={!!exporting}
             className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
-            style={{ background: "rgba(255,255,255,0.04)", color: "#f0f0f5", border: "1px solid rgba(255,255,255,0.08)" }}
+            style={{ background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)" }}
           >
             {exporting === "csv" ? "Exporting…" : "CSV"}
           </button>
@@ -1973,13 +1981,13 @@ function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
             onClick={(e) => { e.stopPropagation(); void handleExport("pdf"); }}
             disabled={!!exporting}
             className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
-            style={{ background: "rgba(0,229,255,0.08)", color: "#00e5ff", border: "1px solid rgba(0,229,255,0.18)" }}
+            style={{ background: "rgba(0,229,255,0.08)", color: "var(--c-accent)", border: "1px solid rgba(0,229,255,0.18)" }}
           >
             {exporting === "pdf" ? "Exporting…" : "PDF"}
           </button>
           <div
             className="text-sm transition-transform duration-200 flex-shrink-0"
-            style={{ color: "#8b8d9e", transform: expanded ? "rotate(180deg)" : "none" }}
+            style={{ color: "var(--c-muted)", transform: expanded ? "rotate(180deg)" : "none" }}
           >
             ▼
           </div>
@@ -1987,13 +1995,13 @@ function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
       </div>
 
       {expanded && (
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ borderTop: "1px solid var(--c-surface2)" }}>
           <div className="max-h-[640px] overflow-y-auto">
             {/* ✅ iterate array directly — each run has its own expand toggle */}
             {runs.length > 0 ? runs.map((run) => (
               <BulkPromptRunDetail key={run.executionId} run={run} />
             )) : (
-              <p className="px-5 py-4 text-sm" style={{ color: "#8b8d9e" }}>No run details stored.</p>
+              <p className="px-5 py-4 text-sm" style={{ color: "var(--c-muted)" }}>No run details stored.</p>
             )}
           </div>
         </div>

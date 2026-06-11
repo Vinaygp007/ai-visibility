@@ -61,7 +61,7 @@ export async function GET() {
   const spec = {
     openapi: "3.0.0",
     info: {
-      title: "AiScope — AI Visibility Analyzer API",
+      title: "AI Scope — AI Visibility Analyzer API",
       version: "2.2.1",
       description:
         "Analyze any website's visibility to AI crawlers, language models, and search engines. " +
@@ -71,7 +71,7 @@ export async function GET() {
         "This gives you the full competitive landscape + GEO analysis out of the box. " +
         "Pass `runCitations: false` explicitly if you want a faster, cheaper scan without citation research.",
       contact: {
-        name: "AiScope",
+        name: "AI Scope by Marcstrat",
       },
     },
     servers: [{ url: "/", description: "Current server" }],

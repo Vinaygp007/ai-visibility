@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: "class",
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -12,13 +13,14 @@ module.exports = {
         mono: ["var(--font-jetbrains)", "monospace"],
       },
       colors: {
-        bg: "#0a0b10",
-        surface: "#111219",
-        surface2: "#181a25",
-        accent: "#00e5ff",
-        accent2: "#7c6fff",
-        accent3: "#00ff94",
-        muted: "#8b8d9e",
+        bg: "var(--c-bg)",
+        surface: "var(--c-surface)",
+        surface2: "var(--c-surface2)",
+        accent: "var(--c-accent)",
+        accent2: "var(--c-accent2)",
+        accent3: "var(--c-accent3)",
+        muted: "var(--c-muted)",
+        ctext: "var(--c-text)",
       },
       animation: {
         spin: "spin 0.8s linear infinite",
