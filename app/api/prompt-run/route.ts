@@ -381,85 +381,90 @@ export async function POST(request: NextRequest) {
       failedRuns: 0,
     });
 
-    // ── Sequential provider calls with increased delay ─────────────────────
-    // Raised from 400ms → 800ms between providers.
-    const INTER_PROVIDER_DELAY_MS = 800;
-
-    const responses: {
-      provider: string;
-      response: string;
-      durationMs?: number;
-      error?: string;
-    }[] = [];
+    // ── Provider calls run in PARALLEL ──────────────────────────────────────
+    // Sequential calls (with retries + inter-provider delays) could take
+    // minutes across 5 providers and blow past Vercel's maxDuration, returning
+    // a plain-text 504 (FUNCTION_INVOCATION_TIMEOUT) instead of JSON. Running
+    // all providers concurrently bounds total time by the slowest provider.
+    type MainResult = { text: string; durationMs: number; error?: string };
 
     // Cache Gemini main-analysis result so ai-overview reuses it (halves quota usage)
-    let geminiMainResult: { text: string; durationMs: number; error?: string } | null = null;
-
-    for (let i = 0; i < providers.length; i++) {
-      const prov = providers[i];
-      if (i > 0) await sleep(INTER_PROVIDER_DELAY_MS);
-
-      const isGeminiVariant = prov.id === "ai-overview" || prov.id === "ai_overview";
-
-      // Reuse cached Gemini result for ai-overview to avoid a second API call
-      if (isGeminiVariant && geminiMainResult) {
-        responses.push({
-          provider: prov.name,
-          response: geminiMainResult.text,
-          durationMs: geminiMainResult.durationMs,
-          error: geminiMainResult.error,
-        });
-        continue;
+    let geminiMainPromise: Promise<MainResult> | null = null;
+    const getGeminiMainResult = (prov: AppSettings["providers"][number]): Promise<MainResult> => {
+      if (!geminiMainPromise) {
+        geminiMainPromise = (async () => {
+          const start = Date.now();
+          try {
+            const text = await withRetry(buildCaller(prov, finalPrompt), {
+              retries: 3,
+              baseDelayMs: 2000,
+              label: `main:${prov.name}`,
+            });
+            return { text, durationMs: Date.now() - start };
+          } catch (e) {
+            return { text: "", durationMs: Date.now() - start, error: String(e) };
+          }
+        })();
       }
+      return geminiMainPromise;
+    };
 
-      const start = Date.now();
-      try {
-        const text = await withRetry(buildCaller(prov, finalPrompt), {
-          retries: 3,
-          baseDelayMs: 2000,
-          label: `main:${prov.name}`,
-        });
-        if (prov.id === "gemini") {
-          geminiMainResult = { text, durationMs: Date.now() - start };
-        }
-        responses.push({ provider: prov.name, response: text, durationMs: Date.now() - start });
-      } catch (e) {
-        const errMsg = String(e);
-        if (prov.id === "gemini") {
-          geminiMainResult = { text: "", durationMs: Date.now() - start, error: errMsg };
-        }
-        responses.push({ provider: prov.name, response: "", durationMs: Date.now() - start, error: errMsg });
-      }
-    }
-
-    // ── Sequential citation queries with increased delay ───────────────────
-    // Raised from 600ms → 1000ms. Citation prompts are longer and heavier.
-    const INTER_CITATION_DELAY_MS = 1000;
-
-    let citations: Awaited<ReturnType<typeof runCitationQuery>>[] = [];
-
-    // Cache Gemini citation result so ai-overview reuses it
-    let geminiCitationResult: Awaited<ReturnType<typeof runCitationQuery>> | null = null;
-
-    if (runCitations) {
-      for (let i = 0; i < providers.length; i++) {
-        const prov = providers[i];
-        if (i > 0) await sleep(INTER_CITATION_DELAY_MS);
-
+    const responses = await Promise.all(
+      providers.map(async (prov): Promise<{ provider: string; response: string; durationMs?: number; error?: string }> => {
         const isGeminiVariant = prov.id === "ai-overview" || prov.id === "ai_overview";
 
-        if (isGeminiVariant && geminiCitationResult) {
-          citations.push({ ...geminiCitationResult, provider: prov.name });
-          continue;
+        if (isGeminiVariant || prov.id === "gemini") {
+          const geminiProv = isGeminiVariant
+            ? providers.find((p) => p.id === "gemini") ?? prov
+            : prov;
+          const result = await getGeminiMainResult(geminiProv);
+          return { provider: prov.name, response: result.text, durationMs: result.durationMs, error: result.error };
         }
 
-        const citationPrompt = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each source include: a brief reason AND its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.`;
-        const callFn = buildCaller(prov, citationPrompt);
-        const result = await runCitationQuery(prov.name, callFn, topic);
+        const start = Date.now();
+        try {
+          const text = await withRetry(buildCaller(prov, finalPrompt), {
+            retries: 3,
+            baseDelayMs: 2000,
+            label: `main:${prov.name}`,
+          });
+          return { provider: prov.name, response: text, durationMs: Date.now() - start };
+        } catch (e) {
+          return { provider: prov.name, response: "", durationMs: Date.now() - start, error: String(e) };
+        }
+      })
+    );
 
-        if (prov.id === "gemini") geminiCitationResult = result;
-        citations.push(result);
-      }
+    // ── Citation queries also run in PARALLEL ───────────────────────────────
+    let citations: Awaited<ReturnType<typeof runCitationQuery>>[] = [];
+
+    if (runCitations) {
+      const citationPrompt = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each source include: a brief reason AND its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.`;
+
+      // Cache Gemini citation result so ai-overview reuses it
+      let geminiCitationPromise: Promise<Awaited<ReturnType<typeof runCitationQuery>>> | null = null;
+      const getGeminiCitationResult = (prov: AppSettings["providers"][number]) => {
+        if (!geminiCitationPromise) {
+          geminiCitationPromise = runCitationQuery(prov.name, buildCaller(prov, citationPrompt), topic);
+        }
+        return geminiCitationPromise;
+      };
+
+      citations = await Promise.all(
+        providers.map(async (prov) => {
+          const isGeminiVariant = prov.id === "ai-overview" || prov.id === "ai_overview";
+
+          if (isGeminiVariant || prov.id === "gemini") {
+            const geminiProv = isGeminiVariant
+              ? providers.find((p) => p.id === "gemini") ?? prov
+              : prov;
+            const result = await getGeminiCitationResult(geminiProv);
+            return { ...result, provider: prov.name };
+          }
+
+          return runCitationQuery(prov.name, buildCaller(prov, citationPrompt), topic);
+        })
+      );
     }
 
     const firstSuccess =
