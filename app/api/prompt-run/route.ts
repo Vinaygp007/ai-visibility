@@ -70,6 +70,10 @@ async function withRetry<T>(
       const isRetryable =
         msg.includes("429") ||
         msg.includes("503") ||
+        msg.includes("502") ||
+        msg.includes("504") ||
+        msg.includes("529") ||           // Anthropic's distinct "Overloaded" status
+        msg.includes("overloaded") ||
         msg.includes("rate limit") ||
         msg.includes("too many requests");
 
@@ -153,24 +157,53 @@ async function saveRunSubDoc(
   }
 }
 
-async function callGeminiModel(apiKey: string, model: string, prompt: string): Promise<string> {
+// Cold visibility prompts have no company/context attached to them, so without this
+// every provider free-forms its own structure. Forcing a ranked top-5 + sentiment
+// breakdown keeps responses comparable across providers and across runs.
+const COLD_VISIBILITY_SYSTEM_PROMPT =
+  "When answering, you must always structure your response as:\n" +
+  "1. Top 5 solutions for the query, ranked best to worst.\n" +
+  "2. A sentiment analysis for each one — classify your framing (e.g., top_pick, strong_option, niche_fit, honorable_mention, not_recommended) and briefly explain the language/signals behind that framing.\n" +
+  "Always include both the ranked top 5 and the sentiment analysis, even if the prompt does not explicitly ask for them.";
+
+// Providers return the actual reason (invalid model, bad request shape, etc.) in the
+// response body — surfacing it turns "HTTP 400" into something actually debuggable.
+async function readErrorDetail(res: Response): Promise<string> {
+  try {
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text);
+      return json?.error?.message || json?.error?.type || text.slice(0, 300);
+    } catch {
+      return text.slice(0, 300);
+    }
+  } catch {
+    return "";
+  }
+}
+
+async function callGeminiModel(apiKey: string, model: string, prompt: string, systemPrompt?: string): Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(systemPrompt ? { systemInstruction: { parts: [{ text: systemPrompt }] } } : {}),
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { maxOutputTokens: 2048, temperature: 0.4 },
       }),
     }
   );
-  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+  if (!res.ok) {
+    const detail = await readErrorDetail(res);
+    throw new Error(`Gemini HTTP ${res.status}${detail ? `: ${detail}` : ""}`);
+  }
   const data = await res.json();
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-async function callGemini(apiKey: string, model: string, prompt: string): Promise<string> {
+async function callGemini(apiKey: string, model: string, prompt: string, systemPrompt?: string): Promise<string> {
   // Each Gemini model version has its own separate quota pool, so exhausting one
   // doesn't necessarily mean the others are exhausted too.
   const fallbackChain = [
@@ -183,7 +216,7 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
   for (let i = 0; i < fallbackChain.length; i++) {
     const candidate = fallbackChain[i];
     try {
-      return await callGeminiModel(apiKey, candidate, prompt);
+      return await callGeminiModel(apiKey, candidate, prompt, systemPrompt);
     } catch (err) {
       const msg = String(err);
       const is429 = msg.includes("429");
@@ -202,7 +235,8 @@ async function callOpenAI(
   apiKey: string,
   model: string,
   prompt: string,
-  baseUrl = "https://api.openai.com/v1"
+  baseUrl = "https://api.openai.com/v1",
+  systemPrompt?: string
 ): Promise<string> {
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -212,17 +246,23 @@ async function callOpenAI(
     },
     body: JSON.stringify({
       model,
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
+        { role: "user", content: prompt },
+      ],
       max_tokens: 2048,
       temperature: 0.4,
     }),
   });
-  if (!res.ok) throw new Error(`OpenAI-compat HTTP ${res.status}`);
+  if (!res.ok) {
+    const detail = await readErrorDetail(res);
+    throw new Error(`OpenAI-compat HTTP ${res.status}${detail ? `: ${detail}` : ""}`);
+  }
   const data = await res.json();
   return data?.choices?.[0]?.message?.content ?? "";
 }
 
-async function callClaude(apiKey: string, model: string, prompt: string): Promise<string> {
+async function callClaude(apiKey: string, model: string, prompt: string, systemPrompt?: string): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -233,31 +273,36 @@ async function callClaude(apiKey: string, model: string, prompt: string): Promis
     body: JSON.stringify({
       model,
       max_tokens: 2048,
+      ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: [{ role: "user", content: prompt }],
     }),
   });
-  if (!res.ok) throw new Error(`Claude HTTP ${res.status}`);
+  if (!res.ok) {
+    const detail = await readErrorDetail(res);
+    throw new Error(`Claude HTTP ${res.status}${detail ? `: ${detail}` : ""}`);
+  }
   const data = await res.json();
   return data?.content?.[0]?.text ?? "";
 }
 
 function buildCaller(
   prov: AppSettings["providers"][number],
-  prompt: string
+  prompt: string,
+  systemPrompt?: string
 ): () => Promise<string> {
   return () => {
     switch (prov.id) {
       case "gemini":
       case "ai-overview":
       case "ai_overview":
-        return callGemini(prov.apiKey, prov.model, prompt);
+        return callGemini(prov.apiKey, prov.model, prompt, systemPrompt);
       case "openai":
       case "copilot":
-        return callOpenAI(prov.apiKey, prov.model, prompt);
+        return callOpenAI(prov.apiKey, prov.model, prompt, "https://api.openai.com/v1", systemPrompt);
       case "perplexity":
-        return callOpenAI(prov.apiKey, prov.model, prompt, "https://api.perplexity.ai");
+        return callOpenAI(prov.apiKey, prov.model, prompt, "https://api.perplexity.ai", systemPrompt);
       case "claude":
-        return callClaude(prov.apiKey, prov.model, prompt);
+        return callClaude(prov.apiKey, prov.model, prompt, systemPrompt);
       default:
         throw new Error(`Unknown provider id: ${prov.id}`);
     }
@@ -277,7 +322,11 @@ async function runCitationQuery(
   allCitationUrls: string[];
   error?: string;
 }> {
-  const query = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each source include: a brief reason AND its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.`;
+  const query = `List the top 5 sources, websites, or brands (no more than 5, ranked best to worst) that are most cited or recommended when someone searches for: "${topic}". For each source, in this format:
+- Reason: a brief reason why it's cited or recommended.
+- Sentiment: classify your framing as one of top_pick / strong_option / niche_fit / honorable_mention / not_recommended, with a one-line justification.
+- URL: its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.
+Do not return more than 5 sources.`;
   try {
     const raw = await withRetry(callFn, {
       retries: 2,
@@ -395,7 +444,7 @@ export async function POST(request: NextRequest) {
         geminiMainPromise = (async () => {
           const start = Date.now();
           try {
-            const text = await withRetry(buildCaller(prov, finalPrompt), {
+            const text = await withRetry(buildCaller(prov, finalPrompt, COLD_VISIBILITY_SYSTEM_PROMPT), {
               retries: 3,
               baseDelayMs: 2000,
               label: `main:${prov.name}`,
@@ -423,7 +472,7 @@ export async function POST(request: NextRequest) {
 
         const start = Date.now();
         try {
-          const text = await withRetry(buildCaller(prov, finalPrompt), {
+          const text = await withRetry(buildCaller(prov, finalPrompt, COLD_VISIBILITY_SYSTEM_PROMPT), {
             retries: 3,
             baseDelayMs: 2000,
             label: `main:${prov.name}`,
@@ -439,7 +488,11 @@ export async function POST(request: NextRequest) {
     let citations: Awaited<ReturnType<typeof runCitationQuery>>[] = [];
 
     if (runCitations) {
-      const citationPrompt = `List the top sources, websites, or brands that are most cited or recommended when someone searches for: "${topic}". For each source include: a brief reason AND its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.`;
+      const citationPrompt = `List the top 5 sources, websites, or brands (no more than 5, ranked best to worst) that are most cited or recommended when someone searches for: "${topic}". For each source, in this format:
+- Reason: a brief reason why it's cited or recommended.
+- Sentiment: classify your framing as one of top_pick / strong_option / niche_fit / honorable_mention / not_recommended, with a one-line justification.
+- URL: its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.
+Do not return more than 5 sources.`;
 
       // Cache Gemini citation result so ai-overview reuses it
       let geminiCitationPromise: Promise<Awaited<ReturnType<typeof runCitationQuery>>> | null = null;

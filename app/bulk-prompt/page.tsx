@@ -25,6 +25,7 @@ type PromptStatus = "idle" | "running" | "done" | "error";
 interface PromptContainer {
   id: string;
   prompt: string;
+  url: string;
   status: PromptStatus;
   responses: ProviderResponse[];
   citations: CitationResult[];
@@ -112,7 +113,7 @@ function PromptCard({
   onRemove: (id: string) => void;
   onRun: (id: string) => void;
 }) {
-  const { id, prompt, status, responses, citations, error, activeProvider, activeTab, activeCitProvider } = container;
+  const { id, prompt, url, status, responses, citations, error, activeProvider, activeTab, activeCitProvider } = container;
 
   const hasCitations = citations.length > 0;
 
@@ -206,8 +207,26 @@ function PromptCard({
         </button>
       </div>
 
+      {/* URL input (optional — fills any {url} placeholder in the prompt, tags the JSON export) */}
+      <div style={{ padding: "10px 14px 0" }}>
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => onUpdate(id, { url: e.target.value })}
+          disabled={isRunning}
+          placeholder="URL (optional) — e.g. https://example.com"
+          style={{
+            width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: 8, padding: "6px 12px", fontSize: 11, fontFamily: "monospace",
+            color: "#e0e0ea", outline: "none",
+            caretColor: "#00e5ff",
+            opacity: isRunning ? 0.6 : 1,
+          }}
+        />
+      </div>
+
       {/* Prompt textarea */}
-      <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+      <div style={{ padding: "8px 14px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <textarea
           value={prompt}
           onChange={(e) => onUpdate(id, { prompt: e.target.value })}
@@ -494,10 +513,27 @@ let _id = 0;
 function genId() { return `p_${++_id}_${Math.random().toString(36).slice(2, 6)}`; }
 function genBatchId() { return `bulk_prompt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
 
+// Runs `worker` over `items` with at most `limit` in flight at once. Firing all N
+// prompts via Promise.all floods every provider at once (each prompt already makes
+// ~3-4 provider calls); a small worker pool keeps real concurrent API load bounded.
+async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+  const queue = [...items];
+  const poolSize = Math.max(1, Math.min(limit, queue.length));
+  const workers = Array.from({ length: poolSize }, async () => {
+    while (queue.length > 0) {
+      const item = queue.shift();
+      if (item === undefined) return;
+      await worker(item);
+    }
+  });
+  await Promise.all(workers);
+}
+
 function makeContainer(prompt = ""): PromptContainer {
   return {
     id: genId(),
     prompt,
+    url: "",
     status: "idle",
     responses: [],
     citations: [],
@@ -507,6 +543,21 @@ function makeContainer(prompt = ""): PromptContainer {
     activeTab: "responses",
     activeCitProvider: "",
   };
+}
+
+// Parses a [{ url, prompt }, ...] JSON blob (from a file or pasted text) into prompt
+// cards. Entries with an empty/missing prompt are dropped — they can't be run anyway.
+function parseImportJson(jsonText: string): PromptContainer[] {
+  const parsed = JSON.parse(jsonText);
+  if (!Array.isArray(parsed)) throw new Error("Expected a JSON array of { url, prompt } objects");
+
+  return parsed
+    .filter((item) => typeof item?.prompt === "string" && item.prompt.trim())
+    .map((item) => {
+      const c = makeContainer(item.prompt);
+      c.url = typeof item?.url === "string" ? item.url : "";
+      return c;
+    });
 }
 
 // ── PDF Export ────────────────────────────────────────────────────────────
@@ -659,6 +710,112 @@ function exportToCsv(containers: PromptContainer[]) {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+// Citation text lists one entry (name + reason) per URL, in order. Slicing the
+// text between consecutive URLs recovers just the reason for each specific URL,
+// instead of repeating the whole multi-entry block on every record.
+function extractCitationSnippets(rawAnswer: string): { url: string; snippet: string }[] {
+  const urlRegex = /https?:\/\/[^\s\)\"\]]+/g;
+  const matches = [...rawAnswer.matchAll(urlRegex)];
+  if (matches.length === 0) return [];
+
+  const results: { url: string; snippet: string }[] = [];
+  let cursor = 0;
+  matches.forEach((m) => {
+    const idx = m.index ?? 0;
+    const url = m[0].replace(/[.,;]+$/, "");
+    const chunk = rawAnswer.slice(cursor, idx).trim();
+    // Drop any leading intro paragraph (only relevant for the first entry)
+    const snippet = chunk.split(/\n{2,}/).pop()?.trim() || chunk;
+    results.push({ url, snippet });
+    cursor = idx + m[0].length;
+  });
+  return results;
+}
+
+// Turns a raw snippet like "1. **Gartner**\n   - Reason: ...\n   - Sentiment: ...\n   - URL:"
+// into a structured { name, reason, sentiment } object instead of a leftover markdown string.
+function parseCitationSnippet(snippet: string): { name: string; reason: string; sentiment: string } {
+  let text = snippet.replace(/[-•]?\s*URL:\s*$/i, "").trim();
+
+  const boldMatch = text.match(/\*\*(.+?)\*\*/);
+  let name = "";
+  if (boldMatch) {
+    name = boldMatch[1].replace(/^\d+\.\s*/, "").trim();
+    text = text.slice(boldMatch.index! + boldMatch[0].length);
+  }
+
+  // Pull out a labelled "Sentiment: ..." segment, wherever it falls in the text
+  let sentiment = "";
+  const sentimentMatch = text.match(/[-—•]?\s*Sentiment:\s*([^\n]+)/i);
+  if (sentimentMatch) {
+    sentiment = sentimentMatch[1].replace(/\*\*/g, "").trim();
+    text = text.slice(0, sentimentMatch.index!) + text.slice(sentimentMatch.index! + sentimentMatch[0].length);
+  }
+
+  const reason = text
+    .replace(/^\s*[-—•]\s*/, "")
+    .replace(/^\s*Reason:\s*/i, "")
+    .replace(/\*\*/g, "")
+    .replace(/^\d+\.\s*/, "")
+    .replace(/\n+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return { name, reason: reason || text.trim(), sentiment };
+}
+
+// ── Shared citation record builder ────────────────────────────────────────
+// Loops over every container passed in (i.e. every prompt that was run), so
+// running N prompts and exporting/sharing once always covers all of them.
+// Containers with an empty prompt never reach "done", so they're naturally skipped.
+interface CitationRecord {
+  prompt: string;
+  inputUrl: string;
+  citationUrl: string;
+  provider: string;
+  response: { name: string; reason: string; sentiment: string };
+}
+
+function buildCitationRecords(containers: PromptContainer[]): CitationRecord[] {
+  const records: CitationRecord[] = [];
+
+  containers
+    .filter(c => c.status === "done" && c.prompt.trim())
+    .forEach(c => {
+      c.citations
+        .filter(cit => cit.status === "success" && cit.rawAnswer)
+        .forEach(cit => {
+          // Cap at top 5 even if a provider ignores the "top 5" instruction in the prompt
+          const snippets = extractCitationSnippets(cit.rawAnswer).slice(0, 5);
+          if (snippets.length > 0) {
+            snippets.forEach(({ url, snippet }) => {
+              records.push({ prompt: c.prompt, inputUrl: c.url, citationUrl: url, provider: cit.provider, response: parseCitationSnippet(snippet) });
+            });
+          } else {
+            records.push({ prompt: c.prompt, inputUrl: c.url, citationUrl: "", provider: cit.provider, response: { name: "", reason: cit.rawAnswer, sentiment: "" } });
+          }
+        });
+    });
+
+  return records;
+}
+
+// ── JSON Export ──────────────────────────────────────────────────────────
+function exportToJson(containers: PromptContainer[]) {
+  const records = buildCitationRecords(containers);
+
+  const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `aiscope-multi-prompt-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function MultiPromptPage() {
   const [containers, setContainers] = useState<PromptContainer[]>([
@@ -668,8 +825,11 @@ export default function MultiPromptPage() {
   const [runCitations, setRunCitations] = useState(true);
   const [globalRunning, setGlobalRunning] = useState(false);
   const [addCount, setAddCount] = useState(1);
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
   const runningRef = useRef<Set<string>>(new Set());
   const batchIdRef = useRef<string>(genBatchId());
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const updateContainer = useCallback((id: string, patch: Partial<PromptContainer>) => {
     setContainers(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
@@ -715,6 +875,7 @@ export default function MultiPromptPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: c.prompt,
+          url: c.url,
           runCitations,
           batchId,
           promptId: id,
@@ -732,6 +893,7 @@ export default function MultiPromptPage() {
         status: "done",
         responses: data.responses ?? [],
         citations: data.citations ?? [],
+        url: data.url ?? x.url,
         topic: data.topic ?? c.prompt.slice(0, 80),
         activeProvider: firstProvider,
         activeCitProvider: firstCitProvider,
@@ -749,12 +911,13 @@ export default function MultiPromptPage() {
     }
   }, [containers, runCitations]);
 
-  // Run all in parallel
+  // Run all, throttled to a small pool — see runWithConcurrency for why
+  const RUN_ALL_CONCURRENCY = 5;
   const runAll = useCallback(async () => {
     startNewBatch();
     setGlobalRunning(true);
     const toRun = containers.filter(c => c.prompt.trim() && c.status !== "running");
-    await Promise.all(toRun.map(c => runSingle(c.id)));
+    await runWithConcurrency(toRun, RUN_ALL_CONCURRENCY, (c) => runSingle(c.id));
     setGlobalRunning(false);
   }, [containers, runSingle, startNewBatch]);
 
@@ -762,6 +925,31 @@ export default function MultiPromptPage() {
     startNewBatch();
     setContainers([makeContainer(), makeContainer()]);
   }, [startNewBatch]);
+
+  // Bulk-import a [{ url, prompt }, ...] JSON file — one prompt card per entry, appended to the list
+  const importFromJsonFile = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        setContainers(prev => [...prev, ...parseImportJson(String(reader.result))]);
+      } catch (e) {
+        window.alert(`Couldn't import JSON: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  // Same import, but from JSON pasted directly into the textarea below (no file needed)
+  const importFromJsonText = useCallback((text: string) => {
+    try {
+      const imported = parseImportJson(text);
+      setContainers(prev => [...prev, ...imported]);
+      setPasteModalOpen(false);
+      setPasteText("");
+    } catch (e) {
+      window.alert(`Couldn't import JSON: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, []);
 
   const doneCount = containers.filter(c => c.status === "done").length;
   const runningCount = containers.filter(c => c.status === "running").length;
@@ -881,6 +1069,41 @@ export default function MultiPromptPage() {
               Load Presets
             </button>
 
+            {/* Bulk import [{url, prompt}, ...] JSON */}
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) importFromJsonFile(file);
+                e.target.value = "";
+              }}
+            />
+            <button
+              onClick={() => importInputRef.current?.click()}
+              style={{
+                padding: "5px 12px", borderRadius: 8, fontSize: 11,
+                background: "transparent", color: "#6f7280",
+                border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer",
+              }}
+            >
+              ↑ Import JSON
+            </button>
+
+            {/* Paste JSON directly, no file needed */}
+            <button
+              onClick={() => setPasteModalOpen(true)}
+              style={{
+                padding: "5px 12px", borderRadius: 8, fontSize: 11,
+                background: "transparent", color: "#6f7280",
+                border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer",
+              }}
+            >
+              📋 Paste JSON
+            </button>
+
             <div style={{ flex: 1 }} />
 
             {/* Stats */}
@@ -911,6 +1134,16 @@ export default function MultiPromptPage() {
                   }}
                 >
                   ↓ Export CSV
+                </button>
+
+                <button
+                  onClick={() => exportToJson(containers)}
+                  style={{
+                    padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    background: "#4285f4", color: "#000", border: "none", cursor: "pointer", marginLeft: 8,
+                  }}
+                >
+                  ↓ Export JSON
                 </button>
               </>
             )}
@@ -987,6 +1220,69 @@ export default function MultiPromptPage() {
           )}
         </div>
       </div>
+
+      {/* Paste-JSON modal */}
+      {pasteModalOpen && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 100,
+          }}
+          onClick={() => setPasteModalOpen(false)}
+        >
+          <div
+            style={{
+              background: "#111219", border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 16, padding: 20, width: "min(640px, 92vw)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>
+              Paste JSON
+            </p>
+            <p style={{ fontSize: 11, color: "#8b8d9e", margin: "0 0 10px" }}>
+              Paste a [&#123; url, prompt &#125;, ...] array — one prompt card gets added per entry.
+            </p>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              autoFocus
+              rows={10}
+              placeholder='[{"url": "https://example.com", "prompt": "..."}]'
+              style={{
+                width: "100%", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 10, padding: "10px 12px", fontSize: 12, fontFamily: "monospace",
+                color: "#e0e0ea", resize: "vertical", outline: "none", caretColor: "#00e5ff",
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <button
+                onClick={() => { setPasteModalOpen(false); setPasteText(""); }}
+                style={{
+                  padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  background: "transparent", color: "#8b8d9e",
+                  border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => importFromJsonText(pasteText)}
+                disabled={!pasteText.trim()}
+                style={{
+                  padding: "6px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                  background: "linear-gradient(135deg, #00e5ff, #4285f4)", color: "#000",
+                  border: "none", cursor: pasteText.trim() ? "pointer" : "not-allowed",
+                  opacity: pasteText.trim() ? 1 : 0.4,
+                }}
+              >
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
