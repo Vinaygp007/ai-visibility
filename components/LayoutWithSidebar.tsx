@@ -8,8 +8,8 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Hide sidebar on /docs page
-  const showSidebar = !pathname.startsWith("/docs");
+  // Hide sidebar on /docs and /login pages
+  const showSidebar = !pathname.startsWith("/docs") && pathname !== "/login";
 
   return (
     <>

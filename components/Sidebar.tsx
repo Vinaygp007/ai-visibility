@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -10,6 +10,13 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   const links = [
     { href: "/", label: "Home", icon: "🏠" },
@@ -80,6 +87,13 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         className="px-6 py-4 border-t text-[11px]"
         style={{ borderColor: "rgba(255,255,255,0.07)", color: "#6f7280" }}
       >
+        <button
+          onClick={handleLogout}
+          className="w-full text-left mb-3 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors"
+          style={{ color: "#8b8d9e", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          Log out
+        </button>
         <div className="font-bold mb-1">By Marcstrat</div>
         <div style={{ color: "#4b5563" }}>Powered by Gemini · ChatGPT · Perplexity</div>
       </div>
