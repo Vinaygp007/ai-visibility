@@ -33,7 +33,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       }`}
       style={{ background: "#0a0b10", borderColor: "rgba(255,255,255,0.07)" }}
     >
-      {/* Mobile close button */}
+      {/* Mobile close buttonn */}
       <button
         onClick={onClose}
         className="md:hidden absolute top-4 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-xl leading-none"
