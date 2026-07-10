@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
+import BugReportWidget from "./BugReportWidget";
 
 export default function LayoutWithSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Hide sidebar on /docs and /login pages
-  const showSidebar = !pathname.startsWith("/docs") && pathname !== "/login";
+  // Hide sidebar on /docs and on public, unauthenticated-facing pages
+  const PUBLIC_PATHS = ["/login", "/signup", "/waitlist", "/admin/login"];
+  const showSidebar = !pathname.startsWith("/docs") && !PUBLIC_PATHS.includes(pathname);
 
   return (
     <>
@@ -45,6 +47,7 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
         </>
       )}
       {children}
+      {showSidebar && <BugReportWidget />}
     </>
   );
 }

@@ -1,41 +1,19 @@
 // app/api/prompt-run/route.ts
-// POST /api/prompt-run
-// ✅ Fixed v3:
-//   - Firestore structure now mirrors bulk/route.ts pattern:
-//       ONE job doc:  bulk_prompt/{batchId}         (metadata + counters only)
-//       PER-RUN subdoc: bulk_prompt/{batchId}/runs/{executionId}  (full run record)
-//   - Job doc uses .set() on create, .update() on progress (preserves createdAt)
-//   - No more `runs` map or `latestByPrompt` map embedded in the batch doc
-//   - INTER_PROVIDER_DELAY_MS raised to 800ms (was 400ms) — safer for Gemini/Perplexity RPM
-//   - INTER_CITATION_DELAY_MS raised to 1000ms (was 600ms)
-//   - withRetry baseDelayMs raised to 1500ms (was 1000ms) for citation calls
-//   - No change to API surface — all existing callers work unchanged
+// POST /api/prompt-run — cold-visibility prompt runner, credit-gated (M3).
+// Each call is one scan (kind='prompt_run') in Postgres `scans`; citation
+// results are also written to `scan_results`. Response shape to the caller
+// is unchanged from the Firestore-era version.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/firebase";
+import * as Sentry from "@sentry/nextjs";
 import type { AppSettings } from "@/types";
-
-const MODEL_MIGRATIONS: Record<string, string> = {
-  "gemini-2.0-flash-exp":          "gemini-2.0-flash",
-  "gemini-2.0-flash-thinking-exp": "gemini-2.0-flash",
-  "gemini-2.5-pro":                "gemini-2.5-flash",
-  "claude-3-5-sonnet-20241022":    "claude-sonnet-4-6",
-  "claude-3-5-haiku-20241022":     "claude-haiku-4-5-20251001",
-  "claude-3-opus-20240229":        "claude-opus-4-8",
-  "claude-3-sonnet-20240229":      "claude-sonnet-4-6",
-  "claude-3-haiku-20240307":       "claude-haiku-4-5-20251001",
-};
-
-function migrateSettings(settings: AppSettings): AppSettings {
-  if (!settings.providers) return settings;
-  return {
-    ...settings,
-    providers: settings.providers.map(p => {
-      const migrated = MODEL_MIGRATIONS[p.model];
-      return migrated ? { ...p, model: migrated } : p;
-    }),
-  };
-}
+import { getCurrentUser } from "@/lib/auth";
+import { getEffectiveSettings, countBillableProviders } from "@/lib/providerConfig";
+import { spendCredits, refundCredits, InsufficientCreditsError } from "@/lib/credits";
+import { createScan, completeScan, failScan, insertScanResults, setScanLedgerDebit } from "@/lib/scans";
+import { qualifyReferral } from "@/lib/referrals";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { captureEvent } from "@/lib/analytics/posthog";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -90,71 +68,6 @@ async function withRetry<T>(
     }
   }
   throw lastError;
-}
-
-async function loadSettings(): Promise<AppSettings | null> {
-  const db = await getDb();
-  if (!db) return null;
-  try {
-    const doc = await db.collection("settings").doc("config").get();
-    if (!doc.exists) return null;
-    return migrateSettings(doc.data() as AppSettings);
-  } catch (e) {
-    console.warn("[prompt-run] settings load error:", e);
-    return null;
-  }
-}
-
-const COLLECTION = "bulk_prompt";
-
-// ── Batch-level doc (metadata + counters only, no runs map) ──────────────
-// Structure: bulk_prompt/{batchId}
-async function createBatchDoc(batchId: string, data: object) {
-  const db = await getDb();
-  if (!db) return;
-  try {
-    await db
-      .collection(COLLECTION)
-      .doc(batchId)
-      .set({ ...data, createdAt: new Date().toISOString() });
-  } catch (e) {
-    console.warn("[prompt-run] createBatchDoc error:", e);
-  }
-}
-
-async function updateBatchDoc(batchId: string, data: object) {
-  const db = await getDb();
-  if (!db) return;
-  try {
-    // .update() preserves createdAt and other fields not mentioned here
-    await db
-      .collection(COLLECTION)
-      .doc(batchId)
-      .update({ ...data, updatedAt: new Date().toISOString() });
-  } catch (e) {
-    console.warn("[prompt-run] updateBatchDoc error:", e);
-  }
-}
-
-// ── Per-execution subdoc ──────────────────────────────────────────────────
-// Structure: bulk_prompt/{batchId}/runs/{executionId}
-async function saveRunSubDoc(
-  batchId: string,
-  executionId: string,
-  data: object
-) {
-  const db = await getDb();
-  if (!db) return;
-  try {
-    await db
-      .collection(COLLECTION)
-      .doc(batchId)
-      .collection("runs")
-      .doc(executionId)
-      .set({ ...data, savedAt: new Date().toISOString() });
-  } catch (e) {
-    console.warn("[prompt-run] saveRunSubDoc error:", e);
-  }
 }
 
 // Cold visibility prompts have no company/context attached to them, so without this
@@ -363,28 +276,41 @@ Do not return more than 5 sources.`;
 }
 
 export async function POST(request: NextRequest) {
-  let batchId = "";
-  let executionId = "";
-  let promptId = "default";
+  let scanId: string | null = null;
+  let userId: string | null = null;
+  let estimatedCost = 0;
+  let spendSucceeded = false;
+
   try {
     const body = await request.json();
     const rawUrl: string = (body?.url ?? "").trim();
     const customPrompt: string = (body?.prompt ?? "").trim();
     const runCitations: boolean = body?.runCitations !== false;
-    promptId = typeof body?.promptId === "string" && body.promptId.trim()
+    const promptId = typeof body?.promptId === "string" && body.promptId.trim()
       ? body.promptId.trim()
       : "default";
-    batchId = typeof body?.batchId === "string" && body.batchId.trim()
-      ? body.batchId.trim()
-      : `bulk_prompt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    executionId = typeof body?.executionId === "string" && body.executionId.trim()
-      ? body.executionId.trim()
-      : `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     if (!customPrompt) {
       return NextResponse.json(
         { error: "Missing prompt" },
         { status: 400, headers: CORS_HEADERS }
+      );
+    }
+
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: "Sign in required.", errorCode: "UNAUTHENTICATED" },
+        { status: 401, headers: CORS_HEADERS }
+      );
+    }
+    userId = user.id;
+
+    const allowed = await checkRateLimit(`prompt-run:user:${user.id}`, 15, 60_000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many prompt runs, slow down.", errorCode: "RATE_LIMITED" },
+        { status: 429, headers: CORS_HEADERS }
       );
     }
 
@@ -402,33 +328,37 @@ export async function POST(request: NextRequest) {
       .slice(0, 120)
       .trim();
 
-    const settings = await loadSettings();
-    const providers =
-      settings?.providers?.filter((p) => p.enabled && p.apiKey) ?? [];
+    const settings = await getEffectiveSettings();
+    const providers = settings.providers.filter((p) => p.enabled && p.apiKey);
 
     if (!providers.length) {
       return NextResponse.json(
-        { error: "No AI provider configured. Go to /settings to add API keys." },
+        { error: "No AI provider configured. Contact an admin to enable one." },
         { status: 500, headers: CORS_HEADERS }
       );
     }
 
-    // ── Create the single batch document (no runs map) ─────────────────────
-    await createBatchDoc(batchId, {
-      type: "bulk_prompt_batch",
-      batchId,
-      status: "running",
-      promptId,
-      url,
-      hasUrl,
-      prompt: customPrompt,
-      topic,
-      runCitations,
-      providerCount: providers.length,
-      totalRuns: 0,
-      passedRuns: 0,
-      failedRuns: 0,
-    });
+    // Cost: billable providers × (2 "queries" if citations run, else 1) —
+    // same model as /api/analyze (spec §6.3).
+    estimatedCost = countBillableProviders(settings.providers) * (runCitations ? 2 : 1);
+    scanId = await createScan({ userId: user.id, kind: "prompt_run", url, creditsCost: estimatedCost });
+
+    try {
+      const spendResult = await spendCredits(user.id, estimatedCost, scanId, `scan_debit:${scanId}`);
+      spendSucceeded = true;
+      await setScanLedgerDebit(scanId, spendResult.ledgerId);
+      captureEvent(user.id, "scan_started", { scan_id: scanId, kind: "prompt_run" });
+      captureEvent(user.id, "credits_spent", { scan_id: scanId, amount: estimatedCost, type: "scan_debit" });
+    } catch (err) {
+      if (err instanceof InsufficientCreditsError) {
+        await failScan(scanId, "insufficient_credits");
+        return NextResponse.json({
+          error: `You need ${estimatedCost} credits to run this.`,
+          errorCode: "INSUFFICIENT_CREDITS",
+        }, { status: 402, headers: CORS_HEADERS });
+      }
+      throw err;
+    }
 
     // ── Provider calls run in PARALLEL ──────────────────────────────────────
     // Sequential calls (with retries + inter-provider delays) could take
@@ -526,7 +456,6 @@ Do not return more than 5 sources.`;
     const runSucceeded = !!firstSuccess?.response && !firstSuccess?.error;
 
     const runRecord = {
-      executionId,
       promptId,
       status: runSucceeded ? "success" : "failed",
       url,
@@ -544,18 +473,29 @@ Do not return more than 5 sources.`;
       createdAt: new Date().toISOString(),
     };
 
-    // ── Save this execution as its own subdoc ──────────────────────────────
-    // bulk_prompt/{batchId}/runs/{executionId}
-    await saveRunSubDoc(batchId, executionId, runRecord);
-
-    // ── Update batch doc counters only (no runs map) ───────────────────────
-    await updateBatchDoc(batchId, {
-      status: "done",
-      totalRuns: 1,
-      passedRuns: runSucceeded ? 1 : 0,
-      failedRuns: runSucceeded ? 0 : 1,
-      completedAt: new Date().toISOString(),
-    });
+    if (runSucceeded) {
+      await completeScan(scanId, { result: runRecord });
+      captureEvent(user.id, "scan_completed", { scan_id: scanId, kind: "prompt_run" });
+      if (citations.length > 0) {
+        // Additive persistence, not a new computation — same CitationResult-
+        // shaped objects already built above.
+        insertScanResults(
+          scanId,
+          citations.map((c) => ({
+            engine: c.provider,
+            query: c.query,
+            mentioned: c.count > 0,
+            rawResponse: c.rawAnswer,
+            citations: c.allCitationUrls,
+          }))
+        ).catch((err) => console.warn("[scans] insertScanResults failed:", err));
+      }
+      qualifyReferral(userId!).catch(() => {});
+    } else {
+      await refundCredits(user.id, estimatedCost, scanId, `scan_refund:${scanId}`);
+      await failScan(scanId, "run_failed");
+      captureEvent(user.id, "scan_failed", { scan_id: scanId, error_code: "run_failed", refunded: true });
+    }
 
     return NextResponse.json(
       {
@@ -572,23 +512,15 @@ Do not return more than 5 sources.`;
     );
   } catch (err) {
     console.error("[prompt-run] error:", err);
+    Sentry.captureException(err, { tags: { route: "prompt-run" }, user: userId ? { id: userId } : undefined });
 
-    // ── Save failed run subdoc ─────────────────────────────────────────────
-    if (batchId && executionId) {
-      await saveRunSubDoc(batchId, executionId, {
-        executionId,
-        promptId,
-        status: "failed",
-        error: String(err),
-        createdAt: new Date().toISOString(),
-      });
-      await updateBatchDoc(batchId, {
-        status: "done",
-        totalRuns: 1,
-        passedRuns: 0,
-        failedRuns: 1,
-        completedAt: new Date().toISOString(),
-      });
+    if (spendSucceeded && userId && scanId) {
+      try {
+        await refundCredits(userId, estimatedCost, scanId, `scan_refund:${scanId}`);
+        await failScan(scanId, String(err));
+      } catch (refundErr) {
+        console.error("[prompt-run] refund-on-error failed:", refundErr);
+      }
     }
 
     return NextResponse.json(

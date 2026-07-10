@@ -5,7 +5,7 @@ import type { SpeedResult } from "@/types";
 
 type SpeedState = "idle" | "loading" | "done" | "error";
 
-interface SpeedData { mobile: SpeedResult; desktop: SpeedResult }
+interface SpeedData { mobile: SpeedResult; desktop: SpeedResult; hasApiKey?: boolean }
 
 function scoreColor(score: number | null): string {
   if (score === null) return "#8b8d9e";
@@ -217,44 +217,58 @@ export default function SpeedSection({ url, autoRun = false }: { url: string; au
           </div>
 
           {/* Opportunities */}
-          {data.mobile.opportunities.length > 0 && (
-            <div className="rounded-xl border p-4 mb-4" style={{ background: "rgba(255,184,48,0.04)", borderColor: "rgba(255,184,48,0.15)" }}>
-              <div className="text-[10px] font-mono uppercase tracking-widest mb-3" style={{ color: "#ffb830" }}>
-                Opportunities (mobile)
-              </div>
-              <div className="flex flex-col gap-2">
-                {data.mobile.opportunities.map((opp, i) => (
-                  <div key={i} className="flex items-start justify-between gap-3">
-                    <span className="text-[12px] text-white">{opp.title}</span>
-                    {opp.savingsMs && (
-                      <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: "#ffb830" }}>
-                        save ~{opp.savingsMs > 1000 ? (opp.savingsMs / 1000).toFixed(1) + "s" : opp.savingsMs + "ms"}
-                      </span>
-                    )}
+          {(data.mobile.opportunities.length > 0 || data.desktop.opportunities.length > 0) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              {(["mobile", "desktop"] as const).map((strategy) =>
+                data[strategy].opportunities.length > 0 ? (
+                  <div key={strategy} className="rounded-xl border p-4" style={{ background: "rgba(255,184,48,0.04)", borderColor: "rgba(255,184,48,0.15)" }}>
+                    <div className="text-[10px] font-mono uppercase tracking-widest mb-3" style={{ color: "#ffb830" }}>
+                      Opportunities ({strategy})
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {data[strategy].opportunities.map((opp, i) => (
+                        <div key={i} className="flex items-start justify-between gap-3">
+                          <span className="text-[12px] text-white">{opp.title}</span>
+                          {opp.savingsMs && (
+                            <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: "#ffb830" }}>
+                              save ~{opp.savingsMs > 1000 ? (opp.savingsMs / 1000).toFixed(1) + "s" : opp.savingsMs + "ms"}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
+                ) : null
+              )}
             </div>
           )}
 
           {/* Diagnostics */}
-          {data.mobile.diagnostics.length > 0 && (
-            <div className="rounded-xl border p-4" style={{ background: "rgba(255,90,90,0.04)", borderColor: "rgba(255,90,90,0.15)" }}>
-              <div className="text-[10px] font-mono uppercase tracking-widest mb-3" style={{ color: "#ff5a5a" }}>
-                Failed checks (mobile)
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {data.mobile.diagnostics.map((d, i) => (
-                  <span key={i} className="text-[10px] px-2 py-1 rounded-full" style={{ background: "rgba(255,90,90,0.1)", color: "#ff8a8a", border: "1px solid rgba(255,90,90,0.2)" }}>
-                    {d}
-                  </span>
-                ))}
-              </div>
+          {(data.mobile.diagnostics.length > 0 || data.desktop.diagnostics.length > 0) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {(["mobile", "desktop"] as const).map((strategy) =>
+                data[strategy].diagnostics.length > 0 ? (
+                  <div key={strategy} className="rounded-xl border p-4" style={{ background: "rgba(255,90,90,0.04)", borderColor: "rgba(255,90,90,0.15)" }}>
+                    <div className="text-[10px] font-mono uppercase tracking-widest mb-3" style={{ color: "#ff5a5a" }}>
+                      Failed checks ({strategy})
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {data[strategy].diagnostics.map((d, i) => (
+                        <span key={i} className="text-[10px] px-2 py-1 rounded-full" style={{ background: "rgba(255,90,90,0.1)", color: "#ff8a8a", border: "1px solid rgba(255,90,90,0.2)" }}>
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null
+              )}
             </div>
           )}
 
           <p className="text-[10px] mt-4 text-center font-mono" style={{ color: "#8b8d9e" }}>
-            Powered by Google PageSpeed Insights · Add <code>PAGESPEED_API_KEY</code> to .env for higher rate limits
+            {data.hasApiKey
+              ? "Powered by Google PageSpeed Insights"
+              : <>Powered by Google PageSpeed Insights · Add <code>PAGESPEED_API_KEY</code> to .env for higher rate limits</>}
           </p>
         </div>
       )}

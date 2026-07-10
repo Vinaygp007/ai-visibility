@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/browser";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -11,9 +13,23 @@ interface SidebarProps {
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [role, setRole] = useState<"user" | "admin" | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        setRole(data.role);
+        setBalance(data.creditBalance);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    const supabase = createClient();
+    await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
   }
@@ -23,7 +39,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     { href: "/bulk", label: "Bulk Scanner", icon: "⚡" },
     { href: "/bulk-prompt", label: "Prompt Runner", icon: "✦" },
     { href: "/reports", label: "Previous Reports", icon: "📋" },
-    { href: "/settings", label: "Settings", icon: "⚙️" },
+    { href: "/referrals", label: "Referrals", icon: "🎁" },
+    ...(role === "admin" ? [{ href: "/admin", label: "Admin", icon: "🛠️" }] : []),
   ];
 
   return (
@@ -58,6 +75,15 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             </div>
           </div>
         </div>
+        {balance !== null && (
+          <div
+            className="mt-3 px-3 py-1.5 rounded-lg text-[11px] font-mono flex items-center justify-between"
+            style={{ background: "rgba(0,229,255,0.06)", color: "#00e5ff" }}
+          >
+            <span>Credits</span>
+            <span className="font-bold">{balance}</span>
+          </div>
+        )}
       </div>
 
       {/* Navigation Links */}

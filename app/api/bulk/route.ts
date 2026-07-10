@@ -1,20 +1,17 @@
 // app/api/bulk/route.ts
 // POST /api/bulk — accepts up to 500 URLs, streams progress via SSE
-// Each URL goes through the same analysis pipeline as /api/analyze
-// ✅ Fixed v4:
-//   - Citations ALWAYS run regardless of URL count (removed >50 auto-disable)
-//   - ONE job doc: bulk_scan/{jobId}  (metadata + summary counters only)
-//   - PER-URL subdocs: bulk_scan/{jobId}/results/{urlHash}  (no more results[] array)
-//   - Job doc uses .set() on create, .update() on progress (preserves createdAt)
-//   - ALL tasks staggered from t=0 (not just idx >= concurrency)
-//   - Concurrency caps prevent provider rate-limit 429s (≤50→3, 51-200→2, 201-500→1)
-//   - Higher inter-task delay: ≤50→500ms, 51-200→800ms, 201-500→1200ms
-//   - Single retry layer (bulk only), analyze route retries removed from chain
+// Each URL goes through the same credit-gated analysis pipeline as
+// /api/analyze (M2). Job-level progress lives in Postgres `bulk_jobs`;
+// per-URL results live in `scans` (kind='bulk_item', bulk_job_id=<job>) —
+// written by /api/analyze itself, so this route only relays progress and
+// tracks counters, it doesn't persist scan data directly.
 
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
-import { getDb } from "@/lib/firebase";
-import type { AppSettings } from "@/types";
+import * as Sentry from "@sentry/nextjs";
+import { getCurrentUser } from "@/lib/auth";
+import { getEffectiveSettings } from "@/lib/providerConfig";
+import { createBulkJob, updateBulkJobCounters, completeBulkJob } from "@/lib/bulkJobs";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -30,6 +27,14 @@ export async function OPTIONS() {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+class AnalyzeHttpError extends Error {
+  errorCode?: string;
+  constructor(message: string, errorCode?: string) {
+    super(message);
+    this.errorCode = errorCode;
+  }
+}
 
 // ── Exponential backoff retry ─────────────────────────────────────────────
 async function withRetry<T>(
@@ -68,97 +73,36 @@ async function withRetry<T>(
   throw lastError;
 }
 
-async function loadSettings(): Promise<AppSettings | null> {
-  const db = await getDb();
-  if (!db) return null;
-  try {
-    const doc = await db.collection("settings").doc("config").get();
-    if (!doc.exists) return null;
-    return doc.data() as AppSettings;
-  } catch (e) {
-    console.warn("[bulk] settings load error:", e);
-    return null;
-  }
-}
-
-const COLLECTION = "bulk_scan";
-
-/** Stable subdoc ID derived from the URL — deterministic & safe for Firestore */
-function urlDocId(url: string) {
-  return crypto.createHash("md5").update(url).digest("hex").slice(0, 24);
-}
-
-// ── Job-level doc (no results array) ─────────────────────────────────────
-// Structure: bulk_scan/{jobId}
-async function createJobDoc(jobId: string, data: object) {
-  const db = await getDb();
-  if (!db) return;
-  try {
-    await db
-      .collection(COLLECTION)
-      .doc(jobId)
-      .set({ ...data, createdAt: new Date().toISOString() });
-  } catch (e) {
-    console.warn("[bulk] createJobDoc error:", e);
-  }
-}
-
-async function updateJobDoc(jobId: string, data: object) {
-  const db = await getDb();
-  if (!db) return;
-  try {
-    // .update() preserves createdAt and other fields not mentioned here
-    await db
-      .collection(COLLECTION)
-      .doc(jobId)
-      .update({ ...data, updatedAt: new Date().toISOString() });
-  } catch (e) {
-    console.warn("[bulk] updateJobDoc error:", e);
-  }
-}
-
-// ── Per-URL subdoc ────────────────────────────────────────────────────────
-// Structure: bulk_scan/{jobId}/results/{urlHash}
-async function saveResultSubDoc(
-  jobId: string,
-  url: string,
-  data: object
-) {
-  const db = await getDb();
-  if (!db) return;
-  try {
-    await db
-      .collection(COLLECTION)
-      .doc(jobId)
-      .collection("results")
-      .doc(urlDocId(url))
-      .set({ ...data, savedAt: new Date().toISOString() });
-  } catch (e) {
-    console.warn("[bulk] saveResultSubDoc error:", e);
-  }
-}
-
 // ── Analyze a single URL ──────────────────────────────────────────────────
 async function analyzeSingleUrl(
   url: string,
   runCitations: boolean,
-  baseUrl: string
-): Promise<{ success: boolean; data?: object; error?: string }> {
+  baseUrl: string,
+  cookieHeader: string,
+  bulkJobId: string
+): Promise<{ success: boolean; data?: object; error?: string; errorCode?: string }> {
   return withRetry(
     async () => {
+      // /api/analyze is credit-gated per user (M2) — this internal
+      // server-to-server call carries no session by default, so the
+      // caller's cookies must be forwarded explicitly or every item 401s.
       const res = await fetch(`${baseUrl}/api/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, runCitations, bustCache: false, disableFirestoreWrite: true }),
+        headers: { "Content-Type": "application/json", cookie: cookieHeader },
+        body: JSON.stringify({ url, runCitations, bustCache: false, bulkJobId }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        throw new Error(data.error ?? `HTTP ${res.status}`);
+        throw new AnalyzeHttpError(data.error ?? `HTTP ${res.status}`, data.errorCode);
       }
       return { success: true, data };
     },
     { retries: 2, baseDelayMs: 3000, label: url }
-  ).catch((err) => ({ success: false, error: String(err) }));
+  ).catch((err) => ({
+    success: false,
+    error: String(err instanceof Error ? err.message : err),
+    errorCode: err instanceof AnalyzeHttpError ? err.errorCode : undefined,
+  }));
 }
 
 // ── Concurrency limiter ────────────────────────────────────────────────────
@@ -189,6 +133,18 @@ async function runWithConcurrency<T>(
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: { code: "unauthenticated", message: "Sign in required." } }, { status: 401, headers: CORS_HEADERS });
+    }
+
+    // Job creation itself is the rate-limited action — individual items
+    // are throttled by bulk's own concurrency/delay settings, not this.
+    const allowed = await checkRateLimit(`bulk:user:${user.id}`, 3, 10 * 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many bulk jobs, slow down." }, { status: 429, headers: CORS_HEADERS });
+    }
+
     const body = await request.json();
 
     const urls: string[] = (body?.urls ?? [])
@@ -227,13 +183,11 @@ export async function POST(request: NextRequest) {
     const interTaskDelayMs =
       urls.length <= 50 ? 500 : urls.length <= 200 ? 800 : 1200;
 
-    const jobId = `bulk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-    const settings = await loadSettings();
+    const settings = await getEffectiveSettings();
     const hasProviders = settings?.providers?.some((p) => p.enabled && p.apiKey);
     if (!hasProviders) {
       return NextResponse.json(
-        { error: "No AI provider configured. Go to /settings to add API keys." },
+        { error: "No AI provider configured. Contact an admin to enable one." },
         { status: 500, headers: CORS_HEADERS }
       );
     }
@@ -241,19 +195,13 @@ export async function POST(request: NextRequest) {
     const proto = request.headers.get("x-forwarded-proto") ?? "http";
     const host = request.headers.get("host") ?? "localhost:3000";
     const baseUrl = `${proto}://${host}`;
+    const cookieHeader = request.headers.get("cookie") ?? "";
 
-    // ── Create the single job document (no results array) ─────────────────
-    await createJobDoc(jobId, {
-      type: "job",
-      jobId,
-      urls,           // keep url list on job doc for reference
+    const jobId = await createBulkJob({
+      userId: user.id,
+      kind: "bulk_audit",
       total: urls.length,
-      runCitations,
-      concurrency,
-      status: "running",
-      passed: 0,
-      failed: 0,
-      completed: 0,
+      metadata: { runCitations, concurrency, urls },
     });
 
     const encoder = new TextEncoder();
@@ -286,8 +234,22 @@ export async function POST(request: NextRequest) {
         let completed = 0;
         let passed = 0;
         let failed = 0;
+        let skipped = 0;
+        // Once true, remaining un-started tasks are marked skipped instead of
+        // attempted — set the moment /api/analyze reports insufficient
+        // credits, so a mid-batch balance exhaustion stops the batch instead
+        // of failing every remaining item one at a time.
+        let creditsExhausted = false;
 
         const tasks = urls.map((url, idx) => async () => {
+          if (creditsExhausted) {
+            completed++;
+            skipped++;
+            const row = { url, status: "skipped" as const, error: "insufficient_credits", duration: 0, fullData: null };
+            send("result", { jobId, ...row, completed, total: urls.length, passed, failed, skipped, fullData: null });
+            return row;
+          }
+
           await sleep(idx * interTaskDelayMs);
 
           const start = Date.now();
@@ -299,9 +261,13 @@ export async function POST(request: NextRequest) {
             total: urls.length,
           });
 
-          const result = await analyzeSingleUrl(url, runCitations, baseUrl);
+          const result = await analyzeSingleUrl(url, runCitations, baseUrl, cookieHeader, jobId);
           const duration = Date.now() - start;
           completed++;
+
+          if (result.errorCode === "INSUFFICIENT_CREDITS") {
+            creditsExhausted = true;
+          }
 
           const d = result.data as Record<string, unknown> | undefined;
 
@@ -327,12 +293,7 @@ export async function POST(request: NextRequest) {
           if (result.success) passed++;
           else failed++;
 
-          // ── Save this URL as its own subdoc ───────────────────────────
-          // bulk_scan/{jobId}/results/{urlHash}
-          await saveResultSubDoc(jobId, url, row);
-
-          // ── Update job doc counters only (no results array) ───────────
-          await updateJobDoc(jobId, { passed, failed, completed });
+          await updateBulkJobCounters(jobId, { completed, failed, skipped });
 
           send("result", {
             jobId,
@@ -341,6 +302,7 @@ export async function POST(request: NextRequest) {
             total: urls.length,
             passed,
             failed,
+            skipped,
             fullData: result.success ? result.data : null,
           });
 
@@ -349,20 +311,14 @@ export async function POST(request: NextRequest) {
 
         await runWithConcurrency(tasks, concurrency, () => {});
 
-        // ── Mark job as done ──────────────────────────────────────────────
-        await updateJobDoc(jobId, {
-          status: "done",
-          passed,
-          failed,
-          completed,
-          completedAt: new Date().toISOString(),
-        });
+        await completeBulkJob(jobId, "completed");
 
         send("done", {
           jobId,
           total: urls.length,
           passed,
           failed,
+          skipped,
         });
 
         if (!closed) controller.close();
@@ -379,6 +335,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("[bulk] error:", err);
+    Sentry.captureException(err, { tags: { route: "bulk" } });
     return NextResponse.json(
       { error: String(err) },
       { status: 500, headers: CORS_HEADERS }

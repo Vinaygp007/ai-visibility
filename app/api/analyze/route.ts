@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import crypto from "crypto";
-import { getDb } from "@/lib/firebase";
 import { GET as openaiGET, OPTIONS as openaiOPTIONS } from "../openapi/route";
 import type { AppSettings, AIProvider } from "@/types";
+import { getCurrentUser } from "@/lib/auth";
+import { getEffectiveSettings, countBillableProviders } from "@/lib/providerConfig";
+import { spendCredits, refundCredits, InsufficientCreditsError } from "@/lib/credits";
+import { createScan, completeScan, failScan, findCachedScan, setScanLedgerDebit, insertScanResults } from "@/lib/scans";
+import { qualifyReferral } from "@/lib/referrals";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { captureEvent } from "@/lib/analytics/posthog";
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -70,64 +76,6 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// ── Firebase Cache (1 hour TTL) ───────────────────────────────────────────
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour in milliseconds
-const COLLECTION = "scans";
-
-function getCacheKey(key: string): string {
-  return crypto.createHash("md5").update(key).digest("hex");
-}
-
-async function readCache(key: string, collection = COLLECTION): Promise<object | null> {
-  const db = await getDb();
-  if (!db) return null;
-  try {
-    const docId = getCacheKey(key);
-    const doc = await db.collection(collection).doc(docId).get();
-    if (!doc.exists) return null;
-
-    const { timestamp, data } = doc.data() as { timestamp: number; data: object };
-    const ageMs = Date.now() - timestamp;
-
-    if (ageMs > CACHE_TTL_MS) {
-      // Expired — delete silently in background
-      doc.ref.delete().catch(() => {});
-      console.log("[firebase] cache expired for", key);
-      return null;
-    }
-
-    const remainingMins = Math.round((CACHE_TTL_MS - ageMs) / 60000);
-    console.log("[firebase] cache HIT for", key, "—", remainingMins, "mins remaining");
-    return data;
-  } catch (e) {
-    console.warn("[firebase] readCache error:", e);
-    return null;
-  }
-}
-
-async function writeCache(
-  key: string,
-  data: object,
-  collection = COLLECTION,
-  meta: Record<string, unknown> = {}
-): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-  try {
-    const docId = getCacheKey(key);
-    await db.collection(collection).doc(docId).set({
-      url: key,
-      timestamp: Date.now(),
-      createdAt: new Date().toISOString(),
-      ...meta,
-      data,
-    });
-    console.log("[firebase] cached result for", key);
-  } catch (e) {
-    console.warn("[firebase] writeCache error:", e);
-  }
-}
-
 // ── HTTP Fetcher ───────────────────────────────────────────────────────────
 async function safeFetch(url: string, ms = 7000): Promise<{ text: string; status: number; headers: Record<string, string> }> {
   const ctrl = new AbortController();
@@ -143,42 +91,6 @@ async function safeFetch(url: string, ms = 7000): Promise<{ text: string; status
     return { text: res.ok ? await res.text() : "", status: res.status, headers };
   } catch { return { text: "", status: 0, headers: {} }; }
   finally { clearTimeout(t); }
-}
-
-// ── Settings Loader ────────────────────────────────────────────────────────
-const MODEL_MIGRATIONS: Record<string, string> = {
-  "gemini-2.0-flash-exp":          "gemini-2.0-flash",
-  "gemini-2.0-flash-thinking-exp": "gemini-2.0-flash",
-  "gemini-2.5-pro":                "gemini-2.5-flash",
-  "claude-3-5-sonnet-20241022":    "claude-sonnet-4-6",
-  "claude-3-5-haiku-20241022":     "claude-haiku-4-5-20251001",
-  "claude-3-opus-20240229":        "claude-opus-4-8",
-  "claude-3-sonnet-20240229":      "claude-sonnet-4-6",
-  "claude-3-haiku-20240307":       "claude-haiku-4-5-20251001",
-};
-
-function migrateSettings(settings: AppSettings): AppSettings {
-  if (!settings.providers) return settings;
-  return {
-    ...settings,
-    providers: settings.providers.map(p => {
-      const migrated = MODEL_MIGRATIONS[p.model];
-      return migrated ? { ...p, model: migrated } : p;
-    }),
-  };
-}
-
-async function loadSettings(): Promise<AppSettings | null> {
-  const db = await getDb();
-  if (!db) return null;
-  try {
-    const doc = await db.collection("settings").doc("config").get();
-    if (!doc.exists) return null;
-    return migrateSettings(doc.data() as AppSettings);
-  } catch (e) {
-    console.warn("[settings] load error:", e);
-    return null;
-  }
 }
 
 // ── AI Bots ────────────────────────────────────────────────────────────────
@@ -1269,6 +1181,21 @@ function citationSystemPrompt(): string {
   );
 }
 
+// Prose almost never contains the literal domain string ("awwwards.com") —
+// models write the brand name ("Awwwards"). Counting only domain-string
+// occurrences under-counts real mentions; prefer the brand name and fall
+// back to the domain only when no usable company name was discovered.
+function countMentions(text: string, companyName: string, domain: string): number {
+  const needle = (companyName || domain).trim().toLowerCase();
+  if (!needle) return 0;
+  return text.toLowerCase().split(needle).length - 1;
+}
+
+function containsMention(sentence: string, companyName: string, domain: string): boolean {
+  const needle = (companyName || domain).trim().toLowerCase();
+  return needle.length > 0 && sentence.toLowerCase().includes(needle);
+}
+
 // ── Gemini citations (live Google Search) ─────────────────────────────────
 async function getGeminiCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
   const urlObj = new URL(siteUrl);
@@ -1303,7 +1230,7 @@ async function getGeminiCitations(siteUrl: string, companyName: string): Promise
             .map((c: Record<string, unknown>) => (c.web as Record<string, string>)?.uri ?? "")
             .filter(Boolean);
           const matchingUrls = allSourceUrls.filter((u) => u.toLowerCase().includes(domain.toLowerCase()));
-          const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+          const mentionCount = countMentions(text, companyName, domain);
           return { text, allSourceUrls, matchingUrls, mentionCount };
         } catch (err) {
           lastErr = err;
@@ -1330,7 +1257,7 @@ async function getGeminiCitations(siteUrl: string, companyName: string): Promise
       count: r.matchingUrls.length + r.mentionCount,
       urls: r.matchingUrls.slice(0, 8), allCitationUrls: r.allSourceUrls.slice(0, 10),
       dataSource: "live_search",
-      snippets: r.text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      snippets: r.text.split(/[.!?]+/).filter(s => containsMention(s, companyName, domain)).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
       status: "success",
     };
   } catch (err) {
@@ -1346,7 +1273,7 @@ async function getGeminiCitations(siteUrl: string, companyName: string): Promise
           count: r.matchingUrls.length + r.mentionCount,
           urls: r.matchingUrls.slice(0, 8), allCitationUrls: r.allSourceUrls.slice(0, 10),
           dataSource: "live_search",
-          snippets: r.text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+          snippets: r.text.split(/[.!?]+/).filter(s => containsMention(s, companyName, domain)).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
           status: "success",
         };
       } catch { /* fall through */ }
@@ -1400,14 +1327,18 @@ async function getOpenAICitations(siteUrl: string, companyName: string): Promise
       .filter((u: string) => u.length > 0);
 
     const matchingUrls = allCitationUrls.filter(u => u.toLowerCase().includes(domain.toLowerCase()));
-    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+    const mentionCount = countMentions(text, companyName, domain);
 
     return {
       provider: "ChatGPT (GPT-4o)", query, systemPrompt: sysPrompt, rawAnswer: text,
-      count: matchingUrls.length + mentionCount,
+      // matchingUrls is a subset of allCitationUrls — a citation to a source
+      // that isn't the company's own domain still counts here, since the
+      // search happened while researching this specific company and reflects
+      // real grounding for this query, not just an exact domain match.
+      count: allCitationUrls.length + mentionCount,
       urls: matchingUrls.slice(0, 8), allCitationUrls: allCitationUrls.slice(0, 10),
       dataSource: "live_search",
-      snippets: text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      snippets: text.split(/[.!?]+/).filter(s => containsMention(s, companyName, domain)).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
       status: "success",
     };
   } catch (err) {
@@ -1441,13 +1372,13 @@ async function getPerplexityCitations(siteUrl: string, companyName: string): Pro
     const allCitationUrls: string[] = data.citations ?? [];
     const matchingCitations = allCitationUrls.filter(c => c.toLowerCase().includes(domain.toLowerCase()));
     const answer = data.choices?.[0]?.message?.content ?? "";
-    const mentionCount = answer.toLowerCase().split(domain.toLowerCase()).length - 1;
+    const mentionCount = countMentions(answer, companyName, domain);
     return {
       provider: "Perplexity Sonar", query, systemPrompt: sysPrompt, rawAnswer: answer,
       count: matchingCitations.length + mentionCount,
       urls: matchingCitations.slice(0, 8), allCitationUrls: allCitationUrls.slice(0, 10),
       dataSource: "live_search",
-      snippets: answer.split(/[.!?]+/).filter((s: string) => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map((s: string) => s.trim()).filter((s: string) => s.length > 10),
+      snippets: answer.split(/[.!?]+/).filter((s: string) => containsMention(s, companyName, domain)).slice(0, 5).map((s: string) => s.trim()).filter((s: string) => s.length > 10),
       status: "success",
     };
   } catch (err) {
@@ -1474,14 +1405,28 @@ async function getClaudeCitations(siteUrl: string, companyName: string): Promise
       max_tokens: 800,
       system: sysPrompt,
       messages: [{ role: "user", content: query }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
     });
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+    const textBlocks = response.content.filter((b): b is Anthropic.TextBlock => b.type === "text");
+    const text = textBlocks.map(b => b.text).join("");
+
+    const allCitationUrls = Array.from(new Set(
+      textBlocks
+        .flatMap(b => b.citations ?? [])
+        .filter((c): c is Anthropic.CitationsWebSearchResultLocation => c.type === "web_search_result_location")
+        .map(c => c.url)
+    ));
+    const matchingUrls = allCitationUrls.filter(u => u.toLowerCase().includes(domain.toLowerCase()));
+    const mentionCount = countMentions(text, companyName, domain);
     return {
       provider: "Claude (Anthropic)", query, systemPrompt: sysPrompt, rawAnswer: text,
-      count: mentionCount,
-      urls: [], allCitationUrls: [], dataSource: "live_search",
-      snippets: text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      // Same reasoning as ChatGPT's citation count: any source the web_search
+      // tool returned while researching this specific company reflects real
+      // grounding for the query, not just an exact domain match.
+      count: allCitationUrls.length + mentionCount,
+      urls: matchingUrls.slice(0, 8), allCitationUrls: allCitationUrls.slice(0, 10),
+      dataSource: "live_search",
+      snippets: text.split(/[.!?]+/).filter(s => containsMention(s, companyName, domain)).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
       status: "success",
     };
   } catch (err) {
@@ -1510,12 +1455,12 @@ async function getMetaCitations(siteUrl: string, companyName: string): Promise<C
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     const text: string = data.choices?.[0]?.message?.content ?? "";
-    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+    const mentionCount = countMentions(text, companyName, domain);
     return {
       provider: "Meta AI (Llama)", query, systemPrompt: sysPrompt, rawAnswer: text,
       count: mentionCount,
       urls: [], allCitationUrls: [], dataSource: "live_search",
-      snippets: text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      snippets: text.split(/[.!?]+/).filter(s => containsMention(s, companyName, domain)).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
       status: "success",
     };
   } catch (err) {
@@ -1542,12 +1487,12 @@ async function getYouComCitations(siteUrl: string, companyName: string): Promise
     const text: string = data.answer ?? data.response ?? "";
     const hits: string[] = (data.hits ?? []).map((h: Record<string, string>) => h.url ?? "").filter(Boolean);
     const matchingUrls = hits.filter(u => u.toLowerCase().includes(domain.toLowerCase()));
-    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+    const mentionCount = countMentions(text, companyName, domain);
     return {
       provider: "You.com", query, systemPrompt: sysPrompt, rawAnswer: text,
       count: matchingUrls.length + mentionCount,
       urls: matchingUrls.slice(0, 8), allCitationUrls: hits.slice(0, 10), dataSource: "live_search",
-      snippets: text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      snippets: text.split(/[.!?]+/).filter(s => containsMention(s, companyName, domain)).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
       status: "success",
     };
   } catch (err) {
@@ -1578,12 +1523,12 @@ async function getCopilotCitations(siteUrl: string, companyName: string): Promis
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     const text: string = data.choices?.[0]?.message?.content ?? "";
-    const mentionCount = text.toLowerCase().split(domain.toLowerCase()).length - 1;
+    const mentionCount = countMentions(text, companyName, domain);
     return {
       provider: "Microsoft Copilot", query, systemPrompt: sysPrompt, rawAnswer: text,
       count: mentionCount,
       urls: [], allCitationUrls: [], dataSource: "live_search",
-      snippets: text.split(/[.!?]+/).filter(s => s.toLowerCase().includes(domain.toLowerCase())).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
+      snippets: text.split(/[.!?]+/).filter(s => containsMention(s, companyName, domain)).slice(0, 5).map(s => s.trim()).filter(s => s.length > 10),
       status: "success",
     };
   } catch (err) {
@@ -1720,46 +1665,98 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  let scanId: string | null = null;
+  let userId: string | null = null;
+  let estimatedCost = 0;
+  let spendSucceeded = false;
+
   try {
     const body = await request.json();
     const url = body?.url as string | undefined;
     const bustCache = body?.bustCache as boolean | undefined;
-    const disableFirestoreWrite = body?.disableFirestoreWrite === true;
-    const storageCollection = typeof body?.storageCollection === "string" && body.storageCollection.trim()
-      ? body.storageCollection.trim()
-      : COLLECTION;
-    const storageNamespace = typeof body?.storageNamespace === "string" && body.storageNamespace.trim()
-      ? body.storageNamespace.trim()
-      : "";
+    // Legacy name from the Firestore era — bulk still sends this to mean
+    // "don't use the shared scan cache for this call". Kept as-is rather
+    // than touching bulk's request contract in this pass.
+    const disableCache = body?.disableFirestoreWrite === true;
     // Default citations ON for all integrations. Only explicit false disables.
     const runCitations = body?.runCitations === false ? false : true;
+    // Set when this call originates from /api/bulk — ties the resulting scan
+    // back to its bulk_jobs row and tags it as a bulk item instead of a
+    // standalone audit (see lib/scans.ts's ScanKind).
+    const bulkJobId = typeof body?.bulkJobId === "string" && body.bulkJobId.trim() ? body.bulkJobId.trim() : null;
     if (!url) return NextResponse.json({ error: "URL is required", errorCode: "MISSING_URL" }, { status: 400, headers: CORS_HEADERS });
 
-    // Load settings from Firebase
-    const settings = await loadSettings();
-    
-    // Check if any provider is configured in settings
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Sign in required.", errorCode: "UNAUTHENTICATED" }, { status: 401, headers: CORS_HEADERS });
+    }
+    userId = user.id;
+
+    // Rate-limit direct entry only — calls arriving with a bulkJobId came
+    // from our own /api/bulk fan-out, which already throttles itself via
+    // concurrency caps + inter-task delay, not raw client abuse.
+    if (!bulkJobId) {
+      const allowed = await checkRateLimit(`analyze:user:${user.id}`, 10, 60_000);
+      if (!allowed) {
+        return NextResponse.json({ error: "Too many scans, slow down.", errorCode: "RATE_LIMITED" }, { status: 429, headers: CORS_HEADERS });
+      }
+    }
+
+    const settings = await getEffectiveSettings();
     const hasConfiguredProviders = settings?.providers?.some(p => p.enabled && p.apiKey);
-    
+
     if (!settings || !hasConfiguredProviders) {
       return NextResponse.json({
-        error: "No AI provider configured. Please configure at least one provider in /settings",
+        error: "No AI provider configured. Contact an admin to enable one.",
         errorCode: "MISSING_PROVIDER_CONFIG",
       }, { status: 500, headers: CORS_HEADERS });
     }
 
-    const enableCache = !disableFirestoreWrite && (settings?.features?.enableCache ?? true);
+    const enableCache = !disableCache && (settings?.features?.enableCache ?? true);
     const enableCitationsFromSettings = settings?.features?.enableCitations ?? true;
     const shouldRunCitations = runCitations && enableCitationsFromSettings;
+    // Always use a single cache key per URL — include citations flag
+    const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic");
 
     if (!bustCache && enableCache) {
-      // Always use a single cache key per URL — include citations flag
-      const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic") + (storageNamespace ? `|${storageNamespace}` : "");
-      const cached = await readCache(cacheKey, storageCollection) as Record<string, unknown> | null;
+      // A cache hit costs nothing — no fresh provider spend occurs — so this
+      // check must happen before any credit is spent, not after.
+      const cached = await findCachedScan(user.id, cacheKey);
       if (cached) {
         console.log("[cache] serving cached result for", cacheKey);
-        return NextResponse.json({ ...cached, _cached: true }, { headers: CORS_HEADERS });
+        return NextResponse.json({ ...cached.result, _cached: true }, { headers: CORS_HEADERS });
       }
+    }
+
+    // Cost: billable providers × (2 "queries" if citations run, else 1) —
+    // matches spec §6.3 (credits = queries × engines). ai-overview sharing
+    // Gemini's call is already excluded by countBillableProviders.
+    estimatedCost = countBillableProviders(settings.providers) * (shouldRunCitations ? 2 : 1);
+
+    scanId = await createScan({
+      userId: user.id,
+      kind: bulkJobId ? "bulk_item" : "audit",
+      bulkJobId,
+      url,
+      creditsCost: estimatedCost,
+      cacheKey,
+    });
+
+    try {
+      const spendResult = await spendCredits(user.id, estimatedCost, scanId, `scan_debit:${scanId}`);
+      spendSucceeded = true;
+      await setScanLedgerDebit(scanId, spendResult.ledgerId);
+      captureEvent(user.id, "scan_started", { scan_id: scanId, kind: bulkJobId ? "bulk_item" : "audit", url });
+      captureEvent(user.id, "credits_spent", { scan_id: scanId, amount: estimatedCost, type: "scan_debit" });
+    } catch (err) {
+      if (err instanceof InsufficientCreditsError) {
+        await failScan(scanId, "insufficient_credits");
+        return NextResponse.json({
+          error: `You need ${estimatedCost} credits to run this scan.`,
+          errorCode: "INSUFFICIENT_CREDITS",
+        }, { status: 402, headers: CORS_HEADERS });
+      }
+      throw err;
     }
 
     console.log("[fetch] gathering site data for " + url);
@@ -1816,25 +1813,60 @@ export async function POST(request: NextRequest) {
     }));
     const keywords = extractKeywords(homepage.text);
     const final = { ...merged, citations: citationResults, _botResults: botResultsExport, keywords };
-    const cacheKey = url + (shouldRunCitations ? "|citations" : "|basic") + (storageNamespace ? `|${storageNamespace}` : "");
-    
+
+    // "Some providers failed, others didn't" still returns 200 below (unchanged
+    // behavior) — only the all-failed case is treated as a billing failure.
+    // M2 ships all-or-nothing refund; proportional refund per failed provider
+    // is a deliberate fast-follow, not an oversight.
     const allProvidersFailed = providerResults.every(r => r.error !== null);
-    if (enableCache && !allProvidersFailed) {
-      writeCache(cacheKey, final, storageCollection, {
-        storageNamespace: storageNamespace || null,
-        source: storageCollection === COLLECTION ? "scan" : "bulk",
-      }); // async, non-blocking
+    if (allProvidersFailed) {
+      await refundCredits(userId!, estimatedCost, scanId, `scan_refund:${scanId}`);
+      await failScan(scanId, "all_providers_failed");
+      captureEvent(userId!, "scan_failed", { scan_id: scanId, error_code: "all_providers_failed", refunded: true });
+    } else {
+      await completeScan(scanId, { result: final, visibilityScore: deterministicScores.overall_score });
+      captureEvent(userId!, "scan_completed", { scan_id: scanId, visibility_score: deterministicScores.overall_score });
+      if (citationResults.length > 0) {
+        // Additive persistence, not a new computation — same CitationResult
+        // objects already built above. Best-effort: never blocks the response.
+        insertScanResults(
+          scanId,
+          citationResults.map(c => ({
+            engine: c.provider,
+            query: c.query,
+            mentioned: c.count > 0,
+            rawResponse: c.rawAnswer,
+            citations: c.allCitationUrls,
+          }))
+        ).catch(err => console.warn("[scans] insertScanResults failed:", err));
+      }
+      // Best-effort, no-ops if this user has no pending referral.
+      qualifyReferral(userId!).catch(() => {});
     }
-    
+
     return NextResponse.json(final, { headers: CORS_HEADERS });
   } catch (error) {
     console.error("Analysis error:", error);
+    Sentry.captureException(error, { tags: { route: "analyze" }, user: userId ? { id: userId } : undefined });
     const msg = String(error instanceof Error ? error.message : error);
     const low = msg.toLowerCase();
     const errorCode = low.includes("no ai provider") ? "MISSING_KEY"
       : (msg.includes("429") || low.includes("quota") || low.includes("rate limit")) ? "QUOTA_EXCEEDED"
       : (msg.includes("401") || msg.includes("403") || low.includes("api_key")) ? "INVALID_KEY"
       : "UNKNOWN";
+
+    // Only refund if we actually charged (spendSucceeded) — a thrown error
+    // before that point (bad URL, JSON parse crash) never touched credits.
+    if (spendSucceeded && userId && scanId) {
+      try {
+        await refundCredits(userId, estimatedCost, scanId, `scan_refund:${scanId}`);
+        await failScan(scanId, msg);
+        captureEvent(userId, "scan_failed", { scan_id: scanId, error_code: errorCode, refunded: true });
+      } catch (refundErr) {
+        console.error("[analyze] refund-on-error failed:", refundErr);
+      }
+    }
+
     return NextResponse.json({ error: msg, errorCode }, { status: 500, headers: CORS_HEADERS });
   }
 }

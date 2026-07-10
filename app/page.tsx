@@ -28,6 +28,18 @@ const ERROR_HINTS: Record<string, { title: string; detail: string; icon: string;
     detail: "Add GEMINI_API_KEY to your .env.local file and restart the dev server.",
     canAutoRetry: false,
   },
+  INSUFFICIENT_CREDITS: {
+    icon: "💳",
+    title: "Not enough credits",
+    detail: "This scan costs more credits than you have left. Refer a friend or wait for your next credit grant.",
+    canAutoRetry: false,
+  },
+  RATE_LIMITED: {
+    icon: "🚦",
+    title: "Slow down",
+    detail: "You're running scans faster than we allow. Wait a minute and try again.",
+    canAutoRetry: true,
+  },
   NETWORK_ERROR: {
     icon: "📡",
     title: "Network error",

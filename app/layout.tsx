@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import LayoutWithSidebar from "@/components/LayoutWithSidebar";
+import PostHogProvider from "@/components/PostHogProvider";
 
 export const metadata: Metadata = {
   title: "AiScope — AI Visibility Checker",
@@ -18,7 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <LayoutWithSidebar>{children}</LayoutWithSidebar>
+        <PostHogProvider>
+          <LayoutWithSidebar>{children}</LayoutWithSidebar>
+        </PostHogProvider>
       </body>
     </html>
   );

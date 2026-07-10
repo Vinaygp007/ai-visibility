@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -65,7 +65,7 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
 
   let data: Record<string, unknown>;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 25_000);
+  const timer = setTimeout(() => ctrl.abort(), 45_000);
   try {
     const res = await fetch(`${PSI}?${params}`, {
       headers: { Accept: "application/json" },
@@ -80,7 +80,7 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
     const raw = String(err);
     const friendly =
       raw.includes("abort") || raw.includes("Abort")
-        ? "Speed test timed out (25s) — the URL may be slow or PSI unavailable"
+        ? "Speed test timed out (45s) — the URL may be slow or PSI unavailable"
         : raw.includes("fetch failed") || raw.includes("ENOTFOUND") || raw.includes("ECONNREFUSED")
         ? "Cannot reach Google PageSpeed API — ensure the URL is publicly accessible and internet is available. Add PAGESPEED_API_KEY to .env for higher rate limits."
         : raw.slice(0, 200);
@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
       runPSI(url, "desktop", apiKey),
     ]);
 
-    return NextResponse.json({ mobile, desktop }, { headers: CORS });
+    return NextResponse.json({ mobile, desktop, hasApiKey: Boolean(apiKey) }, { headers: CORS });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500, headers: CORS });
   }

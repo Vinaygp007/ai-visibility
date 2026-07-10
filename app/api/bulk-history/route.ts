@@ -1,144 +1,88 @@
 // app/api/bulk-history/route.ts
-// GET /api/bulk-history?limit=20
-// ✅ Fixed v4:
-//   - Rich analysis fields (categories, recommendations, citations,
-//     ai_platform_coverage, stats, _providers) are stored FLAT in the subdoc
-//     (written by bulk/route.ts v5). This avoids Firestore's 1MB limit.
-//   - This route reassembles a fullData object from those flat fields so the
-//     report page can open the full ReportModal for any bulk scan result.
-//   - Also handles legacy subdocs that have a nested fullData blob (v4 writes).
+// GET /api/bulk-history?limit=20&cursor=<jobId>
+// Reads bulk_jobs (kind='bulk_audit') + their scans (kind='bulk_item',
+// bulk_job_id=<job>) from Postgres. Each scan's `result` column already
+// holds the full AnalysisResult JSON (written by /api/analyze), so unlike
+// the old Firestore version there's no flat-field reconstruction needed —
+// fullData is just the scan's result column.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/firebase";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
-
-const COLLECTION = "bulk_scan";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const limit = Math.min(Number(searchParams.get("limit") ?? 20), 100);
   const cursor = searchParams.get("cursor") ?? null;
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated", jobs: [] }, { status: 200 });
+  }
+
   try {
-    const db = await getDb();
-
-    if (!db) {
-      return NextResponse.json(
-        { error: "Database not configured", jobs: [] },
-        { status: 200 }
-      );
-    }
-
-    let query = db
-      .collection(COLLECTION)
-      .orderBy("createdAt", "desc")
+    let query = supabase
+      .from("bulk_jobs")
+      .select("*")
+      .eq("kind", "bulk_audit")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
       .limit(limit + 1);
 
     if (cursor) {
-      try {
-        const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
-        if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-      } catch (e) {
-        console.warn("[bulk-history] cursor lookup failed, ignoring:", e);
-      }
+      const { data: cursorRow } = await supabase.from("bulk_jobs").select("created_at").eq("id", cursor).maybeSingle();
+      if (cursorRow) query = query.lt("created_at", cursorRow.created_at);
     }
 
-    const snap = await query.get();
-    const docs = snap.docs;
+    const { data: jobRows, error } = await query;
+    if (error) throw error;
 
-    const jobDocs = docs.filter((doc) => {
-      const d = doc.data();
-      return d.jobId != null || d.total != null || d.urls != null;
-    });
-
-    const hasMore = jobDocs.length > limit;
-    const pageItems = hasMore ? jobDocs.slice(0, limit) : jobDocs;
+    const hasMore = (jobRows?.length ?? 0) > limit;
+    const pageItems = hasMore ? jobRows!.slice(0, limit) : jobRows ?? [];
 
     const jobs = await Promise.all(
-      pageItems.map(async (doc) => {
-        const raw = doc.data();
+      pageItems.map(async (job) => {
+        const { data: scanRows } = await supabase
+          .from("scans")
+          .select("url, status, error, result")
+          .eq("bulk_job_id", job.id)
+          .order("created_at", { ascending: true });
 
-        const parseTs = (v: unknown): string | null => {
-          if (!v) return null;
-          if (typeof v === "string") return v;
-          if (typeof (v as { toDate?: () => Date }).toDate === "function") {
-            return (v as { toDate: () => Date }).toDate().toISOString();
-          }
-          return null;
-        };
+        const results = (scanRows ?? []).map((s) => {
+          const result = (s.result ?? {}) as Record<string, unknown>;
+          return {
+            url: s.url ?? "",
+            status: s.status === "completed" ? ("success" as const) : ("failed" as const),
+            score: result.overall_score as number | undefined,
+            grade: result.grade as string | undefined,
+            site_name: result.site_name as string | undefined,
+            summary: result.summary as string | undefined,
+            error: s.error ?? undefined,
+            duration: undefined,
+            fullData: s.status === "completed" ? result : null,
+          };
+        });
 
-        const createdAt = parseTs(raw.createdAt);
-
-        let results: object[] = [];
-        try {
-          const resultsSnap = await db
-            .collection(COLLECTION)
-            .doc(doc.id)
-            .collection("results")
-            .orderBy("savedAt", "asc")
-            .get();
-
-          results = resultsSnap.docs.map((rdoc) => {
-            const r = rdoc.data();
-
-            // Reconstruct fullData from flat fields (v5 schema).
-            // Falls back to nested fullData blob for legacy v4 subdocs.
-            let fullData: object | null = null;
-
-            const hasRichFields =
-              r.categories != null ||
-              r.recommendations != null ||
-              r.ai_platform_coverage != null ||
-              r.citations != null ||
-              r.stats != null;
-
-            if (hasRichFields) {
-              fullData = {
-                url:                  (r.url as string)    ?? "",
-                site_name:            (r.site_name as string) ?? "",
-                overall_score:        (r.score as number)  ?? 0,
-                grade:                (r.grade as string)  ?? "—",
-                summary:              (r.summary as string) ?? "",
-                stats:                r.stats                ?? null,
-                categories:           r.categories           ?? [],
-                recommendations:      r.recommendations      ?? [],
-                ai_platform_coverage: r.ai_platform_coverage ?? null,
-                citations:            r.citations            ?? [],
-                _providers:           r._providers           ?? [],
-              };
-            } else if (r.fullData && typeof r.fullData === "object") {
-              fullData = r.fullData as object;
-            }
-
-            return {
-              url:       (r.url       as string)            ?? "",
-              status:    (r.status    as string)            ?? "failed",
-              score:     (r.score     as number | undefined) ?? undefined,
-              grade:     (r.grade     as string | undefined) ?? undefined,
-              site_name: (r.site_name as string | undefined) ?? undefined,
-              summary:   (r.summary   as string | undefined) ?? undefined,
-              error:     (r.error     as string | undefined) ?? undefined,
-              duration:  (r.duration  as number | undefined) ?? undefined,
-              fullData,
-            };
-          });
-        } catch (e) {
-          console.warn(`[bulk-history] failed to fetch results for job ${doc.id}:`, e);
-        }
+        const metadata = (job.metadata ?? {}) as Record<string, unknown>;
+        const passed = Math.max(job.completed - job.failed - job.skipped, 0);
 
         return {
-          id:           doc.id,
-          jobId:        (raw.jobId       as string)   ?? doc.id,
-          total:        (raw.total       as number)   ?? 0,
-          passed:       (raw.passed      as number)   ?? 0,
-          failed:       (raw.failed      as number)   ?? 0,
-          status:       (raw.status      as string)   ?? "unknown",
-          runCitations: (raw.runCitations as boolean)  ?? false,
-          concurrency:  (raw.concurrency  as number)  ?? 1,
-          urls:         (raw.urls         as string[]) ?? [],
+          id: job.id,
+          jobId: job.id,
+          total: job.total,
+          passed,
+          failed: job.failed,
+          status: job.status === "completed" ? "done" : job.status,
+          runCitations: (metadata.runCitations as boolean) ?? false,
+          concurrency: (metadata.concurrency as number) ?? 1,
+          urls: (metadata.urls as string[]) ?? [],
           results,
-          createdAt,
+          createdAt: job.created_at,
         };
       })
     );
@@ -147,9 +91,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ jobs, nextCursor, hasMore });
   } catch (err: unknown) {
     console.error("[bulk-history] fetch error:", err);
-    return NextResponse.json(
-      { error: "Failed to fetch bulk history", jobs: [] },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch bulk history", jobs: [] }, { status: 500 });
   }
 }
