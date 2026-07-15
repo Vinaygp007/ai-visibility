@@ -40,6 +40,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     { href: "/bulk-prompt", label: "Prompt Runner", icon: "✦" },
     { href: "/reports", label: "Previous Reports", icon: "📋" },
     { href: "/referrals", label: "Referrals", icon: "🎁" },
+    { href: "/credits", label: "Credit History", icon: "💳" },
     ...(role === "admin" ? [{ href: "/admin", label: "Admin", icon: "🛠️" }] : []),
   ];
 
