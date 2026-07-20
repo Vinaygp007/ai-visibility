@@ -666,6 +666,14 @@ async function callGemini(prompt: string, preferredModel?: string): Promise<obje
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: modelName });
         const res = await model.generateContent(prompt);
+        // gemini-2.0-flash was deprecated June 2026 — this is the only place
+        // that records which fallback candidate actually served a request,
+        // since a successful call previously returned with no trace of which
+        // model in the chain won. Check logs before pricing around Gemini's
+        // cost assuming 2.0 Flash is what's really running.
+        if (modelName !== models[0]) {
+          console.log(`[Gemini] serving via fallback model "${modelName}" (preferred "${models[0]}" unavailable)`);
+        }
         return parseJSON(res.response.text());
       } catch (err) {
         errors.push(`${modelName} (attempt ${attempt + 1}): ${briefProviderError(err)}`);

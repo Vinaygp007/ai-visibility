@@ -10,6 +10,7 @@ import type { AppSettings } from "@/types";
 import { getCurrentUser } from "@/lib/auth";
 import { getEffectiveSettings, countBillableProviders } from "@/lib/providerConfig";
 import { spendCredits, refundCredits, InsufficientCreditsError } from "@/lib/credits";
+import { PROMPT_CHAR_LIMIT } from "@/lib/limits";
 import { createScan, completeScan, failScan, insertScanResults, setScanLedgerDebit } from "@/lib/scans";
 import { qualifyReferral } from "@/lib/referrals";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -129,7 +130,13 @@ async function callGemini(apiKey: string, model: string, prompt: string, systemP
   for (let i = 0; i < fallbackChain.length; i++) {
     const candidate = fallbackChain[i];
     try {
-      return await callGeminiModel(apiKey, candidate, prompt, systemPrompt);
+      const result = await callGeminiModel(apiKey, candidate, prompt, systemPrompt);
+      // gemini-2.0-flash was deprecated June 2026 — this is the only place
+      // that records which fallback candidate actually served a request.
+      if (i > 0) {
+        console.log(`[Gemini] serving via fallback model "${candidate}" (preferred "${fallbackChain[0]}" unavailable)`);
+      }
+      return result;
     } catch (err) {
       const msg = String(err);
       const is429 = msg.includes("429");
@@ -293,6 +300,12 @@ export async function POST(request: NextRequest) {
     if (!customPrompt) {
       return NextResponse.json(
         { error: "Missing prompt" },
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
+    if (customPrompt.length > PROMPT_CHAR_LIMIT) {
+      return NextResponse.json(
+        { error: `Prompt too long — max ${PROMPT_CHAR_LIMIT} characters (got ${customPrompt.length}).` },
         { status: 400, headers: CORS_HEADERS }
       );
     }

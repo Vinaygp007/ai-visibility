@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { PROMPT_CHAR_LIMIT } from "@/lib/limits";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface ProviderResponse {
@@ -229,7 +230,8 @@ function PromptCard({
       <div style={{ padding: "8px 14px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <textarea
           value={prompt}
-          onChange={(e) => onUpdate(id, { prompt: e.target.value })}
+          onChange={(e) => onUpdate(id, { prompt: e.target.value.slice(0, PROMPT_CHAR_LIMIT) })}
+          maxLength={PROMPT_CHAR_LIMIT}
           rows={3}
           disabled={isRunning}
           placeholder="Enter your prompt here…"
@@ -241,6 +243,12 @@ function PromptCard({
             opacity: isRunning ? 0.6 : 1,
           }}
         />
+        <div style={{
+          textAlign: "right", fontSize: 10, fontFamily: "monospace", marginTop: 3,
+          color: prompt.length >= PROMPT_CHAR_LIMIT ? "#ff5a5a" : "rgba(255,255,255,0.3)",
+        }}>
+          {prompt.length} / {PROMPT_CHAR_LIMIT}
+        </div>
       </div>
 
       {/* Results area */}

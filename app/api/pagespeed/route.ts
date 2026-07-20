@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCachedPageCheck, savePageCheck } from "@/lib/pageCache";
 
 export const maxDuration = 60;
 
@@ -175,13 +176,25 @@ export async function POST(req: NextRequest) {
     const { url } = await req.json();
     if (!url) return NextResponse.json({ error: "URL required" }, { status: 400, headers: CORS });
 
+    const cached = await getCachedPageCheck("pagespeed", url);
+    if (cached) {
+      return NextResponse.json({ ...cached, _cached: true }, { headers: CORS });
+    }
+
     const apiKey = process.env.PAGESPEED_API_KEY ?? "";
     const [mobile, desktop] = await Promise.all([
       runPSI(url, "mobile", apiKey),
       runPSI(url, "desktop", apiKey),
     ]);
 
-    return NextResponse.json({ mobile, desktop, hasApiKey: Boolean(apiKey) }, { headers: CORS });
+    const result = { mobile, desktop, hasApiKey: Boolean(apiKey) };
+    // Don't cache a transient failure (timeout, rate limit) for a full hour —
+    // only lock in a reading once both strategies actually came back clean.
+    if (!mobile.error && !desktop.error) {
+      await savePageCheck("pagespeed", url, result);
+    }
+
+    return NextResponse.json({ ...result, _cached: false }, { headers: CORS });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500, headers: CORS });
   }

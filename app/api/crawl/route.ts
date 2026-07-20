@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCachedPageCheck, savePageCheck } from "@/lib/pageCache";
 
 export const maxDuration = 60;
 
@@ -147,6 +148,13 @@ export async function POST(req: NextRequest) {
     if (!rawUrl) return NextResponse.json({ error: "URL required" }, { status: 400, headers: CORS });
 
     const baseUrl = new URL(rawUrl).origin;
+    const cacheKey = `${baseUrl}|${maxPages}`;
+
+    const cached = await getCachedPageCheck("crawl", cacheKey);
+    if (cached) {
+      return NextResponse.json({ ...cached, _cached: true }, { headers: CORS });
+    }
+
     const startedAt = Date.now();
 
     // Check robots.txt and sitemap in parallel with crawl setup
@@ -223,23 +231,24 @@ export async function POST(req: NextRequest) {
 
     const totalIssues = pages.reduce((s, p) => s + p.issues.length, 0);
 
-    return NextResponse.json(
-      {
-        baseUrl,
-        pagesCrawled: pages.length,
-        pagesBroken: broken,
-        crawlDurationMs,
-        avgResponseTimeMs,
-        totalIssues,
-        statusBreakdown,
-        robotsTxtFound,
-        sitemapFound,
-        orphanPages,
-        avgLinkDepth,
-        pages,
-      } satisfies import("@/types").CrawlResult,
-      { headers: CORS }
-    );
+    const result = {
+      baseUrl,
+      pagesCrawled: pages.length,
+      pagesBroken: broken,
+      crawlDurationMs,
+      avgResponseTimeMs,
+      totalIssues,
+      statusBreakdown,
+      robotsTxtFound,
+      sitemapFound,
+      orphanPages,
+      avgLinkDepth,
+      pages,
+    } satisfies import("@/types").CrawlResult;
+
+    await savePageCheck("crawl", cacheKey, result);
+
+    return NextResponse.json({ ...result, _cached: false }, { headers: CORS });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500, headers: CORS });
   }
