@@ -90,6 +90,22 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleDelete = async (user: AdminUser) => {
+    if (!window.confirm(`Permanently delete ${user.email}? This cannot be undone.`)) return;
+    const res = await fetch("/api/admin/users", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showMessage(data.error?.message ?? "Failed to delete user.");
+      return;
+    }
+    showMessage(`${user.email} deleted.`);
+    loadUsers(search);
+  };
+
   return (
     <div>
       {message && (
@@ -143,6 +159,13 @@ export default function AdminUsersPage() {
                     style={{ borderColor: "rgba(255,90,90,0.3)", color: "#ff5a5a" }}
                   >
                     {u.status === "suspended" ? "Reactivate" : "Suspend"}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(u)}
+                    className="px-3 py-1.5 rounded-lg text-xs border"
+                    style={{ borderColor: "rgba(255,90,90,0.5)", color: "#ff5a5a", background: "rgba(255,90,90,0.08)" }}
+                  >
+                    Delete
                   </button>
                 </div>
               </div>

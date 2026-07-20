@@ -6,7 +6,7 @@ import { logAdminAction } from "@/lib/audit";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
@@ -147,6 +147,40 @@ export async function PATCH(req: NextRequest) {
     targetType: "profiles",
     targetId: userId,
     metadata: updates,
+  });
+
+  return NextResponse.json({ success: true }, { headers: CORS_HEADERS });
+}
+
+const deleteSchema = z.object({ userId: z.string().uuid() });
+
+// Deletes the auth.users row via the service-role client; profiles (and
+// everything FK'd to it) cascades per the schema's `on delete cascade`.
+export async function DELETE(req: NextRequest) {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate.error;
+
+  const parsed = deleteSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: { code: "invalid_input", message: "userId is required." } }, { status: 422, headers: CORS_HEADERS });
+  }
+
+  const { userId } = parsed.data;
+  if (userId === gate.user.id) {
+    return NextResponse.json({ error: { code: "invalid_input", message: "You cannot delete your own account." } }, { status: 422, headers: CORS_HEADERS });
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) {
+    return NextResponse.json({ error: { code: "internal", message: "Failed to delete user." } }, { status: 500, headers: CORS_HEADERS });
+  }
+
+  await logAdminAction({
+    actorId: gate.user.id,
+    action: "user.delete",
+    targetType: "profiles",
+    targetId: userId,
   });
 
   return NextResponse.json({ success: true }, { headers: CORS_HEADERS });
