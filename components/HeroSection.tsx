@@ -36,25 +36,25 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
   return (
     <section className="max-w-3xl mx-auto px-6 pt-20 pb-12 text-center">
       <div className="inline-block text-xs font-mono px-4 py-1.5 rounded-full border mb-6 tracking-widest"
-        style={{ color: "#00e5ff", background: "rgba(0,229,255,0.07)", borderColor: "rgba(0,229,255,0.2)" }}>
+        style={{ color: "var(--accent)", background: "rgba(0,229,255,0.07)", borderColor: "rgba(0,229,255,0.2)" }}>
         // AI VISIBILITY SCANNER
       </div>
 
       <h1 className="text-5xl md:text-6xl font-bold leading-none tracking-tight mb-5"
         style={{
-          background: "linear-gradient(135deg, #fff 30%, rgba(255,255,255,0.45))",
+          background: "linear-gradient(135deg, var(--text) 30%, rgba(var(--overlay-rgb),0.45))",
           WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
         }}>
         Is Your Website<br />Visible to AI?
       </h1>
 
-      <p className="text-[17px] leading-relaxed max-w-lg mx-auto mb-7" style={{ color: "#8b8d9e" }}>
+      <p className="text-[17px] leading-relaxed max-w-lg mx-auto mb-7" style={{ color: "var(--text-muted)" }}>
         Audit how ChatGPT, Claude, Perplexity, Gemini and 10+ other AI systems discover and reference your website.
       </p>
 
       {/* Provider badges */}
       <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
-        <span className="text-xs font-mono" style={{ color: "#8b8d9e" }}>POWERED BY</span>
+        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>POWERED BY</span>
         {PROVIDERS.map((p) => (
           <span key={p.name}
             className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl border"
@@ -63,24 +63,24 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
           </span>
         ))}
       </div>
-      <p className="text-[11px] font-mono mb-6" style={{ color: "#8b8d9e" }}>all 3 run simultaneously · scores averaged</p>
+      <p className="text-[11px] font-mono mb-6" style={{ color: "var(--text-muted)" }}>all 3 run simultaneously · scores averaged</p>
 
       {/* URL input */}
       <div className="search-box flex items-center rounded-2xl border px-5 py-1.5 max-w-xl mx-auto transition-all"
-        style={{ background: "#111219", borderColor: "rgba(255,255,255,0.13)" }}>
+        style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.13)" }}>
         <input
           type="text"
           value={url}
           onChange={e => setUrl(e.target.value)}
           onKeyDown={e => e.key === "Enter" && handleSubmit()}
           placeholder="https://yourwebsite.com"
-          className="flex-1 bg-transparent border-none outline-none text-[15px] text-white py-2.5"
+          className="flex-1 bg-transparent border-none outline-none text-[15px] text-[var(--text)] py-2.5"
         />
         <button
           onClick={handleSubmit}
           disabled={isLoading}
-          className="ml-3 rounded-xl px-6 py-2.5 text-sm font-semibold text-black transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-85 active:scale-95"
-          style={{ background: "#00e5ff", whiteSpace: "nowrap" }}
+          className="ml-3 rounded-xl px-6 py-2.5 text-sm font-semibold text-[var(--on-accent)] transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-85 active:scale-95"
+          style={{ background: "var(--accent)", whiteSpace: "nowrap" }}
         >
           {isLoading ? "Analyzing..." : "Analyze →"}
         </button>
@@ -93,8 +93,8 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all"
           style={{
             background: withCitations ? "rgba(0,229,255,0.1)" : "transparent",
-            borderColor: withCitations ? "rgba(0,229,255,0.4)" : "rgba(255,255,255,0.12)",
-            color: withCitations ? "#00e5ff" : "#8b8d9e",
+            borderColor: withCitations ? "rgba(0,229,255,0.4)" : "rgba(var(--overlay-rgb),0.12)",
+            color: withCitations ? "var(--accent)" : "var(--text-muted)",
           }}
         >
           <span style={{ fontSize: 13 }}>{withCitations ? "✓" : "○"}</span>
@@ -102,20 +102,20 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
           {withCitations ? (
             <span
               className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-              style={{ background: "rgba(0,229,255,0.12)", color: "#00e5ff" }}
+              style={{ background: "rgba(0,229,255,0.12)", color: "var(--accent)" }}
             >
               ON
             </span>
           ) : (
             <span
               className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-              style={{ background: "rgba(255,184,48,0.15)", color: "#ffb830" }}
+              style={{ background: "rgba(255,184,48,0.15)", color: "var(--warning)" }}
             >
               OFF
             </span>
           )}
         </button>
-        <span className="text-[11px]" style={{ color: "#8b8d9e" }}>
+        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
           {withCitations
             ? "Full GEO + competitive analysis included"
             : "Basic scan only — no citation research"}
@@ -125,8 +125,8 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
       {/* Feature chips */}
       <div className="flex flex-wrap gap-4 justify-center mt-5">
         {FEATURE_CHIPS.map(feat => (
-          <div key={feat} className="flex items-center gap-2 text-xs" style={{ color: "#8b8d9e" }}>
-            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "#00ff94" }} />
+          <div key={feat} className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "var(--success)" }} />
             {feat}
           </div>
         ))}

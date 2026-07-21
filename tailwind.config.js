@@ -8,17 +8,18 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-space)", "sans-serif"],
-        mono: ["var(--font-jetbrains)", "monospace"],
+        sans: ["var(--font-body)", "sans-serif"],
+        heading: ["var(--font-heading)", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
       },
       colors: {
-        bg: "#0a0b10",
-        surface: "#111219",
-        surface2: "#181a25",
-        accent: "#00e5ff",
-        accent2: "#7c6fff",
-        accent3: "#00ff94",
-        muted: "#8b8d9e",
+        bg: "var(--bg)",
+        surface: "var(--surface)",
+        surface2: "var(--surface-2)",
+        accent: "var(--accent)",
+        accent2: "var(--accent2)",
+        accent3: "var(--success)",
+        muted: "var(--text-muted)",
       },
       animation: {
         spin: "spin 0.8s linear infinite",

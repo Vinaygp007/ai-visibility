@@ -12,33 +12,33 @@ type CrawlState = "idle" | "loading" | "done" | "error";
 
 const STATUS_BUCKETS = ["2xx", "3xx", "4xx", "5xx", "error"] as const;
 const BUCKET_COLORS: Record<string, { color: string; bg: string; border: string }> = {
-  "2xx":   { color: "#00e87a", bg: "rgba(0,232,122,0.08)",  border: "rgba(0,232,122,0.2)"  },
-  "3xx":   { color: "#ffb830", bg: "rgba(255,184,48,0.08)", border: "rgba(255,184,48,0.2)" },
-  "4xx":   { color: "#ff5a5a", bg: "rgba(255,90,90,0.08)",  border: "rgba(255,90,90,0.2)"  },
+  "2xx":   { color: "var(--success)", bg: "rgba(0,232,122,0.08)",  border: "rgba(0,232,122,0.2)"  },
+  "3xx":   { color: "var(--warning)", bg: "rgba(255,184,48,0.08)", border: "rgba(255,184,48,0.2)" },
+  "4xx":   { color: "var(--danger)", bg: "rgba(255,90,90,0.08)",  border: "rgba(255,90,90,0.2)"  },
   "5xx":   { color: "#ff2222", bg: "rgba(255,34,34,0.08)",  border: "rgba(255,34,34,0.2)"  },
-  "error": { color: "#8b8d9e", bg: "rgba(139,141,158,0.08)", border: "rgba(139,141,158,0.2)" },
+  "error": { color: "var(--text-muted)", bg: "rgba(139,141,158,0.08)", border: "rgba(139,141,158,0.2)" },
 };
 
 const ISSUE_COLORS: Record<string, string> = {
-  "broken link":         "#ff5a5a",
+  "broken link":         "var(--danger)",
   "server error":        "#ff2222",
-  "timeout / unreachable": "#8b8d9e",
-  "missing H1":          "#ff5a5a",
-  "multiple H1s":        "#ffb830",
-  "no title tag":        "#ff5a5a",
-  "title too long":      "#ffb830",
-  "title too short":     "#ffb830",
-  "no meta description": "#ff5a5a",
-  "description too long":"#ffb830",
-  "noindex":             "#ffb830",
-  "thin content":        "#ffb830",
+  "timeout / unreachable": "var(--text-muted)",
+  "missing H1":          "var(--danger)",
+  "multiple H1s":        "var(--warning)",
+  "no title tag":        "var(--danger)",
+  "title too long":      "var(--warning)",
+  "title too short":     "var(--warning)",
+  "no meta description": "var(--danger)",
+  "description too long":"var(--warning)",
+  "noindex":             "var(--warning)",
+  "thin content":        "var(--warning)",
 };
 
 function statusColor(code: number): string {
-  if (code === 0)         return "#8b8d9e";
-  if (code < 300)         return "#00e87a";
-  if (code < 400)         return "#ffb830";
-  if (code < 500)         return "#ff5a5a";
+  if (code === 0)         return "var(--text-muted)";
+  if (code < 300)         return "var(--success)";
+  if (code < 400)         return "var(--warning)";
+  if (code < 500)         return "var(--danger)";
   return "#ff2222";
 }
 
@@ -60,7 +60,7 @@ function ColHeader({
   return (
     <th
       className="px-3 py-2.5 text-left text-[10px] font-mono uppercase tracking-wider cursor-pointer select-none whitespace-nowrap"
-      style={{ color: active ? "#00e5ff" : "#8b8d9e" }}
+      style={{ color: active ? "var(--accent)" : "var(--text-muted)" }}
       onClick={() => onSort(col)}
     >
       {label}{active ? (dir === "asc" ? " ↑" : " ↓") : ""}
@@ -125,16 +125,16 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
   return (
     <div
       className="rounded-2xl border mt-6"
-      style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
     >
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+      <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
         <div>
-          <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "#8b8d9e" }}>
+          <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
             Technical Crawl
           </div>
           {state === "done" && result && (
-            <div className="text-[11px] mt-0.5" style={{ color: "#8b8d9e" }}>
+            <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
               {result.pagesCrawled} pages · {fmt(result.crawlDurationMs)} total
             </div>
           )}
@@ -143,7 +143,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           <button
             onClick={runCrawl}
             className="px-4 py-2 rounded-xl text-[12px] font-semibold transition-all hover:opacity-85 active:scale-95"
-            style={{ background: state === "done" ? "rgba(0,229,255,0.1)" : "#00e5ff", color: state === "done" ? "#00e5ff" : "#000", border: state === "done" ? "1px solid rgba(0,229,255,0.3)" : "none" }}
+            style={{ background: state === "done" ? "rgba(0,229,255,0.1)" : "var(--accent)", color: state === "done" ? "var(--accent)" : "var(--on-accent)", border: state === "done" ? "1px solid rgba(0,229,255,0.3)" : "none" }}
           >
             {state === "done" ? "↺ Re-crawl" : "Run Technical Crawl"}
           </button>
@@ -154,8 +154,8 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
       {state === "idle" && (
         <div className="px-5 py-10 text-center">
           <div className="text-2xl mb-3">🕷️</div>
-          <p className="text-sm font-medium text-white mb-1">Deep Technical Crawl</p>
-          <p className="text-[12px] max-w-sm mx-auto leading-relaxed" style={{ color: "#8b8d9e" }}>
+          <p className="text-sm font-medium text-[var(--text)] mb-1">Deep Technical Crawl</p>
+          <p className="text-[12px] max-w-sm mx-auto leading-relaxed" style={{ color: "var(--text-muted)" }}>
             Crawls up to 20 pages — checks status codes, broken links, word count, H1/H2 structure,
             text ratio, meta titles, and more. Takes 10–30 seconds.
           </p>
@@ -168,19 +168,19 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           <div className="inline-flex items-center gap-2.5 mb-3">
             <div
               className="w-4 h-4 rounded-full border-2 animate-spin"
-              style={{ borderColor: "rgba(0,229,255,0.3)", borderTopColor: "#00e5ff" }}
+              style={{ borderColor: "rgba(0,229,255,0.3)", borderTopColor: "var(--accent)" }}
             />
-            <span className="text-sm font-medium" style={{ color: "#00e5ff" }}>Crawling pages…</span>
+            <span className="text-sm font-medium" style={{ color: "var(--accent)" }}>Crawling pages…</span>
           </div>
-          <p className="text-[12px]" style={{ color: "#8b8d9e" }}>Following internal links, analysing each page</p>
+          <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>Following internal links, analysing each page</p>
         </div>
       )}
 
       {/* ── Error state ────────────────────────────────────────────────── */}
       {state === "error" && (
         <div className="px-5 py-8 text-center">
-          <p className="text-sm font-medium mb-1" style={{ color: "#ff5a5a" }}>Crawl failed</p>
-          <p className="text-[11px]" style={{ color: "#8b8d9e" }}>{error}</p>
+          <p className="text-sm font-medium mb-1" style={{ color: "var(--danger)" }}>Crawl failed</p>
+          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{error}</p>
         </div>
       )}
 
@@ -191,20 +191,20 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 py-5">
             {[
-              { label: "Pages Crawled",   value: result.pagesCrawled,   color: "#00e5ff" },
-              { label: "Broken Pages",    value: result.pagesBroken,    color: result.pagesBroken > 0 ? "#ff5a5a" : "#00e87a" },
-              { label: "Avg Response",    value: fmt(result.avgResponseTimeMs), color: result.avgResponseTimeMs > 800 ? "#ff5a5a" : result.avgResponseTimeMs > 400 ? "#ffb830" : "#00e87a" },
-              { label: "Orphan Pages",    value: result.orphanPages.length, color: result.orphanPages.length > 0 ? "#ffb830" : "#00e87a" },
-              { label: "Total Issues",    value: result.totalIssues,    color: result.totalIssues > 0 ? "#ffb830" : "#00e87a" },
-              { label: "Avg Link Depth",  value: result.avgLinkDepth,   color: result.avgLinkDepth > 3 ? "#ffb830" : "#00e87a" },
+              { label: "Pages Crawled",   value: result.pagesCrawled,   color: "var(--accent)" },
+              { label: "Broken Pages",    value: result.pagesBroken,    color: result.pagesBroken > 0 ? "var(--danger)" : "var(--success)" },
+              { label: "Avg Response",    value: fmt(result.avgResponseTimeMs), color: result.avgResponseTimeMs > 800 ? "var(--danger)" : result.avgResponseTimeMs > 400 ? "var(--warning)" : "var(--success)" },
+              { label: "Orphan Pages",    value: result.orphanPages.length, color: result.orphanPages.length > 0 ? "var(--warning)" : "var(--success)" },
+              { label: "Total Issues",    value: result.totalIssues,    color: result.totalIssues > 0 ? "var(--warning)" : "var(--success)" },
+              { label: "Avg Link Depth",  value: result.avgLinkDepth,   color: result.avgLinkDepth > 3 ? "var(--warning)" : "var(--success)" },
             ].map(({ label, value, color }) => (
               <div
                 key={label}
                 className="rounded-xl border px-4 py-3 text-center"
-                style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+                style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
               >
                 <div className="text-xl font-bold font-mono" style={{ color }}>{value}</div>
-                <div className="text-[10px] font-mono uppercase tracking-wider mt-0.5" style={{ color: "#8b8d9e" }}>{label}</div>
+                <div className="text-[10px] font-mono uppercase tracking-wider mt-0.5" style={{ color: "var(--text-muted)" }}>{label}</div>
               </div>
             ))}
           </div>
@@ -221,12 +221,12 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                 style={{
                   background: found ? "rgba(0,232,122,0.06)" : "rgba(255,90,90,0.06)",
                   borderColor: found ? "rgba(0,232,122,0.2)" : "rgba(255,90,90,0.2)",
-                  color: found ? "#00e87a" : "#ff5a5a",
+                  color: found ? "var(--success)" : "var(--danger)",
                 }}
               >
                 <span>{found ? "✓" : "✕"}</span>
                 <span>{label}</span>
-                <span style={{ color: found ? "#00e87a" : "#ff5a5a", opacity: 0.7 }}>
+                <span style={{ color: found ? "var(--success)" : "var(--danger)", opacity: 0.7 }}>
                   {found ? "found" : "missing"}
                 </span>
               </div>
@@ -245,7 +245,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                     style={{ background: cfg.bg, borderColor: cfg.border, color: cfg.color }}
                   >
                     <span className="font-bold">{bucket}</span>
-                    <span style={{ color: "#d0d0dc" }}>{result.statusBreakdown[bucket]} pages</span>
+                    <span style={{ color: "var(--text)" }}>{result.statusBreakdown[bucket]} pages</span>
                   </div>
                 );
               })}
@@ -255,14 +255,14 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           {/* Orphan pages */}
           {result.orphanPages.length > 0 && (
             <div className="rounded-xl border p-4 mb-4" style={{ background: "rgba(255,184,48,0.04)", borderColor: "rgba(255,184,48,0.15)" }}>
-              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "#ffb830" }}>
+              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--warning)" }}>
                 Orphan Pages — {result.orphanPages.length} (no inbound links)
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {result.orphanPages.map(u => (
                   <a key={u} href={u} target="_blank" rel="noreferrer"
                     className="text-[10px] font-mono px-2 py-1 rounded hover:underline"
-                    style={{ background: "rgba(255,184,48,0.08)", color: "#ffb830", border: "1px solid rgba(255,184,48,0.2)" }}>
+                    style={{ background: "rgba(255,184,48,0.08)", color: "var(--warning)", border: "1px solid rgba(255,184,48,0.2)" }}>
                     {u.replace(result.baseUrl, "") || "/"}
                   </a>
                 ))}
@@ -278,9 +278,9 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                 onClick={() => setFilter(f)}
                 className="px-3 py-1 rounded-lg text-[11px] font-medium transition-all"
                 style={{
-                  background: filter === f ? "rgba(0,229,255,0.1)" : "rgba(255,255,255,0.03)",
-                  color: filter === f ? "#00e5ff" : "#8b8d9e",
-                  border: filter === f ? "1px solid rgba(0,229,255,0.25)" : "1px solid rgba(255,255,255,0.07)",
+                  background: filter === f ? "rgba(0,229,255,0.1)" : "rgba(var(--overlay-rgb),0.03)",
+                  color: filter === f ? "var(--accent)" : "var(--text-muted)",
+                  border: filter === f ? "1px solid rgba(0,229,255,0.25)" : "1px solid rgba(var(--overlay-rgb),0.07)",
                 }}
               >
                 {f === "all" ? `All pages (${result.pages.length})`
@@ -291,10 +291,10 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           </div>
 
           {/* Page table */}
-          <div className="rounded-xl border overflow-x-auto" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+          <div className="rounded-xl border overflow-x-auto" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
             <table className="w-full text-[12px] border-collapse">
               <thead>
-                <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                <tr style={{ background: "rgba(var(--overlay-rgb),0.03)", borderBottom: "1px solid rgba(var(--overlay-rgb),0.07)" }}>
                   <ColHeader label="URL"     col="url"              current={sortCol} dir={sortDir} onSort={handleSort} />
                   <ColHeader label="Status"  col="status"           current={sortCol} dir={sortDir} onSort={handleSort} />
                   <ColHeader label="Time"    col="responseTimeMs"   current={sortCol} dir={sortDir} onSort={handleSort} />
@@ -305,13 +305,13 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                   <ColHeader label="Title"   col="metaTitleLength"  current={sortCol} dir={sortDir} onSort={handleSort} />
                   <ColHeader label="Depth"   col="linkDepth"        current={sortCol} dir={sortDir} onSort={handleSort} />
                   <ColHeader label="Inbound" col="inboundLinkCount" current={sortCol} dir={sortDir} onSort={handleSort} />
-                  <th className="px-3 py-2.5 text-left text-[10px] font-mono uppercase tracking-wider" style={{ color: "#8b8d9e" }}>Issues</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-mono uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Issues</th>
                 </tr>
               </thead>
               <tbody>
                 {sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-6 text-center text-[12px]" style={{ color: "#8b8d9e" }}>
+                    <td colSpan={9} className="px-3 py-6 text-center text-[12px]" style={{ color: "var(--text-muted)" }}>
                       No pages match this filter
                     </td>
                   </tr>
@@ -319,13 +319,13 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                   const isOk = page.status >= 200 && page.status < 400;
                   const sColor = statusColor(page.status);
                   const titleLen = page.metaTitleLength;
-                  const titleColor = !titleLen ? "#ff5a5a" : titleLen < 30 || titleLen > 60 ? "#ffb830" : "#00e87a";
+                  const titleColor = !titleLen ? "var(--danger)" : titleLen < 30 || titleLen > 60 ? "var(--warning)" : "var(--success)";
                   return (
                     <tr
                       key={page.url}
                       style={{
-                        borderBottom: i < sorted.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                        background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
+                        borderBottom: i < sorted.length - 1 ? "1px solid rgba(var(--overlay-rgb),0.04)" : "none",
+                        background: i % 2 === 0 ? "transparent" : "rgba(var(--overlay-rgb),0.01)",
                       }}
                     >
                       {/* URL */}
@@ -333,7 +333,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                         <a
                           href={page.url} target="_blank" rel="noreferrer"
                           className="hover:underline truncate block"
-                          style={{ color: isOk ? "#d0d0dc" : "#ff5a5a" }}
+                          style={{ color: isOk ? "var(--text)" : "var(--danger)" }}
                           title={page.url}
                         >
                           {shortUrl(page.url, baseUrl)}
@@ -346,30 +346,30 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                       </td>
 
                       {/* Response time */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.responseTimeMs > 800 ? "#ff5a5a" : page.responseTimeMs > 400 ? "#ffb830" : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.responseTimeMs > 800 ? "var(--danger)" : page.responseTimeMs > 400 ? "var(--warning)" : "var(--text-muted)" }}>
                         {fmt(page.responseTimeMs)}
                       </td>
 
                       {/* Word count */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.wordCount < 100 ? "#ffb830" : "#8b8d9e") : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.wordCount < 100 ? "var(--warning)" : "var(--text-muted)") : "var(--text-muted)" }}>
                         {isOk ? page.wordCount : "—"}
                       </td>
 
                       {/* H1 */}
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        {!isOk ? <span style={{ color: "#8b8d9e" }}>—</span>
-                          : page.h1Count === 0 ? <span style={{ color: "#ff5a5a" }}>✕</span>
-                          : page.h1Count > 1 ? <span style={{ color: "#ffb830" }}>{page.h1Count}x</span>
-                          : <span style={{ color: "#00e87a" }}>✓</span>}
+                        {!isOk ? <span style={{ color: "var(--text-muted)" }}>—</span>
+                          : page.h1Count === 0 ? <span style={{ color: "var(--danger)" }}>✕</span>
+                          : page.h1Count > 1 ? <span style={{ color: "var(--warning)" }}>{page.h1Count}x</span>
+                          : <span style={{ color: "var(--success)" }}>✓</span>}
                       </td>
 
                       {/* H2 count */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                         {isOk ? page.h2Count : "—"}
                       </td>
 
                       {/* Text ratio */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.textRatioPercent < 10 ? "#ffb830" : "#8b8d9e") : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.textRatioPercent < 10 ? "var(--warning)" : "var(--text-muted)") : "var(--text-muted)" }}>
                         {isOk ? page.textRatioPercent + "%" : "—"}
                       </td>
 
@@ -379,32 +379,32 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
                       </td>
 
                       {/* Link depth */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.linkDepth > 3 ? "#ffb830" : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.linkDepth > 3 ? "var(--warning)" : "var(--text-muted)" }}>
                         {page.linkDepth}
                       </td>
 
                       {/* Inbound links */}
-                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.inboundLinkCount === 0 && page.linkDepth > 0 ? "#ffb830" : "#8b8d9e" }}>
+                      <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: page.inboundLinkCount === 0 && page.linkDepth > 0 ? "var(--warning)" : "var(--text-muted)" }}>
                         {page.inboundLinkCount}
                       </td>
 
                       {/* Issues */}
                       <td className="px-3 py-2.5">
                         {page.issues.length === 0 ? (
-                          <span className="text-[10px] font-mono" style={{ color: "#00e87a" }}>clean</span>
+                          <span className="text-[10px] font-mono" style={{ color: "var(--success)" }}>clean</span>
                         ) : (
                           <div className="flex flex-wrap gap-1">
                             {page.issues.slice(0, 3).map(issue => (
                               <span
                                 key={issue}
                                 className="text-[9px] font-mono px-1.5 py-0.5 rounded-full whitespace-nowrap"
-                                style={{ background: `${ISSUE_COLORS[issue] ?? "#ffb830"}18`, color: ISSUE_COLORS[issue] ?? "#ffb830", border: `1px solid ${ISSUE_COLORS[issue] ?? "#ffb830"}30` }}
+                                style={{ background: `${ISSUE_COLORS[issue] ?? "var(--warning)"}18`, color: ISSUE_COLORS[issue] ?? "var(--warning)", border: `1px solid ${ISSUE_COLORS[issue] ?? "var(--warning)"}30` }}
                               >
                                 {issue}
                               </span>
                             ))}
                             {page.issues.length > 3 && (
-                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style={{ color: "#8b8d9e" }}>
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style={{ color: "var(--text-muted)" }}>
                                 +{page.issues.length - 3}
                               </span>
                             )}
@@ -419,7 +419,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           </div>
 
           {result.pagesCrawled >= 20 && (
-            <p className="text-[10px] mt-3 text-center font-mono" style={{ color: "#8b8d9e" }}>
+            <p className="text-[10px] mt-3 text-center font-mono" style={{ color: "var(--text-muted)" }}>
               Crawl capped at 20 pages. Deeper crawls available via the API with maxPages parameter.
             </p>
           )}

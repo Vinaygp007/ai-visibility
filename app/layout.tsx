@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import LayoutWithSidebar from "@/components/LayoutWithSidebar";
 import PostHogProvider from "@/components/PostHogProvider";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { inter, spaceGrotesk, jetbrainsMono } from "@/lib/fonts";
 
 export const metadata: Metadata = {
   title: "AiScope — AI Visibility Checker",
@@ -17,7 +19,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
         <PostHogProvider>
           <LayoutWithSidebar>{children}</LayoutWithSidebar>

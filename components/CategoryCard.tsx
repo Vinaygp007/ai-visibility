@@ -5,15 +5,15 @@ interface CategoryCardProps {
 }
 
 const STATUS_CONFIG: Record<CheckStatus, { cls: string; sym: string; bg: string }> = {
-  pass: { cls: "text-[#00e87a]", sym: "✓", bg: "rgba(0,232,122,0.12)" },
-  warn: { cls: "text-[#ffb830]", sym: "!", bg: "rgba(255,184,48,0.1)" },
-  fail: { cls: "text-[#ff5a5a]", sym: "✕", bg: "rgba(255,90,90,0.12)" },
+  pass: { cls: "text-[var(--success)]", sym: "✓", bg: "rgba(0,232,122,0.12)" },
+  warn: { cls: "text-[var(--warning)]", sym: "!", bg: "rgba(255,184,48,0.1)" },
+  fail: { cls: "text-[var(--danger)]", sym: "✕", bg: "rgba(255,90,90,0.12)" },
 };
 
 const COLOR_CONFIG = {
-  green: { text: "#00e87a", iconBg: "rgba(0,232,122,0.1)" },
-  yellow: { text: "#ffb830", iconBg: "rgba(255,184,48,0.1)" },
-  red: { text: "#ff5a5a", iconBg: "rgba(255,90,90,0.1)" },
+  green: { text: "var(--success)", iconBg: "rgba(0,232,122,0.1)" },
+  yellow: { text: "var(--warning)", iconBg: "rgba(255,184,48,0.1)" },
+  red: { text: "var(--danger)", iconBg: "rgba(255,90,90,0.1)" },
 };
 
 export default function CategoryCard({ category }: CategoryCardProps) {
@@ -22,7 +22,7 @@ export default function CategoryCard({ category }: CategoryCardProps) {
   return (
     <div
       className="cat-card rounded-2xl border p-5 transition-colors"
-      style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
@@ -52,8 +52,8 @@ export default function CategoryCard({ category }: CategoryCardProps) {
               >
                 {cfg.sym}
               </div>
-              <div style={{ color: "#8b8d9e" }} className="leading-snug">
-                <span className="font-medium text-white">{check.label}</span>
+              <div style={{ color: "var(--text-muted)" }} className="leading-snug">
+                <span className="font-medium text-[var(--text)]">{check.label}</span>
                 {check.detail ? ` — ${check.detail}` : ""}
               </div>
             </div>

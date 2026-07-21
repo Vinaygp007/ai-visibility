@@ -1,11 +1,43 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-space: "Space Grotesk", sans-serif;
-  --font-jetbrains: "JetBrains Mono", monospace;
+  /* Light theme (default) */
+  --bg: #f7f8fb;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --overlay-rgb: 15, 18, 25;
+  --text: #12131a;
+  --text-muted: #565968;
+  --text-dim: #85889a;
+  --accent: #0088a3;
+  --accent2: #6d28d9;
+  --success: #047857;
+  --danger: #d92d2d;
+  --warning: #a15c00;
+  --on-accent: #ffffff;
+  --nav-bg: rgba(255, 255, 255, 0.85);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  /* Dark theme (original design) */
+  --bg: #0a0b10;
+  --surface: #111219;
+  --surface-2: #181a25;
+  --overlay-rgb: 255, 255, 255;
+  --text: #f0f0f5;
+  --text-muted: #8b8d9e;
+  --text-dim: #6f7280;
+  --accent: #00e5ff;
+  --accent2: #7c6fff;
+  --success: #00e87a;
+  --danger: #ff5a5a;
+  --warning: #ffb830;
+  --on-accent: #000000;
+  --nav-bg: rgba(10, 11, 16, 0.92);
+  color-scheme: dark;
 }
 
 * {
@@ -18,12 +50,23 @@ html {
   scroll-behavior: smooth;
 }
 
+html,
 body {
-  background-color: #0a0b10;
-  color: #f0f0f5;
-  font-family: var(--font-space);
+  font-family: var(--font-body), sans-serif;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   line-height: 1.6;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading), sans-serif;
 }
 
 @layer components {
@@ -32,7 +75,7 @@ body {
   }
 
   .search-box:focus-within {
-    border-color: #00e5ff;
+    border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.08);
   }
 
@@ -66,14 +109,91 @@ body {
   }
 
   .step-active {
-    color: #00e5ff;
+    color: var(--accent);
   }
 
   .step-done {
-    color: #00e87a;
+    color: var(--success);
   }
 
   .step-pending {
-    color: #8b8d9e;
+    color: var(--text-muted);
   }
+
+  /* Hero aurora background blobs */
+  .aurora-blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    pointer-events: none;
+  }
+
+  @keyframes auroraDrift1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(60px, -40px) scale(1.15); }
+  }
+
+  @keyframes auroraDrift2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-70px, 50px) scale(1.1); }
+  }
+
+  @keyframes auroraDrift3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(40px, 60px) scale(1.2); }
+  }
+
+  .aurora-blob-1 { animation: auroraDrift1 16s ease-in-out infinite; }
+  .aurora-blob-2 { animation: auroraDrift2 20s ease-in-out infinite; }
+  .aurora-blob-3 { animation: auroraDrift3 18s ease-in-out infinite; }
+
+  /* Shimmering gradient headline — combines the fade-up entrance and the
+     shimmer sweep in one `animation` declaration. Splitting these across
+     .animate-fade-up + .heading-shimmer silently drops the fade-in: the
+     `animation` shorthand is set once per element, so the class that comes
+     later in this stylesheet wins outright and the other's opacity keyframe
+     never runs, leaving the heading stuck at opacity: 0. */
+  .heading-shimmer {
+    background-size: 200% auto;
+    opacity: 0;
+    animation: fadeUp 0.5s ease forwards 0.15s, shimmerMove 7s ease-in-out infinite 0.15s;
+  }
+
+  @keyframes shimmerMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Blinking text cursor for the typed-URL mock */
+  .type-cursor {
+    animation: blink 1s step-start infinite;
+  }
+
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  /* Infinite horizontal marquee — track renders its children twice back to
+     back, so translating exactly -50% loops seamlessly. */
+  .marquee-track {
+    animation: marqueeScroll 32s linear infinite;
+  }
+
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
+
+  @keyframes marqueeScroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* Staggered entrance animation delays */
+  .fade-up-1 { animation-delay: 0.05s; opacity: 0; }
+  .fade-up-2 { animation-delay: 0.15s; opacity: 0; }
+  .fade-up-3 { animation-delay: 0.25s; opacity: 0; }
+  .fade-up-4 { animation-delay: 0.35s; opacity: 0; }
+  .fade-up-5 { animation-delay: 0.45s; opacity: 0; }
+  .fade-up-6 { animation-delay: 0.55s; opacity: 0; }
 }

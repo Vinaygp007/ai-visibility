@@ -33,13 +33,13 @@ export default function LoadingSection({ url }: { url: string }) {
 
   return (
     <div className="rounded-2xl border p-12 text-center"
-      style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}>
+      style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
 
       <div className="spinner w-12 h-12 rounded-full mx-auto mb-5"
-        style={{ border: "3px solid rgba(255,255,255,0.1)", borderTopColor: "#00e5ff" }} />
+        style={{ border: "3px solid rgba(var(--overlay-rgb),0.1)", borderTopColor: "var(--accent)" }} />
 
-      <p className="text-base font-medium text-white mb-1">Analyzing AI Visibility...</p>
-      <p className="text-sm mb-5" style={{ color: "#8b8d9e" }}>{url}</p>
+      <p className="text-base font-medium text-[var(--text)] mb-1">Analyzing AI Visibility...</p>
+      <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>{url}</p>
 
       {/* Provider badges */}
       <div className="flex items-center justify-center gap-2 flex-wrap mb-7">
@@ -50,7 +50,7 @@ export default function LoadingSection({ url }: { url: string }) {
             {p.icon} {p.name}
           </span>
         ))}
-        <span className="text-[11px] font-mono" style={{ color: "#8b8d9e" }}>running in parallel</span>
+        <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>running in parallel</span>
       </div>
 
       {/* Steps */}
@@ -60,7 +60,7 @@ export default function LoadingSection({ url }: { url: string }) {
           const isActive = i === activeStep;
           return (
             <div key={step} className="flex items-center gap-3 text-[13px] font-mono transition-colors duration-300"
-              style={{ color: isDone ? "#00e87a" : isActive ? "#00e5ff" : "#8b8d9e" }}>
+              style={{ color: isDone ? "var(--success)" : isActive ? "var(--accent)" : "var(--text-muted)" }}>
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "currentColor" }} />
               {isDone ? "✓ " : ""}{step}
             </div>

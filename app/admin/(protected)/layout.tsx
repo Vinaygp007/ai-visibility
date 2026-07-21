@@ -17,12 +17,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   ];
 
   return (
-    <div className="min-h-screen md:pl-64" style={{ background: "#0a0b10" }}>
+    <div className="min-h-screen md:pl-64" style={{ background: "var(--bg)" }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-16 md:pt-12 pb-12">
         <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Admin</h1>
-            <p className="text-sm" style={{ color: "#8b8d9e" }}>Signed in as {user.email}</p>
+            <h1 className="text-3xl font-bold text-[var(--text)] mb-1">Admin</h1>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Signed in as {user.email}</p>
           </div>
           <nav className="flex gap-2">
             {links.map((link) => (
@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 key={link.href}
                 href={link.href}
                 className="px-4 py-2 rounded-lg text-sm font-medium border"
-                style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.1)", color: "#f0f0f5" }}
+                style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
               >
                 {link.label}
               </Link>

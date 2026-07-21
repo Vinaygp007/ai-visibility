@@ -60,7 +60,7 @@ export default function BugReportWidget() {
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-5 right-5 z-40 w-11 h-11 rounded-full flex items-center justify-center text-lg shadow-lg"
-        style={{ background: "#1a1b23", border: "1px solid rgba(255,255,255,0.12)", color: "#8b8d9e" }}
+        style={{ background: "#1a1b23", border: "1px solid rgba(var(--overlay-rgb),0.12)", color: "var(--text-muted)" }}
         aria-label="Report a bug"
         title="Report a bug"
       >
@@ -71,15 +71,15 @@ export default function BugReportWidget() {
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.6)" }}>
           <div
             className="w-full max-w-md rounded-2xl border p-6"
-            style={{ background: "#0f1017", borderColor: "rgba(255,255,255,0.1)" }}
+            style={{ background: "#0f1017", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Report a bug</h3>
-              <button onClick={handleClose} className="text-xl leading-none" style={{ color: "#8b8d9e" }}>×</button>
+              <h3 className="text-lg font-semibold text-[var(--text)]">Report a bug</h3>
+              <button onClick={handleClose} className="text-xl leading-none" style={{ color: "var(--text-muted)" }}>×</button>
             </div>
 
             {done ? (
-              <div className="text-[13px] rounded-lg px-3 py-3 border text-center" style={{ color: "#00e5ff", background: "rgba(0,229,255,0.08)", borderColor: "rgba(0,229,255,0.25)" }}>
+              <div className="text-[13px] rounded-lg px-3 py-3 border text-center" style={{ color: "var(--accent)", background: "rgba(0,229,255,0.08)", borderColor: "rgba(0,229,255,0.25)" }}>
                 Thanks — we&apos;ll take a look.
               </div>
             ) : (
@@ -90,7 +90,7 @@ export default function BugReportWidget() {
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="What went wrong?"
                   className="w-full px-3 py-2.5 rounded-lg border text-sm"
-                  style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)", color: "#f0f0f5" }}
+                  style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 />
                 <textarea
                   required
@@ -99,13 +99,13 @@ export default function BugReportWidget() {
                   placeholder="What were you doing when it happened?"
                   rows={4}
                   className="w-full px-3 py-2.5 rounded-lg border text-sm"
-                  style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)", color: "#f0f0f5" }}
+                  style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 />
                 <select
                   value={severity}
                   onChange={(e) => setSeverity(e.target.value as typeof severity)}
                   className="w-full px-3 py-2.5 rounded-lg border text-sm"
-                  style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)", color: "#f0f0f5" }}
+                  style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 >
                   <option value="low">Low — minor annoyance</option>
                   <option value="medium">Medium — got in the way</option>
@@ -114,7 +114,7 @@ export default function BugReportWidget() {
                 </select>
 
                 {error && (
-                  <div className="text-[12px] rounded-lg px-3 py-2 border" style={{ color: "#ff6b6b", background: "rgba(255,107,107,0.08)", borderColor: "rgba(255,107,107,0.25)" }}>
+                  <div className="text-[12px] rounded-lg px-3 py-2 border" style={{ color: "var(--danger)", background: "rgba(255,107,107,0.08)", borderColor: "rgba(255,107,107,0.25)" }}>
                     {error}
                   </div>
                 )}
@@ -122,8 +122,8 @@ export default function BugReportWidget() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full rounded-lg py-2.5 text-sm font-semibold text-black disabled:opacity-60"
-                  style={{ background: "linear-gradient(135deg, #7c6fff, #00e5ff)" }}
+                  className="w-full rounded-lg py-2.5 text-sm font-semibold text-[var(--on-accent)] disabled:opacity-60"
+                  style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
                 >
                   {submitting ? "Sending…" : "Send report"}
                 </button>

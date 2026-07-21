@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/waitlist", "/auth/callback", "/admin/login"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/waitlist", "/auth/callback", "/admin/login", "/privacy", "/terms"];
 const PUBLIC_API_PREFIXES = ["/api/invites/redeem", "/api/waitlist"];
 
 export async function middleware(req: NextRequest) {

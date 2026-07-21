@@ -236,9 +236,9 @@ interface ReportModalProps {
 }
 
 function getScoreColor(score: number) {
-  if (score >= 70) return "#00e87a";
-  if (score >= 40) return "#ffb830";
-  return "#ff5a5a";
+  if (score >= 70) return "var(--success)";
+  if (score >= 40) return "var(--warning)";
+  return "var(--danger)";
 }
 
 function timeAgo(ms: number | null): string {
@@ -310,8 +310,8 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute -top-12 right-0 w-10 h-10 rounded-full flex items-center justify-center transition-all hover:bg-white/10"
-          style={{ color: "#f0f0f5" }}
+          className="absolute -top-12 right-0 w-10 h-10 rounded-full flex items-center justify-center transition-all hover:bg-[rgba(var(--overlay-rgb),0.1)]"
+          style={{ color: "var(--text)" }}
         >
           <span className="text-2xl">×</span>
         </button>
@@ -319,7 +319,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
         <div
           className="rounded-2xl border overflow-hidden"
           style={{
-            background: "#0e0f17",
+            background: "var(--surface)",
             borderColor: "rgba(0,229,255,0.2)",
             boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
           }}
@@ -329,12 +329,12 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
             className="px-8 py-6 border-b"
             style={{
               background: "linear-gradient(135deg, rgba(66,133,244,0.08) 0%, rgba(0,229,255,0.08) 100%)",
-              borderColor: "rgba(255,255,255,0.07)",
+              borderColor: "rgba(var(--overlay-rgb),0.07)",
             }}
           >
             <div className="flex items-start justify-between gap-6">
               <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold text-white mb-2">{report.site_name}</h2>
+                <h2 className="text-2xl font-bold text-[var(--text)] mb-2">{report.site_name}</h2>
                 <a
                   href={report.url}
                   target="_blank"
@@ -344,7 +344,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                 >
                   {report.url}
                 </a>
-                <p className="text-sm mt-3" style={{ color: "#8b8d9e" }}>
+                <p className="text-sm mt-3" style={{ color: "var(--text-muted)" }}>
                   {report.summary}
                 </p>
                 {report.createdAt && (
@@ -352,8 +352,8 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                     <span
                       className="text-xs font-mono px-2 py-1 rounded-full"
                       style={{
-                        background: "rgba(255,255,255,0.05)",
-                        color: "#8b8d9e",
+                        background: "rgba(var(--overlay-rgb),0.05)",
+                        color: "var(--text-muted)",
                       }}
                     >
                       Scanned {timeAgo(report.createdAt)}
@@ -397,10 +397,10 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                   border: "1px solid rgba(0,232,122,0.2)",
                 }}
               >
-                <div className="text-2xl font-bold" style={{ color: "#00e87a" }}>
+                <div className="text-2xl font-bold" style={{ color: "var(--success)" }}>
                   {report.stats.checks_passed}
                 </div>
-                <div className="text-xs mt-1" style={{ color: "#8b8d9e" }}>
+                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                   Passed
                 </div>
               </div>
@@ -411,10 +411,10 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                   border: "1px solid rgba(255,184,48,0.2)",
                 }}
               >
-                <div className="text-2xl font-bold" style={{ color: "#ffb830" }}>
+                <div className="text-2xl font-bold" style={{ color: "var(--warning)" }}>
                   {report.stats.checks_warned}
                 </div>
-                <div className="text-xs mt-1" style={{ color: "#8b8d9e" }}>
+                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                   Warnings
                 </div>
               </div>
@@ -425,10 +425,10 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                   border: "1px solid rgba(255,90,90,0.2)",
                 }}
               >
-                <div className="text-2xl font-bold" style={{ color: "#ff5a5a" }}>
+                <div className="text-2xl font-bold" style={{ color: "var(--danger)" }}>
                   {report.stats.checks_failed}
                 </div>
-                <div className="text-xs mt-1" style={{ color: "#8b8d9e" }}>
+                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                   Failed
                 </div>
               </div>
@@ -455,18 +455,18 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                   borderStyle: "dashed",
                 }}
               >
-                <p className="text-sm font-medium mb-1" style={{ color: "#00e5ff" }}>
+                <p className="text-sm font-medium mb-1" style={{ color: "var(--accent)" }}>
                   AI Citations not included
                 </p>
-                <p className="text-[12px]" style={{ color: "#8b8d9e" }}>
-                  Re-scan with the <span style={{ color: "#00e5ff" }}>&ldquo;Include AI Citations&rdquo;</span> toggle on to see how many times each AI agent cites this site.
+                <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
+                  Re-scan with the <span style={{ color: "var(--accent)" }}>&ldquo;Include AI Citations&rdquo;</span> toggle on to see how many times each AI agent cites this site.
                 </p>
               </div>
             )}
 
             {/* Categories */}
             <div>
-              <h3 className="text-lg font-semibold text-white mb-4">Detailed Analysis</h3>
+              <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Detailed Analysis</h3>
               <div className="space-y-4">
                 {report.categories.map((cat, idx) => (
                   <CategoryCard key={idx} category={cat} />
@@ -477,12 +477,12 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
             {/* AI Platform Coverage */}
             {report.ai_platform_coverage && (
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">AI Platform Coverage</h3>
+                <h3 className="text-lg font-semibold text-[var(--text)] mb-4">AI Platform Coverage</h3>
                 <div
                   className="rounded-xl p-5"
                   style={{
-                    background: "rgba(255,255,255,0.02)",
-                    border: "1px solid rgba(255,255,255,0.07)",
+                    background: "rgba(var(--overlay-rgb),0.02)",
+                    border: "1px solid rgba(var(--overlay-rgb),0.07)",
                   }}
                 >
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -507,7 +507,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                         <span
                           className="text-xs font-medium capitalize"
                           style={{
-                            color: status === "indexed" ? "#00e87a" : "#ff5a5a",
+                            color: status === "indexed" ? "var(--success)" : "var(--danger)",
                           }}
                         >
                           {platform.replace("_", " ")}
@@ -525,7 +525,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
 
             {/* Recommendations */}
             <div>
-              <h3 className="text-lg font-semibold text-white mb-4">Recommendations</h3>
+              <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Recommendations</h3>
               <Recommendations recommendations={report.recommendations} />
             </div>
 
@@ -535,14 +535,14 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
           {/* Footer */}
           <div
             className="px-8 py-4 border-t flex items-center justify-between"
-            style={{ borderColor: "rgba(255,255,255,0.07)" }}
+            style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}
           >
             <button
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[#00e5ff]/50"
+              className="px-6 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[var(--accent)]/50"
               style={{
-                borderColor: "rgba(255,255,255,0.13)",
-                color: "#f0f0f5",
+                borderColor: "rgba(var(--overlay-rgb),0.13)",
+                color: "var(--text)",
                 background: "transparent",
               }}
             >
@@ -552,10 +552,10 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
             <div className="flex items-center gap-3">
               <button
                 onClick={() => exportDocx(report)}
-                className="px-5 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-white/30 flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[rgba(var(--overlay-rgb),0.3)] flex items-center gap-2"
                 style={{
-                  borderColor: "rgba(255,255,255,0.13)",
-                  color: "#c9cdd4",
+                  borderColor: "rgba(var(--overlay-rgb),0.13)",
+                  color: "var(--text)",
                   background: "transparent",
                 }}
               >
@@ -569,7 +569,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                 target="_blank"
                 rel="noreferrer"
                 className="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-                style={{ background: "#00e5ff", color: "#000" }}
+                style={{ background: "var(--accent)", color: "var(--on-accent)" }}
               >
                 Visit Site →
               </a>

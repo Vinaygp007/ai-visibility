@@ -101,9 +101,9 @@ export default function CitationsPanel({
 
   const active = sortedCitations.find((c) => c.provider === resolvedProvider);
   const cfg = PROVIDER_COLORS[resolvedProvider] ?? {
-    color: "#8b8d9e",
-    bg: "rgba(255,255,255,0.03)",
-    border: "rgba(255,255,255,0.1)",
+    color: "var(--text-muted)",
+    bg: "rgba(var(--overlay-rgb),0.03)",
+    border: "rgba(var(--overlay-rgb),0.1)",
     icon: "◎",
   };
 
@@ -112,7 +112,7 @@ export default function CitationsPanel({
   if (sortedCitations.length === 0) return null;
 
   const dotColor = (count: number, hasAnswer = true) =>
-    !hasAnswer ? "#4b5563" : count === 0 ? "#ff5a5a" : count < 3 ? "#ffb830" : "#00e87a";
+    !hasAnswer ? "var(--text-dim)" : count === 0 ? "var(--danger)" : count < 3 ? "var(--warning)" : "var(--success)";
 
   const citedUrls = active?.allCitationUrls ?? [];
   const mentions = extractMentions(active?.rawAnswer ?? "", citedUrls);
@@ -128,34 +128,34 @@ export default function CitationsPanel({
       const renderInline = (t: string) =>
         t
           .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
-          .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#e0e0e8">$1</strong>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>')
           .replace(/\*(.+?)\*/g, "<em>$1</em>");
       if (h3)
         return (
-          <h3 key={i} style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: "10px 0 3px" }}
+          <h3 key={i} style={{ color: "var(--text)", fontSize: 13, fontWeight: 600, margin: "10px 0 3px" }}
             dangerouslySetInnerHTML={{ __html: renderInline(h3[1]) }} />
         );
       if (h2)
         return (
-          <h2 key={i} style={{ color: "#fff", fontSize: 14, fontWeight: 700, margin: "12px 0 4px" }}
+          <h2 key={i} style={{ color: "var(--text)", fontSize: 14, fontWeight: 700, margin: "12px 0 4px" }}
             dangerouslySetInnerHTML={{ __html: renderInline(h2[1]) }} />
         );
       if (h1)
         return (
-          <h1 key={i} style={{ color: "#fff", fontSize: 15, fontWeight: 700, margin: "12px 0 5px" }}
+          <h1 key={i} style={{ color: "var(--text)", fontSize: 15, fontWeight: 700, margin: "12px 0 5px" }}
             dangerouslySetInnerHTML={{ __html: renderInline(h1[1]) }} />
         );
       if (bullet)
         return (
           <div key={i} style={{ display: "flex", gap: 6, margin: "2px 0" }}>
-            <span style={{ color: "#00e5ff", flexShrink: 0 }}>•</span>
+            <span style={{ color: "var(--accent)", flexShrink: 0 }}>•</span>
             <span dangerouslySetInnerHTML={{ __html: renderInline(bullet[1]) }} />
           </div>
         );
       if (numbered)
         return (
           <div key={i} style={{ display: "flex", gap: 6, margin: "2px 0" }}>
-            <span style={{ color: "#00e5ff", flexShrink: 0, minWidth: 16 }}>{numbered[1]}.</span>
+            <span style={{ color: "var(--accent)", flexShrink: 0, minWidth: 16 }}>{numbered[1]}.</span>
             <span dangerouslySetInnerHTML={{ __html: renderInline(numbered[2]) }} />
           </div>
         );
@@ -169,24 +169,24 @@ export default function CitationsPanel({
   return (
     <div
       className="rounded-2xl border mb-6 overflow-hidden"
-      style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
     >
       {/* ── Header ── */}
       <div
         className="px-5 py-3.5 border-b flex items-center justify-between"
-        style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.2)" }}
+        style={{ borderColor: "rgba(var(--overlay-rgb),0.07)", background: "rgba(0,0,0,0.2)" }}
       >
         {/* Left: title + stats */}
         <div className="flex items-center gap-3">
           <span
             className="text-[13px] font-mono tracking-widest uppercase"
-            style={{ color: "#8b8d9e" }}
+            style={{ color: "var(--text-muted)" }}
           >
             AI Citations
           </span>
           <span
             className="text-[11px] font-mono px-2 py-0.5 rounded-full"
-            style={{ color: "#8b8d9e", background: "rgba(255,255,255,0.05)" }}
+            style={{ color: "var(--text-muted)", background: "rgba(var(--overlay-rgb),0.05)" }}
           >
             {totalCitations} total · {successCount} {successCount === 1 ? "agent" : "agents"}
           </span>
@@ -221,15 +221,15 @@ export default function CitationsPanel({
             <div
               className="absolute right-0 top-full mt-1.5 rounded-xl border z-20 overflow-hidden min-w-[220px]"
               style={{
-                background: "#181a25",
-                borderColor: "rgba(255,255,255,0.1)",
+                background: "var(--surface-2)",
+                borderColor: "rgba(var(--overlay-rgb),0.1)",
                 boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
               }}
             >
               {sortedCitations.map((c) => {
                 const pCfg = PROVIDER_COLORS[c.provider] ?? {
-                  color: "#8b8d9e", bg: "rgba(255,255,255,0.03)",
-                  border: "rgba(255,255,255,0.1)", icon: "◎",
+                  color: "var(--text-muted)", bg: "rgba(var(--overlay-rgb),0.03)",
+                  border: "rgba(var(--overlay-rgb),0.1)", icon: "◎",
                 };
                 const isSelected = resolvedProvider === c.provider;
                 const isSuccess = c.status === "success";
@@ -240,9 +240,9 @@ export default function CitationsPanel({
                       setActiveProvider(c.provider);
                       setDropdownOpen(false);
                     }}
-                    className="w-full flex items-center justify-between px-4 py-2.5 text-[13px] transition-all hover:bg-white/5"
+                    className="w-full flex items-center justify-between px-4 py-2.5 text-[13px] transition-all hover:bg-[rgba(var(--overlay-rgb),0.05)]"
                     style={{
-                      color: isSelected ? pCfg.color : "#c9cdd4",
+                      color: isSelected ? pCfg.color : "var(--text)",
                       background: isSelected ? pCfg.bg : "transparent",
                     }}
                   >
@@ -252,7 +252,7 @@ export default function CitationsPanel({
                       {!isSuccess && (
                         <span
                           className="text-[9px] font-mono px-1.5 py-0.5 rounded"
-                          style={{ color: "#ff5a5a", background: "rgba(255,90,90,0.1)" }}
+                          style={{ color: "var(--danger)", background: "rgba(255,90,90,0.1)" }}
                         >
                           failed
                         </span>
@@ -282,10 +282,10 @@ export default function CitationsPanel({
               className="rounded-xl p-5 inline-block"
               style={{ background: "rgba(255,90,90,0.05)", border: "1px solid rgba(255,90,90,0.2)" }}
             >
-              <p className="text-[13px] font-medium mb-2" style={{ color: "#ff5a5a" }}>
+              <p className="text-[13px] font-medium mb-2" style={{ color: "var(--danger)" }}>
                 ✗ Request Failed
               </p>
-              <p className="text-[12px]" style={{ color: "#8b8d9e" }}>
+              <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
                 {active.error ?? "No error details available"}
               </p>
             </div>
@@ -295,14 +295,14 @@ export default function CitationsPanel({
             {/* ── Left: Response ── */}
             <div
               className="flex-1 p-5 overflow-y-auto"
-              style={{ borderRight: "1px solid rgba(255,255,255,0.07)", maxHeight: 560 }}
+              style={{ borderRight: "1px solid rgba(var(--overlay-rgb),0.07)", maxHeight: 560 }}
             >
               {/* Response header row */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <span
                     className="text-[12px] font-mono uppercase tracking-wider"
-                    style={{ color: "#8b8d9e" }}
+                    style={{ color: "var(--text-muted)" }}
                   >
                     Response
                   </span>
@@ -310,7 +310,7 @@ export default function CitationsPanel({
                   <div className="flex items-center gap-2">
                     <div
                       className="w-20 h-1 rounded-full"
-                      style={{ background: "rgba(255,255,255,0.08)" }}
+                      style={{ background: "rgba(var(--overlay-rgb),0.08)" }}
                     >
                       <div
                         className="h-full rounded-full transition-all duration-700"
@@ -342,21 +342,21 @@ export default function CitationsPanel({
               {/* Response text */}
               <div
                 className="text-[12.5px] leading-relaxed"
-                style={{ color: "#c9cdd4" }}
+                style={{ color: "var(--text)" }}
               >
                 {active.rawAnswer
                   ? renderAnswer(active.rawAnswer)
                   : active.error
-                    ? <span style={{ color: "#ff5a5a", fontSize: 12 }}>Error: {active.error}</span>
-                    : <span style={{ color: "#4b5563" }}>No answer captured</span>}
+                    ? <span style={{ color: "var(--danger)", fontSize: 12 }}>Error: {active.error}</span>
+                    : <span style={{ color: "var(--text-dim)" }}>No answer captured</span>}
               </div>
 
               {/* Inline cited snippets */}
               {active.snippets?.length > 0 && (
-                <div className="mt-4 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="mt-4 pt-4" style={{ borderTop: "1px solid rgba(var(--overlay-rgb),0.06)" }}>
                   <div
                     className="text-[11px] font-mono uppercase tracking-wider mb-2"
-                    style={{ color: "#8b8d9e" }}
+                    style={{ color: "var(--text-muted)" }}
                   >
                     Cited Snippets
                   </div>
@@ -366,8 +366,8 @@ export default function CitationsPanel({
                         key={i}
                         className="text-[12px] px-3 py-2 rounded-lg"
                         style={{
-                          color: "#c9cdd4",
-                          background: "rgba(255,255,255,0.03)",
+                          color: "var(--text)",
+                          background: "rgba(var(--overlay-rgb),0.03)",
                           borderLeft: `2px solid ${cfg.color}`,
                         }}
                       >
@@ -387,13 +387,13 @@ export default function CitationsPanel({
               {/* Mentions */}
               <div
                 className="px-4 py-4 border-b"
-                style={{ borderColor: "rgba(255,255,255,0.07)" }}
+                style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}
               >
                 <div className="flex items-baseline gap-2 mb-3">
-                  <span className="text-[12px] font-semibold text-white">Mentions</span>
+                  <span className="text-[12px] font-semibold text-[var(--text)]">Mentions</span>
                   <span
                     className="text-[11px] font-mono"
-                    style={{ color: "#8b8d9e" }}
+                    style={{ color: "var(--text-muted)" }}
                   >
                     {mentions.length}
                   </span>
@@ -404,7 +404,7 @@ export default function CitationsPanel({
                       <div key={m} className="flex items-center gap-2.5">
                         <span
                           className="text-[11px] font-mono w-4 flex-shrink-0"
-                          style={{ color: "#4b5563" }}
+                          style={{ color: "var(--text-dim)" }}
                         >
                           {i + 1}
                         </span>
@@ -418,12 +418,12 @@ export default function CitationsPanel({
                         >
                           {m[0]}
                         </div>
-                        <span className="text-[12px] font-medium text-white truncate">{m}</span>
+                        <span className="text-[12px] font-medium text-[var(--text)] truncate">{m}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[11px]" style={{ color: "#4b5563" }}>
+                  <p className="text-[11px]" style={{ color: "var(--text-dim)" }}>
                     No entities extracted
                   </p>
                 )}
@@ -432,10 +432,10 @@ export default function CitationsPanel({
               {/* Cited pages */}
               <div className="px-4 py-4 flex-1 overflow-y-auto" style={{ maxHeight: 280 }}>
                 <div className="flex items-baseline gap-2 mb-3">
-                  <span className="text-[12px] font-semibold text-white">Cited pages</span>
+                  <span className="text-[12px] font-semibold text-[var(--text)]">Cited pages</span>
                   <span
                     className="text-[11px] font-mono"
-                    style={{ color: "#8b8d9e" }}
+                    style={{ color: "var(--text-muted)" }}
                   >
                     {citedUrls.length}
                   </span>
@@ -454,7 +454,7 @@ export default function CitationsPanel({
                         >
                           <span
                             className="text-[11px] font-mono w-4 flex-shrink-0 mt-0.5"
-                            style={{ color: "#4b5563" }}
+                            style={{ color: "var(--text-dim)" }}
                           >
                             {i + 1}
                           </span>
@@ -470,14 +470,14 @@ export default function CitationsPanel({
                           <div className="flex-1 min-w-0">
                             <span
                               className="text-[11px] font-semibold group-hover:underline leading-tight block truncate"
-                              style={{ color: "#e0e0e8" }}
+                              style={{ color: "var(--text)" }}
                             >
                               {domain}
                             </span>
                             {path && (
                               <span
                                 className="text-[10px] font-mono leading-tight block truncate"
-                                style={{ color: "#4b5563" }}
+                                style={{ color: "var(--text-dim)" }}
                               >
                                 {path}
                               </span>
@@ -488,7 +488,7 @@ export default function CitationsPanel({
                     })}
                   </div>
                 ) : (
-                  <p className="text-[11px]" style={{ color: "#4b5563" }}>
+                  <p className="text-[11px]" style={{ color: "var(--text-dim)" }}>
                     No source URLs captured
                   </p>
                 )}
@@ -497,7 +497,7 @@ export default function CitationsPanel({
           </div>
         )
       ) : (
-        <p className="text-[12px] text-center py-8" style={{ color: "#8b8d9e" }}>
+        <p className="text-[12px] text-center py-8" style={{ color: "var(--text-muted)" }}>
           No citation data available
         </p>
       )}
@@ -506,21 +506,21 @@ export default function CitationsPanel({
       <div
         className="px-5 py-3 border-t flex items-center gap-5 flex-wrap"
         style={{
-          borderColor: "rgba(255,255,255,0.07)",
+          borderColor: "rgba(var(--overlay-rgb),0.07)",
           background: "rgba(0,229,255,0.02)",
         }}
       >
         {[
-          { color: "#00e87a", label: "3+ = well cited" },
-          { color: "#ffb830", label: "1–2 = occasionally" },
-          { color: "#ff5a5a", label: "0 = not cited" },
+          { color: "var(--success)", label: "3+ = well cited" },
+          { color: "var(--warning)", label: "1–2 = occasionally" },
+          { color: "var(--danger)", label: "0 = not cited" },
         ].map(({ color, label }) => (
           <div key={label} className="flex items-center gap-1.5">
             <span
               className="w-2 h-2 rounded-full inline-block flex-shrink-0"
               style={{ background: color }}
             />
-            <span className="text-[11px]" style={{ color: "#8b8d9e" }}>
+            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
               {label}
             </span>
           </div>

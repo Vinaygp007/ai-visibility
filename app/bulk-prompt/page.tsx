@@ -54,7 +54,7 @@ const PROVIDER_CONFIG: Record<string, { color: string; bg: string; border: strin
   "Microsoft Copilot":     { color: "#0078d4", bg: "rgba(0,120,212,0.1)",   border: "rgba(0,120,212,0.28)", icon: "⊞" },
 };
 
-const DEFAULT_PROVIDER_CFG = { color: "#8b8d9e", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", icon: "◎" };
+const DEFAULT_PROVIDER_CFG = { color: "var(--text-muted)", bg: "rgba(var(--overlay-rgb),0.05)", border: "rgba(var(--overlay-rgb),0.12)", icon: "◎" };
 
 const PROMPT_PRESETS = [
   "Best 5 CRM platforms for startups — rank them with pros, cons, and pricing URL.",
@@ -71,31 +71,31 @@ function renderMarkdown(text: string) {
     const bullet = line.match(/^[*-] (.+)/);
     const numbered = line.match(/^(\d+)\. (.+)/);
     const bold = (t: string) =>
-      t.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#e0e0e8">$1</strong>');
+      t.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>');
 
-    if (h2) return <h2 key={i} style={{ color: "#fff", fontSize: 13, fontWeight: 700, margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: bold(h2[1]) }} />;
-    if (h3) return <h3 key={i} style={{ color: "#e0e0ea", fontSize: 12, fontWeight: 600, margin: "8px 0 2px" }} dangerouslySetInnerHTML={{ __html: bold(h3[1]) }} />;
+    if (h2) return <h2 key={i} style={{ color: "var(--text)", fontSize: 13, fontWeight: 700, margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: bold(h2[1]) }} />;
+    if (h3) return <h3 key={i} style={{ color: "var(--text)", fontSize: 12, fontWeight: 600, margin: "8px 0 2px" }} dangerouslySetInnerHTML={{ __html: bold(h3[1]) }} />;
     if (bullet) return (
       <div key={i} style={{ display: "flex", gap: 6, margin: "2px 0" }}>
-        <span style={{ color: "#00e5ff", flexShrink: 0 }}>•</span>
-        <span style={{ color: "#c9cdd4", fontSize: 12 }} dangerouslySetInnerHTML={{ __html: bold(bullet[1]) }} />
+        <span style={{ color: "var(--accent)", flexShrink: 0 }}>•</span>
+        <span style={{ color: "var(--text)", fontSize: 12 }} dangerouslySetInnerHTML={{ __html: bold(bullet[1]) }} />
       </div>
     );
     if (numbered) return (
       <div key={i} style={{ display: "flex", gap: 6, margin: "2px 0" }}>
-        <span style={{ color: "#00e5ff", flexShrink: 0, minWidth: 16, fontSize: 12 }}>{numbered[1]}.</span>
-        <span style={{ color: "#c9cdd4", fontSize: 12 }} dangerouslySetInnerHTML={{ __html: bold(numbered[2]) }} />
+        <span style={{ color: "var(--accent)", flexShrink: 0, minWidth: 16, fontSize: 12 }}>{numbered[1]}.</span>
+        <span style={{ color: "var(--text)", fontSize: 12 }} dangerouslySetInnerHTML={{ __html: bold(numbered[2]) }} />
       </div>
     );
     if (line.trim() === "") return <br key={i} />;
-    return <p key={i} style={{ color: "#c9cdd4", fontSize: 12, margin: "1px 0" }} dangerouslySetInnerHTML={{ __html: bold(line) }} />;
+    return <p key={i} style={{ color: "var(--text)", fontSize: 12, margin: "1px 0" }} dangerouslySetInnerHTML={{ __html: bold(line) }} />;
   });
 }
 
 function dotColor(count: number) {
-  if (count === 0) return "#ff5a5a";
-  if (count < 3) return "#ffb830";
-  return "#00e87a";
+  if (count === 0) return "var(--danger)";
+  if (count < 3) return "var(--warning)";
+  return "var(--success)";
 }
 
 // ── Single prompt container card ──────────────────────────────────────────
@@ -122,14 +122,14 @@ function PromptCard({
   const isDone = status === "done";
   const isError = status === "error";
 
-  const statusColor = isRunning ? "#ffb830" : isDone ? "#00e87a" : isError ? "#ff5a5a" : "#4b5563";
+  const statusColor = isRunning ? "var(--warning)" : isDone ? "var(--success)" : isError ? "var(--danger)" : "var(--text-dim)";
   const statusLabel = isRunning ? "Running…" : isDone ? "Done" : isError ? "Error" : "Idle";
 
   return (
     <div
       style={{
-        background: "#111219",
-        border: `1px solid ${isRunning ? "rgba(255,184,48,0.25)" : isDone ? "rgba(0,232,122,0.18)" : isError ? "rgba(255,90,90,0.18)" : "rgba(255,255,255,0.08)"}`,
+        background: "var(--surface)",
+        border: `1px solid ${isRunning ? "rgba(255,184,48,0.25)" : isDone ? "rgba(0,232,122,0.18)" : isError ? "rgba(255,90,90,0.18)" : "rgba(var(--overlay-rgb),0.08)"}`,
         borderRadius: 16,
         overflow: "hidden",
         transition: "border-color 0.3s",
@@ -140,7 +140,7 @@ function PromptCard({
       {/* Card top bar */}
       <div style={{
         padding: "10px 14px",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: "1px solid rgba(var(--overlay-rgb),0.06)",
         background: "rgba(0,0,0,0.2)",
         display: "flex",
         alignItems: "center",
@@ -150,7 +150,7 @@ function PromptCard({
         <span style={{
           fontSize: 10, fontFamily: "monospace", fontWeight: 700,
           padding: "2px 8px", borderRadius: 6,
-          color: "#00e5ff", background: "rgba(0,229,255,0.1)", border: "1px solid rgba(0,229,255,0.2)",
+          color: "var(--accent)", background: "rgba(0,229,255,0.1)", border: "1px solid rgba(0,229,255,0.2)",
         }}>
           #{index + 1}
         </span>
@@ -183,8 +183,8 @@ function PromptCard({
           disabled={isRunning || !prompt.trim()}
           style={{
             padding: "4px 14px", borderRadius: 8, fontSize: 11, fontWeight: 700,
-            background: isRunning ? "rgba(255,184,48,0.15)" : "linear-gradient(135deg, #00e5ff, #4285f4)",
-            color: isRunning ? "#ffb830" : "#000",
+            background: isRunning ? "rgba(255,184,48,0.15)" : "linear-gradient(135deg, var(--accent), #4285f4)",
+            color: isRunning ? "var(--warning)" : "var(--on-accent)",
             border: isRunning ? "1px solid rgba(255,184,48,0.3)" : "none",
             cursor: isRunning || !prompt.trim() ? "not-allowed" : "pointer",
             opacity: !prompt.trim() ? 0.4 : 1,
@@ -199,8 +199,8 @@ function PromptCard({
           onClick={() => onRemove(id)}
           style={{
             width: 26, height: 26, borderRadius: 7, fontSize: 13, fontWeight: 700,
-            background: "transparent", color: "#4b5563",
-            border: "1px solid rgba(255,255,255,0.07)",
+            background: "transparent", color: "var(--text-dim)",
+            border: "1px solid rgba(var(--overlay-rgb),0.07)",
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
@@ -217,17 +217,17 @@ function PromptCard({
           disabled={isRunning}
           placeholder="URL (optional) — e.g. https://example.com"
           style={{
-            width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.07)",
+            width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
             borderRadius: 8, padding: "6px 12px", fontSize: 11, fontFamily: "monospace",
-            color: "#e0e0ea", outline: "none",
-            caretColor: "#00e5ff",
+            color: "var(--text)", outline: "none",
+            caretColor: "var(--accent)",
             opacity: isRunning ? 0.6 : 1,
           }}
         />
       </div>
 
       {/* Prompt textarea */}
-      <div style={{ padding: "8px 14px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+      <div style={{ padding: "8px 14px 8px", borderBottom: "1px solid rgba(var(--overlay-rgb),0.05)" }}>
         <textarea
           value={prompt}
           onChange={(e) => onUpdate(id, { prompt: e.target.value.slice(0, PROMPT_CHAR_LIMIT) })}
@@ -236,16 +236,16 @@ function PromptCard({
           disabled={isRunning}
           placeholder="Enter your prompt here…"
           style={{
-            width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.07)",
+            width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
             borderRadius: 10, padding: "8px 12px", fontSize: 12, fontFamily: "monospace",
-            color: "#e0e0ea", resize: "vertical", outline: "none",
-            caretColor: "#00e5ff", lineHeight: 1.5,
+            color: "var(--text)", resize: "vertical", outline: "none",
+            caretColor: "var(--accent)", lineHeight: 1.5,
             opacity: isRunning ? 0.6 : 1,
           }}
         />
         <div style={{
           textAlign: "right", fontSize: 10, fontFamily: "monospace", marginTop: 3,
-          color: prompt.length >= PROMPT_CHAR_LIMIT ? "#ff5a5a" : "rgba(255,255,255,0.3)",
+          color: prompt.length >= PROMPT_CHAR_LIMIT ? "var(--danger)" : "rgba(var(--overlay-rgb),0.3)",
         }}>
           {prompt.length} / {PROMPT_CHAR_LIMIT}
         </div>
@@ -261,8 +261,8 @@ function PromptCard({
               background: "rgba(255,90,90,0.06)", border: "1px solid rgba(255,90,90,0.2)",
               borderRadius: 10, padding: "10px 14px",
             }}>
-              <p style={{ color: "#ff5a5a", fontSize: 12, fontWeight: 600, margin: "0 0 4px" }}>✗ Failed</p>
-              <p style={{ color: "#8b8d9e", fontSize: 11, margin: 0 }}>{error}</p>
+              <p style={{ color: "var(--danger)", fontSize: 12, fontWeight: 600, margin: "0 0 4px" }}>✗ Failed</p>
+              <p style={{ color: "var(--text-muted)", fontSize: 11, margin: 0 }}>{error}</p>
             </div>
           )}
 
@@ -272,11 +272,11 @@ function PromptCard({
               <span style={{
                 width: 16, height: 16, borderRadius: "50%",
                 border: "2px solid rgba(0,229,255,0.15)",
-                borderTopColor: "#00e5ff",
+                borderTopColor: "var(--accent)",
                 display: "inline-block",
                 animation: "spin 0.8s linear infinite",
               }} />
-              <span style={{ color: "#8b8d9e", fontSize: 12 }}>Querying providers…</span>
+              <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Querying providers…</span>
             </div>
           )}
 
@@ -284,7 +284,7 @@ function PromptCard({
           {isDone && hasCitations && (
             <div style={{
               display: "flex", gap: 4, marginBottom: 10,
-              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+              background: "rgba(var(--overlay-rgb),0.03)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
               borderRadius: 8, padding: 3, width: "fit-content",
             }}>
               {(["responses", "citations"] as const).map((t) => (
@@ -293,7 +293,7 @@ function PromptCard({
                   style={{
                     padding: "3px 10px", borderRadius: 5, fontSize: 10, fontWeight: 600,
                     background: activeTab === t ? "rgba(0,229,255,0.12)" : "transparent",
-                    color: activeTab === t ? "#00e5ff" : "#6f7280",
+                    color: activeTab === t ? "var(--accent)" : "var(--text-dim)",
                     border: activeTab === t ? "1px solid rgba(0,229,255,0.2)" : "1px solid transparent",
                     cursor: "pointer",
                   }}
@@ -315,7 +315,7 @@ function PromptCard({
                     key={r.provider}
                     style={{
                       borderRadius: 10,
-                      border: `1px solid ${isOpen ? pCfg.border : "rgba(255,255,255,0.07)"}`,
+                      border: `1px solid ${isOpen ? pCfg.border : "rgba(var(--overlay-rgb),0.07)"}`,
                       background: isOpen ? pCfg.bg : "rgba(0,0,0,0.15)",
                       overflow: "hidden",
                       transition: "border-color 0.2s, background 0.2s",
@@ -331,27 +331,27 @@ function PromptCard({
                       }}
                     >
                       <span style={{
-                        fontSize: 13, color: isOpen ? pCfg.color : "#6f7280",
+                        fontSize: 13, color: isOpen ? pCfg.color : "var(--text-dim)",
                         flexShrink: 0, transition: "color 0.15s",
                       }}>
                         {pCfg.icon}
                       </span>
                       <span style={{
                         fontSize: 11, fontWeight: 600, flex: 1,
-                        color: isOpen ? pCfg.color : "#9ca3af",
+                        color: isOpen ? pCfg.color : "var(--text-dim)",
                         transition: "color 0.15s",
                       }}>
                         {r.provider}
                       </span>
                       {r.error ? (
-                        <span style={{ fontSize: 9, color: "#ff5a5a", fontFamily: "monospace" }}>✗ failed</span>
+                        <span style={{ fontSize: 9, color: "var(--danger)", fontFamily: "monospace" }}>✗ failed</span>
                       ) : r.durationMs ? (
-                        <span style={{ fontSize: 9, color: "#4b5563", fontFamily: "monospace" }}>
+                        <span style={{ fontSize: 9, color: "var(--text-dim)", fontFamily: "monospace" }}>
                           {(r.durationMs / 1000).toFixed(1)}s
                         </span>
                       ) : null}
                       <span style={{
-                        fontSize: 10, color: isOpen ? pCfg.color : "#4b5563",
+                        fontSize: 10, color: isOpen ? pCfg.color : "var(--text-dim)",
                         transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
                         transition: "transform 0.2s",
                         marginLeft: 2,
@@ -368,7 +368,7 @@ function PromptCard({
                             background: "rgba(255,90,90,0.05)", border: "1px solid rgba(255,90,90,0.18)",
                             borderRadius: 8, padding: "8px 12px",
                           }}>
-                            <p style={{ color: "#ff5a5a", fontSize: 11, margin: 0 }}>✗ {r.error}</p>
+                            <p style={{ color: "var(--danger)", fontSize: 11, margin: 0 }}>✗ {r.error}</p>
                           </div>
                         ) : (
                           <>
@@ -409,7 +409,7 @@ function PromptCard({
                     key={c.provider}
                     style={{
                       borderRadius: 10,
-                      border: `1px solid ${isOpen ? pCfg.border : "rgba(255,255,255,0.07)"}`,
+                      border: `1px solid ${isOpen ? pCfg.border : "rgba(var(--overlay-rgb),0.07)"}`,
                       background: isOpen ? pCfg.bg : "rgba(0,0,0,0.15)",
                       overflow: "hidden",
                       transition: "border-color 0.2s, background 0.2s",
@@ -424,10 +424,10 @@ function PromptCard({
                         cursor: "pointer", textAlign: "left",
                       }}
                     >
-                      <span style={{ fontSize: 13, color: isOpen ? pCfg.color : "#6f7280", flexShrink: 0 }}>
+                      <span style={{ fontSize: 13, color: isOpen ? pCfg.color : "var(--text-dim)", flexShrink: 0 }}>
                         {pCfg.icon}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 600, flex: 1, color: isOpen ? pCfg.color : "#9ca3af" }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, flex: 1, color: isOpen ? pCfg.color : "var(--text-dim)" }}>
                         {c.provider}
                       </span>
                       {c.status === "success" && (
@@ -442,7 +442,7 @@ function PromptCard({
                         </span>
                       )}
                       <span style={{
-                        fontSize: 10, color: isOpen ? pCfg.color : "#4b5563",
+                        fontSize: 10, color: isOpen ? pCfg.color : "var(--text-dim)",
                         transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
                         transition: "transform 0.2s", marginLeft: 2,
                       }}>▾</span>
@@ -453,12 +453,12 @@ function PromptCard({
                       <div style={{ padding: "0 12px 10px" }}>
                         {/* Citation query */}
                         <div style={{ marginBottom: 8 }}>
-                          <p style={{ fontSize: 9, fontFamily: "monospace", color: "#4b5563", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                          <p style={{ fontSize: 9, fontFamily: "monospace", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
                             Citation query
                           </p>
                           <div style={{
-                            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
-                            borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "#e0e0ea",
+                            background: "rgba(var(--overlay-rgb),0.03)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
+                            borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "var(--text)",
                           }}>
                             {c.query}
                           </div>
@@ -488,7 +488,7 @@ function PromptCard({
                               </a>
                             ))}
                             {c.allCitationUrls.length > 6 && (
-                              <span style={{ fontSize: 10, color: "#4b5563", fontFamily: "monospace", paddingLeft: 4 }}>
+                              <span style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "monospace", paddingLeft: 4 }}>
                                 +{c.allCitationUrls.length - 6} more
                               </span>
                             )}
@@ -507,7 +507,7 @@ function PromptCard({
       {/* Idle placeholder */}
       {status === "idle" && (
         <div style={{ padding: "10px 14px 14px" }}>
-          <p style={{ fontSize: 11, color: "#4b5563", margin: 0, fontFamily: "monospace" }}>
+          <p style={{ fontSize: 11, color: "var(--text-dim)", margin: 0, fontFamily: "monospace" }}>
             ↑ Enter a prompt and click Run
           </p>
         </div>
@@ -964,7 +964,7 @@ export default function MultiPromptPage() {
   const totalWithPrompt = containers.filter(c => c.prompt.trim()).length;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0b10", color: "#f0f0f5" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <div className="md:pl-64">
         <div style={{ maxWidth: 1400, margin: "0 auto", padding: "60px 20px 80px" }}
           className="md:!px-8 md:!pt-8"
@@ -976,7 +976,7 @@ export default function MultiPromptPage() {
               <span style={{
                 fontSize: 10, fontFamily: "monospace", fontWeight: 700,
                 padding: "3px 10px", borderRadius: 20,
-                color: "#00e5ff", background: "rgba(0,229,255,0.08)", border: "1px solid rgba(0,229,255,0.2)",
+                color: "var(--accent)", background: "rgba(0,229,255,0.08)", border: "1px solid rgba(0,229,255,0.2)",
                 letterSpacing: 2,
               }}>
                 MULTI-PROMPT
@@ -985,14 +985,14 @@ export default function MultiPromptPage() {
                 Bulk Prompt Runner
               </h1>
             </div>
-            <p style={{ fontSize: 13, color: "#8b8d9e", margin: 0 }}>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
               Add up to 100 independent prompts · run all in parallel · each gets its own AI response
             </p>
           </div>
 
           {/* Global controls bar */}
           <div style={{
-            background: "#111219", border: "1px solid rgba(255,255,255,0.08)",
+            background: "var(--surface)", border: "1px solid rgba(var(--overlay-rgb),0.08)",
             borderRadius: 14, padding: "12px 14px", marginBottom: 24,
             display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
           }}>
@@ -1003,8 +1003,8 @@ export default function MultiPromptPage() {
               disabled={globalRunning || totalWithPrompt === 0}
               style={{
                 padding: "8px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700,
-                background: globalRunning ? "rgba(255,184,48,0.15)" : "linear-gradient(135deg, #00e5ff, #4285f4)",
-                color: globalRunning ? "#ffb830" : "#000",
+                background: globalRunning ? "rgba(255,184,48,0.15)" : "linear-gradient(135deg, var(--accent), #4285f4)",
+                color: globalRunning ? "var(--warning)" : "var(--on-accent)",
                 border: globalRunning ? "1px solid rgba(255,184,48,0.3)" : "none",
                 cursor: globalRunning || totalWithPrompt === 0 ? "not-allowed" : "pointer",
                 opacity: totalWithPrompt === 0 ? 0.4 : 1,
@@ -1022,8 +1022,8 @@ export default function MultiPromptPage() {
                 display: "flex", alignItems: "center", gap: 6,
                 padding: "7px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600,
                 background: runCitations ? "rgba(0,229,255,0.1)" : "transparent",
-                color: runCitations ? "#00e5ff" : "#8b8d9e",
-                border: `1px solid ${runCitations ? "rgba(0,229,255,0.35)" : "rgba(255,255,255,0.1)"}`,
+                color: runCitations ? "var(--accent)" : "var(--text-muted)",
+                border: `1px solid ${runCitations ? "rgba(0,229,255,0.35)" : "rgba(var(--overlay-rgb),0.1)"}`,
                 cursor: "pointer",
               }}
             >
@@ -1031,24 +1031,24 @@ export default function MultiPromptPage() {
               <span style={{
                 fontSize: 9, fontFamily: "monospace", padding: "1px 5px", borderRadius: 4,
                 background: runCitations ? "rgba(0,229,255,0.12)" : "rgba(255,184,48,0.15)",
-                color: runCitations ? "#00e5ff" : "#ffb830",
+                color: runCitations ? "var(--accent)" : "var(--warning)",
               }}>
                 {runCitations ? "ON" : "OFF"}
               </span>
             </button>
 
-            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.07)" }} />
+            <div style={{ width: 1, height: 28, background: "rgba(var(--overlay-rgb),0.07)" }} />
 
             {/* Add N containers */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, color: "#6f7280", fontFamily: "monospace" }}>Add</span>
+              <span style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "monospace" }}>Add</span>
               <input
                 type="number" min={1} max={100} value={addCount}
                 onChange={e => setAddCount(Math.min(100, Math.max(1, Number(e.target.value))))}
                 style={{
-                  width: 52, background: "#0e0f17", border: "1px solid rgba(255,255,255,0.09)",
+                  width: 52, background: "var(--surface)", border: "1px solid rgba(var(--overlay-rgb),0.09)",
                   borderRadius: 7, padding: "4px 8px", fontSize: 12, fontFamily: "monospace",
-                  color: "#e0e0ea", outline: "none", textAlign: "center",
+                  color: "var(--text)", outline: "none", textAlign: "center",
                 }}
               />
               <button
@@ -1056,7 +1056,7 @@ export default function MultiPromptPage() {
                 disabled={containers.length >= 100}
                 style={{
                   padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  background: "rgba(0,229,255,0.08)", color: "#00e5ff",
+                  background: "rgba(0,229,255,0.08)", color: "var(--accent)",
                   border: "1px solid rgba(0,229,255,0.2)", cursor: "pointer",
                   opacity: containers.length >= 100 ? 0.4 : 1,
                 }}
@@ -1070,8 +1070,8 @@ export default function MultiPromptPage() {
               onClick={() => setContainers(PROMPT_PRESETS.map(p => makeContainer(p)))}
               style={{
                 padding: "5px 12px", borderRadius: 8, fontSize: 11,
-                background: "transparent", color: "#6f7280",
-                border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer",
+                background: "transparent", color: "var(--text-dim)",
+                border: "1px solid rgba(var(--overlay-rgb),0.07)", cursor: "pointer",
               }}
             >
               Load Presets
@@ -1093,8 +1093,8 @@ export default function MultiPromptPage() {
               onClick={() => importInputRef.current?.click()}
               style={{
                 padding: "5px 12px", borderRadius: 8, fontSize: 11,
-                background: "transparent", color: "#6f7280",
-                border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer",
+                background: "transparent", color: "var(--text-dim)",
+                border: "1px solid rgba(var(--overlay-rgb),0.07)", cursor: "pointer",
               }}
             >
               ↑ Import JSON
@@ -1105,8 +1105,8 @@ export default function MultiPromptPage() {
               onClick={() => setPasteModalOpen(true)}
               style={{
                 padding: "5px 12px", borderRadius: 8, fontSize: 11,
-                background: "transparent", color: "#6f7280",
-                border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer",
+                background: "transparent", color: "var(--text-dim)",
+                border: "1px solid rgba(var(--overlay-rgb),0.07)", cursor: "pointer",
               }}
             >
               📋 Paste JSON
@@ -1116,9 +1116,9 @@ export default function MultiPromptPage() {
 
             {/* Stats */}
             <div style={{ display: "flex", gap: 16, fontSize: 11, fontFamily: "monospace" }}>
-              <span style={{ color: "#4b5563" }}>{containers.length} prompts</span>
-              {runningCount > 0 && <span style={{ color: "#ffb830" }}>⟳ {runningCount} running</span>}
-              {doneCount > 0 && <span style={{ color: "#00e87a" }}>✓ {doneCount} done</span>}
+              <span style={{ color: "var(--text-dim)" }}>{containers.length} prompts</span>
+              {runningCount > 0 && <span style={{ color: "var(--warning)" }}>⟳ {runningCount} running</span>}
+              {doneCount > 0 && <span style={{ color: "var(--success)" }}>✓ {doneCount} done</span>}
             </div>
 
             {/* Export PDF / CSV */}
@@ -1128,7 +1128,7 @@ export default function MultiPromptPage() {
                   onClick={() => exportToPdf(containers)}
                   style={{
                     padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                    background: "#00e5ff", color: "#000", border: "none", cursor: "pointer",
+                    background: "var(--accent)", color: "var(--on-accent)", border: "none", cursor: "pointer",
                   }}
                 >
                   ↓ Export PDF
@@ -1138,7 +1138,7 @@ export default function MultiPromptPage() {
                   onClick={() => exportToCsv(containers)}
                   style={{
                     padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                    background: "#00e87a", color: "#000", border: "none", cursor: "pointer", marginLeft: 8,
+                    background: "var(--success)", color: "var(--on-accent)", border: "none", cursor: "pointer", marginLeft: 8,
                   }}
                 >
                   ↓ Export CSV
@@ -1148,7 +1148,7 @@ export default function MultiPromptPage() {
                   onClick={() => exportToJson(containers)}
                   style={{
                     padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                    background: "#4285f4", color: "#000", border: "none", cursor: "pointer", marginLeft: 8,
+                    background: "#4285f4", color: "var(--on-accent)", border: "none", cursor: "pointer", marginLeft: 8,
                   }}
                 >
                   ↓ Export JSON
@@ -1162,8 +1162,8 @@ export default function MultiPromptPage() {
                 onClick={clearAll}
                 style={{
                   padding: "5px 12px", borderRadius: 8, fontSize: 11,
-                  background: "transparent", color: "#6f7280",
-                  border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer",
+                  background: "transparent", color: "var(--text-dim)",
+                  border: "1px solid rgba(var(--overlay-rgb),0.07)", cursor: "pointer",
                 }}
               >
                 Clear All
@@ -1175,13 +1175,13 @@ export default function MultiPromptPage() {
           {globalRunning && (
             <div style={{
               borderRadius: 8, overflow: "hidden", marginBottom: 20,
-              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+              background: "rgba(var(--overlay-rgb),0.04)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
               height: 4,
             }}>
               <div style={{
                 height: "100%", transition: "width 0.5s",
                 width: `${totalWithPrompt > 0 ? (doneCount / totalWithPrompt) * 100 : 0}%`,
-                background: "linear-gradient(90deg, #00e5ff, #4285f4)",
+                background: "linear-gradient(90deg, var(--accent), #4285f4)",
               }} />
             </div>
           )}
@@ -1190,17 +1190,17 @@ export default function MultiPromptPage() {
           {containers.length === 0 ? (
             <div style={{
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              minHeight: 240, borderRadius: 16, border: "1px dashed rgba(255,255,255,0.07)",
-              background: "rgba(255,255,255,0.015)",
+              minHeight: 240, borderRadius: 16, border: "1px dashed rgba(var(--overlay-rgb),0.07)",
+              background: "rgba(var(--overlay-rgb),0.015)",
             }}>
               <div style={{ fontSize: 36, marginBottom: 14 }}>🔭</div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 6 }}>No prompts yet</p>
-              <p style={{ fontSize: 12, color: "#8b8d9e", marginBottom: 16 }}>Add prompt containers to get started</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>No prompts yet</p>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>Add prompt containers to get started</p>
               <button
                 onClick={() => addContainers(2)}
                 style={{
                   padding: "8px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700,
-                  background: "linear-gradient(135deg, #00e5ff, #4285f4)", color: "#000",
+                  background: "linear-gradient(135deg, var(--accent), #4285f4)", color: "var(--on-accent)",
                   border: "none", cursor: "pointer",
                 }}
               >
@@ -1241,15 +1241,15 @@ export default function MultiPromptPage() {
         >
           <div
             style={{
-              background: "#111219", border: "1px solid rgba(255,255,255,0.1)",
+              background: "var(--surface)", border: "1px solid rgba(var(--overlay-rgb),0.1)",
               borderRadius: 16, padding: 20, width: "min(640px, 92vw)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", margin: "0 0 4px" }}>
               Paste JSON
             </p>
-            <p style={{ fontSize: 11, color: "#8b8d9e", margin: "0 0 10px" }}>
+            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 10px" }}>
               Paste a [&#123; url, prompt &#125;, ...] array — one prompt card gets added per entry.
             </p>
             <textarea
@@ -1259,9 +1259,9 @@ export default function MultiPromptPage() {
               rows={10}
               placeholder='[{"url": "https://example.com", "prompt": "..."}]'
               style={{
-                width: "100%", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.08)",
+                width: "100%", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(var(--overlay-rgb),0.08)",
                 borderRadius: 10, padding: "10px 12px", fontSize: 12, fontFamily: "monospace",
-                color: "#e0e0ea", resize: "vertical", outline: "none", caretColor: "#00e5ff",
+                color: "var(--text)", resize: "vertical", outline: "none", caretColor: "var(--accent)",
               }}
             />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
@@ -1269,8 +1269,8 @@ export default function MultiPromptPage() {
                 onClick={() => { setPasteModalOpen(false); setPasteText(""); }}
                 style={{
                   padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  background: "transparent", color: "#8b8d9e",
-                  border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer",
+                  background: "transparent", color: "var(--text-muted)",
+                  border: "1px solid rgba(var(--overlay-rgb),0.1)", cursor: "pointer",
                 }}
               >
                 Cancel
@@ -1280,7 +1280,7 @@ export default function MultiPromptPage() {
                 disabled={!pasteText.trim()}
                 style={{
                   padding: "6px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                  background: "linear-gradient(135deg, #00e5ff, #4285f4)", color: "#000",
+                  background: "linear-gradient(135deg, var(--accent), #4285f4)", color: "var(--on-accent)",
                   border: "none", cursor: pasteText.trim() ? "pointer" : "not-allowed",
                   opacity: pasteText.trim() ? 1 : 0.4,
                 }}

@@ -43,10 +43,10 @@ export default async function AdminDashboardPage() {
         <div
           key={tile.label}
           className="rounded-2xl border p-6"
-          style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+          style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
         >
-          <div className="text-2xl font-bold text-white">{tile.value.toLocaleString()}</div>
-          <div className="text-xs mt-1" style={{ color: "#8b8d9e" }}>{tile.label}</div>
+          <div className="text-2xl font-bold text-[var(--text)]">{tile.value.toLocaleString()}</div>
+          <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{tile.label}</div>
         </div>
       ))}
     </div>

@@ -109,7 +109,7 @@ export default function AdminUsersPage() {
   return (
     <div>
       {message && (
-        <div className="mb-4 px-4 py-2.5 rounded-lg text-sm" style={{ background: "rgba(0,229,255,0.08)", color: "#00e5ff" }}>
+        <div className="mb-4 px-4 py-2.5 rounded-lg text-sm" style={{ background: "rgba(0,229,255,0.08)", color: "var(--accent)" }}>
           {message}
         </div>
       )}
@@ -121,27 +121,27 @@ export default function AdminUsersPage() {
           onKeyDown={(e) => e.key === "Enter" && loadUsers(search)}
           placeholder="Search by email..."
           className="flex-1 px-4 py-2.5 rounded-xl border text-sm"
-          style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.1)", color: "#f0f0f5" }}
+          style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
         />
         <button
           onClick={() => loadUsers(search)}
           className="px-5 py-2.5 rounded-xl text-sm font-semibold"
-          style={{ background: "#00e5ff", color: "#000" }}
+          style={{ background: "var(--accent)", color: "var(--on-accent)" }}
         >
           Search
         </button>
       </div>
 
       {loading ? (
-        <div className="text-white">Loading...</div>
+        <div className="text-[var(--text)]">Loading...</div>
       ) : (
         <div className="space-y-3">
           {users.map((u) => (
-            <div key={u.id} className="rounded-2xl border p-5" style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}>
+            <div key={u.id} className="rounded-2xl border p-5" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
               <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
                 <div>
-                  <div className="text-sm font-semibold text-white">{u.email}</div>
-                  <div className="text-xs" style={{ color: "#8b8d9e" }}>
+                  <div className="text-sm font-semibold text-[var(--text)]">{u.email}</div>
+                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>
                     {u.role} · {u.status} · balance: {u.balance} · joined {new Date(u.createdAt).toLocaleDateString()}
                   </div>
                 </div>
@@ -149,21 +149,21 @@ export default function AdminUsersPage() {
                   <button
                     onClick={() => handleRoleToggle(u)}
                     className="px-3 py-1.5 rounded-lg text-xs border"
-                    style={{ borderColor: "rgba(255,255,255,0.12)", color: "#f0f0f5" }}
+                    style={{ borderColor: "rgba(var(--overlay-rgb),0.12)", color: "var(--text)" }}
                   >
                     {u.role === "admin" ? "Revoke admin" : "Make admin"}
                   </button>
                   <button
                     onClick={() => handleStatusToggle(u)}
                     className="px-3 py-1.5 rounded-lg text-xs border"
-                    style={{ borderColor: "rgba(255,90,90,0.3)", color: "#ff5a5a" }}
+                    style={{ borderColor: "rgba(255,90,90,0.3)", color: "var(--danger)" }}
                   >
                     {u.status === "suspended" ? "Reactivate" : "Suspend"}
                   </button>
                   <button
                     onClick={() => handleDelete(u)}
                     className="px-3 py-1.5 rounded-lg text-xs border"
-                    style={{ borderColor: "rgba(255,90,90,0.5)", color: "#ff5a5a", background: "rgba(255,90,90,0.08)" }}
+                    style={{ borderColor: "rgba(255,90,90,0.5)", color: "var(--danger)", background: "rgba(255,90,90,0.08)" }}
                   >
                     Delete
                   </button>
@@ -177,7 +177,7 @@ export default function AdminUsersPage() {
                   value={grantAmount[u.id] ?? ""}
                   onChange={(e) => setGrantAmount((prev) => ({ ...prev, [u.id]: e.target.value }))}
                   className="w-28 px-3 py-2 rounded-lg border text-sm"
-                  style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.1)", color: "#f0f0f5" }}
+                  style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 />
                 <input
                   type="text"
@@ -185,12 +185,12 @@ export default function AdminUsersPage() {
                   value={grantReason[u.id] ?? ""}
                   onChange={(e) => setGrantReason((prev) => ({ ...prev, [u.id]: e.target.value }))}
                   className="flex-1 px-3 py-2 rounded-lg border text-sm"
-                  style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.1)", color: "#f0f0f5" }}
+                  style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 />
                 <button
                   onClick={() => handleGrant(u.id)}
                   className="px-4 py-2 rounded-lg text-xs font-semibold"
-                  style={{ background: "#00e5ff", color: "#000" }}
+                  style={{ background: "var(--accent)", color: "var(--on-accent)" }}
                 >
                   Apply
                 </button>

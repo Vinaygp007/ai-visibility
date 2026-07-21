@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -noE '#[0-9a-fA-F]{3,8}' app/docs/page.tsx)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s http://localhost:3000/_next/static/css/*.css)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s http://localhost:3000/scan -D - -o /dev/null)",
+      "Bash(grep -o 'h1,h2,h3{[^}]*}\\\\|h1,\\\\s*h2,\\\\s*h3{[^}]*}' \".next/dev/static/chunks/app_globals_0jn8.0u.css\")",
+      "Bash(grep -o 'html,body{[^}]*}\\\\|html,\\\\s*body{[^}]*}' \".next/dev/static/chunks/app_globals_0jn8.0u.css\")",
+      "Bash(curl -s -o /dev/null -w \"3001 status: %{http_code}\\\\n\" http://localhost:3001/)",
+      "Bash(curl -s http://localhost:3001/)",
+      "Bash(curl -s -o /dev/null -w \"3000: %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"3001: %{http_code}\\\\n\" http://localhost:3001/)",
+      "Bash(kill 1219 1629)",
+      "Bash(curl -s -o /dev/null -w \"3000: %{http_code}\\\\n\" http://localhost:3000/ --max-time 3)",
+      "Bash(curl -s -o /dev/null -w \"3001: %{http_code}\\\\n\" http://localhost:3001/ --max-time 3)",
+      "Bash(curl -s http://localhost:3000/privacy)"
+    ]
+  }
+}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import ThemeToggle from "./ThemeToggle";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -35,7 +36,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   }
 
   const links = [
-    { href: "/", label: "Home", icon: "🏠" },
+    { href: "/scan", label: "Scan", icon: "🏠" },
     { href: "/bulk", label: "Bulk Scanner", icon: "⚡" },
     { href: "/bulk-prompt", label: "Prompt Runner", icon: "✦" },
     { href: "/reports", label: "Previous Reports", icon: "📋" },
@@ -49,29 +50,29 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       className={`fixed left-0 top-0 h-screen w-64 border-r flex flex-col z-40 transition-transform duration-300 ${
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       }`}
-      style={{ background: "#0a0b10", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--bg)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
     >
       {/* Mobile close buttonn */}
       <button
         onClick={onClose}
         className="md:hidden absolute top-4 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-xl leading-none"
-        style={{ color: "#8b8d9e", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+        style={{ color: "var(--text-muted)", background: "rgba(var(--overlay-rgb),0.06)", border: "1px solid rgba(var(--overlay-rgb),0.1)" }}
         aria-label="Close menu"
       >
         ×
       </button>
       {/* Logo / Brand */}
-      <div className="px-6 py-6 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+      <div className="px-6 py-6 border-b" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold"
-            style={{ background: "linear-gradient(135deg, #4285f4 0%, #00e5ff 100%)" }}
+            style={{ background: "linear-gradient(135deg, #4285f4 0%, var(--accent) 100%)" }}
           >
             AI
           </div>
           <div>
-            <div className="text-sm font-bold text-white">AI Visibility</div>
-            <div className="text-[10px] font-mono" style={{ color: "#8b8d9e" }}>
+            <div className="text-sm font-bold text-[var(--text)]">AI Visibility</div>
+            <div className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>
               Scanner
             </div>
           </div>
@@ -79,7 +80,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         {balance !== null && (
           <div
             className="mt-3 px-3 py-1.5 rounded-lg text-[11px] font-mono flex items-center justify-between"
-            style={{ background: "rgba(0,229,255,0.06)", color: "#00e5ff" }}
+            style={{ background: "rgba(0,229,255,0.06)", color: "var(--accent)" }}
           >
             <span>Credits</span>
             <span className="font-bold">{balance}</span>
@@ -99,7 +100,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               style={{
                 background: isActive ? "rgba(0,229,255,0.1)" : "transparent",
                 border: isActive ? "1px solid rgba(0,229,255,0.2)" : "1px solid transparent",
-                color: isActive ? "#00e5ff" : "#8b8d9e",
+                color: isActive ? "var(--accent)" : "var(--text-muted)",
               }}
             >
               <span className="text-lg">{link.icon}</span>
@@ -112,17 +113,20 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       {/* Footer */}
       <div
         className="px-6 py-4 border-t text-[11px]"
-        style={{ borderColor: "rgba(255,255,255,0.07)", color: "#6f7280" }}
+        style={{ borderColor: "rgba(var(--overlay-rgb),0.07)", color: "var(--text-dim)" }}
       >
-        <button
-          onClick={handleLogout}
-          className="w-full text-left mb-3 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors"
-          style={{ color: "#8b8d9e", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          Log out
-        </button>
+        <div className="flex items-center gap-2 mb-3">
+          <button
+            onClick={handleLogout}
+            className="flex-1 text-left px-3 py-2 rounded-lg text-[12px] font-medium transition-colors"
+            style={{ color: "var(--text-muted)", background: "rgba(var(--overlay-rgb),0.04)", border: "1px solid rgba(var(--overlay-rgb),0.08)" }}
+          >
+            Log out
+          </button>
+          <ThemeToggle />
+        </div>
         <div className="font-bold mb-1">By Marcstrat</div>
-        <div style={{ color: "#4b5563" }}>Powered by Gemini · ChatGPT · Perplexity</div>
+        <div style={{ color: "var(--text-dim)" }}>Powered by Gemini · ChatGPT · Perplexity</div>
       </div>
     </aside>
   );

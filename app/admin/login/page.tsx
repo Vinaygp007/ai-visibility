@@ -50,27 +50,27 @@ function AdminLoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#0a0b10" }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div
         className="w-full max-w-sm rounded-2xl border p-8"
-        style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+        style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
       >
         <div className="flex flex-col items-center mb-6">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold mb-3"
-            style={{ background: "linear-gradient(135deg, #4285f4 0%, #00e5ff 100%)" }}
+            style={{ background: "linear-gradient(135deg, #4285f4 0%, var(--accent) 100%)" }}
           >
             AI
           </div>
-          <div className="text-lg font-semibold text-white">Admin sign in</div>
-          <div className="text-[12px]" style={{ color: "#8b8d9e" }}>
+          <div className="text-lg font-semibold text-[var(--text)]">Admin sign in</div>
+          <div className="text-[12px]" style={{ color: "var(--text-muted)" }}>
             Restricted to admin accounts
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[12px] font-medium mb-1.5" style={{ color: "#8b8d9e" }}>
+            <label className="block text-[12px] font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
               Email
             </label>
             <input
@@ -78,14 +78,14 @@ function AdminLoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg px-3 py-2.5 text-sm text-white outline-none border"
-              style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)" }}
+              className="w-full rounded-lg px-3 py-2.5 text-sm text-[var(--text)] outline-none border"
+              style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-[12px] font-medium mb-1.5" style={{ color: "#8b8d9e" }}>
+            <label className="block text-[12px] font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
               Password
             </label>
             <input
@@ -93,13 +93,13 @@ function AdminLoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg px-3 py-2.5 text-sm text-white outline-none border"
-              style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)" }}
+              className="w-full rounded-lg px-3 py-2.5 text-sm text-[var(--text)] outline-none border"
+              style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
             />
           </div>
 
           {error && (
-            <div className="text-[12px] rounded-lg px-3 py-2 border" style={{ color: "#ff6b6b", background: "rgba(255,107,107,0.08)", borderColor: "rgba(255,107,107,0.25)" }}>
+            <div className="text-[12px] rounded-lg px-3 py-2 border" style={{ color: "var(--danger)", background: "rgba(255,107,107,0.08)", borderColor: "rgba(255,107,107,0.25)" }}>
               {error}
             </div>
           )}
@@ -107,8 +107,8 @@ function AdminLoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg py-2.5 text-sm font-semibold text-black disabled:opacity-60"
-            style={{ background: "linear-gradient(135deg, #7c6fff, #00e5ff)" }}
+            className="w-full rounded-lg py-2.5 text-sm font-semibold text-[var(--on-accent)] disabled:opacity-60"
+            style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>

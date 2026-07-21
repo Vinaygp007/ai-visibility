@@ -37,9 +37,9 @@ const PROVIDER_COLORS: Record<string, { color: string; bg: string; border: strin
 };
 
 function getScoreColor(score: number) {
-  if (score >= 70) return "#00e87a";
-  if (score >= 40) return "#ffb830";
-  return "#ff5a5a";
+  if (score >= 70) return "var(--success)";
+  if (score >= 40) return "var(--warning)";
+  return "var(--danger)";
 }
 
 export default function ResultsSection({
@@ -115,7 +115,7 @@ export default function ResultsSection({
             {result._cached && (
               <span
                 className="text-[10px] font-mono px-2 py-0.5 rounded-full border"
-                style={{ color: "#8b8d9e", borderColor: "rgba(255,255,255,0.1)" }}
+                style={{ color: "var(--text-muted)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
               >
                 cached
               </span>
@@ -123,14 +123,14 @@ export default function ResultsSection({
           </div>
           <div
             className="inline-block font-mono text-[12px] px-2.5 py-1 rounded-md mb-3"
-            style={{ color: "#8b8d9e", background: "#181a25" }}
+            style={{ color: "var(--text-muted)", background: "var(--surface-2)" }}
           >
             {result.url}
           </div>
           {result.summary && (
             <p
               className="text-sm max-w-xl leading-relaxed"
-              style={{ color: "#8b8d9e" }}
+              style={{ color: "var(--text-muted)" }}
             >
               {result.summary}
             </p>
@@ -158,12 +158,12 @@ export default function ResultsSection({
             borderStyle: "dashed",
           }}
         >
-          <p className="text-sm font-medium mb-1" style={{ color: "#00e5ff" }}>
+          <p className="text-sm font-medium mb-1" style={{ color: "var(--accent)" }}>
             AI Citations not included
           </p>
-          <p className="text-[12px]" style={{ color: "#8b8d9e" }}>
+          <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
             Re-scan with the{" "}
-            <span style={{ color: "#00e5ff" }}>
+            <span style={{ color: "var(--accent)" }}>
               &ldquo;Include AI Citations&rdquo;
             </span>{" "}
             toggle on to see how many times each AI agent cites this site.
@@ -192,18 +192,18 @@ export default function ResultsSection({
       {providers.length > 0 && (
         <div
           className="rounded-2xl border p-5 mb-6"
-          style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
         >
           <div className="flex items-center justify-between mb-4">
             <div
               className="text-[13px] font-mono tracking-widest uppercase"
-              style={{ color: "#8b8d9e" }}
+              style={{ color: "var(--text-muted)" }}
             >
               AI Provider Results
             </div>
             <span
               className="text-[11px] font-mono"
-              style={{ color: "#8b8d9e" }}
+              style={{ color: "var(--text-muted)" }}
             >
               {successfulProviders.length}/{providers.length} succeeded · scores
               averaged
@@ -212,9 +212,9 @@ export default function ResultsSection({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {providers.map((p) => {
               const cfg = PROVIDER_COLORS[p.name] ?? {
-                color: "#8b8d9e",
-                bg: "rgba(255,255,255,0.03)",
-                border: "rgba(255,255,255,0.1)",
+                color: "var(--text-muted)",
+                bg: "rgba(var(--overlay-rgb),0.03)",
+                border: "rgba(var(--overlay-rgb),0.1)",
               };
               const isOk = p.status === "success";
               return (
@@ -229,13 +229,13 @@ export default function ResultsSection({
                   <div className="flex items-center justify-between mb-2">
                     <span
                       className="text-[12px] font-medium"
-                      style={{ color: isOk ? cfg.color : "#ff5a5a" }}
+                      style={{ color: isOk ? cfg.color : "var(--danger)" }}
                     >
                       {p.name}
                     </span>
                     <span
                       className="text-[10px] font-mono"
-                      style={{ color: "#8b8d9e" }}
+                      style={{ color: "var(--text-muted)" }}
                     >
                       {p.durationMs}ms
                     </span>
@@ -248,20 +248,20 @@ export default function ResultsSection({
                           color:
                             p.score != null
                               ? getScoreColor(p.score)
-                              : "#8b8d9e",
+                              : "var(--text-muted)",
                         }}
                       >
                         {p.score ?? "—"}
                       </div>
                       <div
                         className="text-[10px] font-mono mt-0.5"
-                        style={{ color: "#8b8d9e" }}
+                        style={{ color: "var(--text-muted)" }}
                       >
                         score / 100
                       </div>
                     </div>
                   ) : (
-                    <div className="text-[11px]" style={{ color: "#ff5a5a" }}>
+                    <div className="text-[11px]" style={{ color: "var(--danger)" }}>
                       {p.error?.slice(0, 60) ?? "Failed"}
                     </div>
                   )}
@@ -276,28 +276,28 @@ export default function ResultsSection({
       {botTotal > 0 && (
         <div
           className="rounded-2xl border p-5 mb-6"
-          style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
-            <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "#8b8d9e" }}>
+            <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
               AI Platform Coverage
             </div>
-            <span className="text-[11px] font-mono" style={{ color: "#8b8d9e" }}>
+            <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
               {botAccessible.length}/{botTotal} accessible
             </span>
           </div>
 
           {/* Progress bar */}
-          <div className="h-1 rounded-full mb-5" style={{ background: "rgba(255,255,255,0.06)" }}>
+          <div className="h-1 rounded-full mb-5" style={{ background: "rgba(var(--overlay-rgb),0.06)" }}>
             <div
               className="h-1 rounded-full transition-all duration-500"
               style={{
                 width: `${Math.round((botAccessible.length / botTotal) * 100)}%`,
                 background:
-                  botAccessible.length === botTotal ? "#00e87a"
-                  : botAccessible.length > botTotal / 2 ? "#ffb830"
-                  : "#ff5a5a",
+                  botAccessible.length === botTotal ? "var(--success)"
+                  : botAccessible.length > botTotal / 2 ? "var(--warning)"
+                  : "var(--danger)",
               }}
             />
           </div>
@@ -305,12 +305,12 @@ export default function ResultsSection({
           {/* Accessible bots */}
           {botAccessible.length > 0 && (
             <div className="mb-5">
-              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "#00e87a" }}>
+              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--success)" }}>
                 Accessible — {botAccessible.length}
               </div>
               <div className="flex flex-wrap gap-2">
                 {botAccessible.map(bot => {
-                  const dotColor = COMPANY_COLORS[bot.company]?.color ?? "#00e87a";
+                  const dotColor = COMPANY_COLORS[bot.company]?.color ?? "var(--success)";
                   return (
                     <div
                       key={bot.key}
@@ -319,7 +319,7 @@ export default function ResultsSection({
                       title={bot.reason}
                     >
                       <span style={{ color: dotColor, fontSize: 7, lineHeight: 1 }}>●</span>
-                      <span className="font-medium" style={{ color: "#d0d0dc" }}>{bot.label}</span>
+                      <span className="font-medium" style={{ color: "var(--text)" }}>{bot.label}</span>
                     </div>
                   );
                 })}
@@ -330,12 +330,12 @@ export default function ResultsSection({
           {/* Blocked bots */}
           {botBlocked.length > 0 && (
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "#ff5a5a" }}>
+              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--danger)" }}>
                 Blocked — {botBlocked.length}
               </div>
               <div className="flex flex-col gap-2">
                 {botBlocked.map(bot => {
-                  const dotColor = COMPANY_COLORS[bot.company]?.color ?? "#ff5a5a";
+                  const dotColor = COMPANY_COLORS[bot.company]?.color ?? "var(--danger)";
                   const isGlobal = bot.blockType === "global_block";
                   const fixHint = isGlobal
                     ? `Add before User-agent: *  →  User-agent: ${bot.key}  then  Allow: /`
@@ -349,12 +349,12 @@ export default function ResultsSection({
                       {/* Bot name + badge */}
                       <div className="flex items-center gap-2 mb-2">
                         <span style={{ color: dotColor, fontSize: 7, lineHeight: 1 }}>●</span>
-                        <span className="text-[12px] font-semibold text-white">{bot.label}</span>
+                        <span className="text-[12px] font-semibold text-[var(--text)]">{bot.label}</span>
                         <span
                           className="text-[9px] font-mono px-1.5 py-0.5 rounded-full uppercase"
                           style={{
                             background: isGlobal ? "rgba(255,184,48,0.12)" : "rgba(255,90,90,0.12)",
-                            color: isGlobal ? "#ffb830" : "#ff5a5a",
+                            color: isGlobal ? "var(--warning)" : "var(--danger)",
                             border: `1px solid ${isGlobal ? "rgba(255,184,48,0.25)" : "rgba(255,90,90,0.25)"}`,
                           }}
                         >
@@ -374,8 +374,8 @@ export default function ResultsSection({
 
                       {/* Fix hint */}
                       <div className="flex items-start gap-1.5">
-                        <span className="text-[10px] font-mono shrink-0" style={{ color: "#00e5ff" }}>fix →</span>
-                        <span className="text-[10px] leading-snug" style={{ color: "#8b8d9e" }}>{fixHint}</span>
+                        <span className="text-[10px] font-mono shrink-0" style={{ color: "var(--accent)" }}>fix →</span>
+                        <span className="text-[10px] leading-snug" style={{ color: "var(--text-muted)" }}>{fixHint}</span>
                       </div>
                     </div>
                   );
@@ -389,18 +389,18 @@ export default function ResultsSection({
       {/* ── Stats bar ───────────────────────────────────────────────────── */}
       <div
         className="flex gap-8 flex-wrap items-center rounded-2xl border px-6 py-5 mb-6"
-        style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}
+        style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
       >
         <div className="text-center">
           <div
             className="text-2xl font-bold tracking-tight"
-            style={{ color: "#00e87a" }}
+            style={{ color: "var(--success)" }}
           >
             {result.stats?.checks_passed ?? 0}
           </div>
           <div
             className="text-[11px] font-mono mt-0.5 tracking-wide"
-            style={{ color: "#8b8d9e" }}
+            style={{ color: "var(--text-muted)" }}
           >
             PASSED
           </div>
@@ -408,13 +408,13 @@ export default function ResultsSection({
         <div className="text-center">
           <div
             className="text-2xl font-bold tracking-tight"
-            style={{ color: "#ffb830" }}
+            style={{ color: "var(--warning)" }}
           >
             {result.stats?.checks_warned ?? 0}
           </div>
           <div
             className="text-[11px] font-mono mt-0.5 tracking-wide"
-            style={{ color: "#8b8d9e" }}
+            style={{ color: "var(--text-muted)" }}
           >
             WARNINGS
           </div>
@@ -422,13 +422,13 @@ export default function ResultsSection({
         <div className="text-center">
           <div
             className="text-2xl font-bold tracking-tight"
-            style={{ color: "#ff5a5a" }}
+            style={{ color: "var(--danger)" }}
           >
             {result.stats?.checks_failed ?? 0}
           </div>
           <div
             className="text-[11px] font-mono mt-0.5 tracking-wide"
-            style={{ color: "#8b8d9e" }}
+            style={{ color: "var(--text-muted)" }}
           >
             FAILED
           </div>
@@ -436,13 +436,13 @@ export default function ResultsSection({
         <div className="text-center">
           <div
             className="text-2xl font-bold tracking-tight"
-            style={{ color: "#00e5ff" }}
+            style={{ color: "var(--accent)" }}
           >
             {totalChecks}
           </div>
           <div
             className="text-[11px] font-mono mt-0.5 tracking-wide"
-            style={{ color: "#8b8d9e" }}
+            style={{ color: "var(--text-muted)" }}
           >
             TOTAL CHECKS
           </div>
@@ -450,10 +450,10 @@ export default function ResultsSection({
         <div className="ml-auto">
           <button
             onClick={onReset}
-            className="text-sm px-5 py-2.5 rounded-xl border transition-all hover:border-[#00e5ff] hover:text-[#00e5ff]"
+            className="text-sm px-5 py-2.5 rounded-xl border transition-all hover:border-[var(--accent)] hover:text-[var(--accent)]"
             style={{
-              borderColor: "rgba(255,255,255,0.13)",
-              color: "#f0f0f5",
+              borderColor: "rgba(var(--overlay-rgb),0.13)",
+              color: "var(--text)",
               background: "transparent",
             }}
           >
@@ -465,7 +465,7 @@ export default function ResultsSection({
       {/* ── Categories ──────────────────────────────────────────────────── */}
       <div
         className="text-[13px] font-mono tracking-widest mb-3.5 uppercase"
-        style={{ color: "#8b8d9e" }}
+        style={{ color: "var(--text-muted)" }}
       >
         Category Breakdown
       </div>
@@ -479,8 +479,8 @@ export default function ResultsSection({
 
       {/* ── Keyword Intelligence ─────────────────────────────────────────── */}
       {result.keywords && result.keywords.length > 0 && (
-        <div className="rounded-2xl border p-5 mt-6" style={{ background: "#111219", borderColor: "rgba(255,255,255,0.07)" }}>
-          <div className="text-[13px] font-mono tracking-widest uppercase mb-4" style={{ color: "#8b8d9e" }}>
+        <div className="rounded-2xl border p-5 mt-6" style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+          <div className="text-[13px] font-mono tracking-widest uppercase mb-4" style={{ color: "var(--text-muted)" }}>
             Keyword Intelligence
           </div>
           <div className="flex flex-wrap gap-2">
@@ -488,19 +488,19 @@ export default function ResultsSection({
               <div
                 key={kw.word}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px]"
-                style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+                style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
                 title={`In title: ${kw.inTitle} · In H1: ${kw.inH1} · In meta: ${kw.inMeta}`}
               >
-                <span className="font-medium" style={{ color: "#d0d0dc" }}>{kw.word}</span>
-                <span className="font-mono text-[9px]" style={{ color: "#8b8d9e" }}>{kw.count}×</span>
-                {kw.inTitle && <span title="In title" style={{ color: "#00e87a", fontSize: 8 }}>T</span>}
+                <span className="font-medium" style={{ color: "var(--text)" }}>{kw.word}</span>
+                <span className="font-mono text-[9px]" style={{ color: "var(--text-muted)" }}>{kw.count}×</span>
+                {kw.inTitle && <span title="In title" style={{ color: "var(--success)", fontSize: 8 }}>T</span>}
                 {kw.inH1    && <span title="In H1"    style={{ color: "#4285f4", fontSize: 8 }}>H1</span>}
-                {kw.inMeta  && <span title="In meta"  style={{ color: "#ffb830", fontSize: 8 }}>M</span>}
+                {kw.inMeta  && <span title="In meta"  style={{ color: "var(--warning)", fontSize: 8 }}>M</span>}
               </div>
             ))}
           </div>
-          <p className="text-[10px] mt-3" style={{ color: "#8b8d9e" }}>
-            <span style={{ color: "#00e87a" }}>T</span> = in title · <span style={{ color: "#4285f4" }}>H1</span> = in H1 · <span style={{ color: "#ffb830" }}>M</span> = in meta description
+          <p className="text-[10px] mt-3" style={{ color: "var(--text-muted)" }}>
+            <span style={{ color: "var(--success)" }}>T</span> = in title · <span style={{ color: "#4285f4" }}>H1</span> = in H1 · <span style={{ color: "var(--warning)" }}>M</span> = in meta description
           </p>
         </div>
       )}

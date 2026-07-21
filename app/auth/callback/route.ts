@@ -3,12 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 
 // Handles both OAuth redirects and magic-link clicks — both deliver a `code`
 // param that gets exchanged for a session. `next` carries the post-login
-// destination (defaults to "/", middleware will bounce pending accounts to
+// destination (defaults to "/scan", middleware will bounce pending accounts to
 // /waitlist regardless of what's requested here).
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const next = searchParams.get("next") ?? "/scan";
 
   if (code) {
     const supabase = await createClient();
