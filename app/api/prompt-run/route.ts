@@ -80,6 +80,28 @@ const COLD_VISIBILITY_SYSTEM_PROMPT =
   "2. A sentiment analysis for each one — classify your framing (e.g., top_pick, strong_option, niche_fit, honorable_mention, not_recommended) and briefly explain the language/signals behind that framing.\n" +
   "Always include both the ranked top 5 and the sentiment analysis, even if the prompt does not explicitly ask for them.";
 
+// Asking for "sources, websites, or brands" invites models (especially non-browsing
+// ones like plain chat-completions ChatGPT) to answer with research/media outlets
+// they saw cited in "best X" roundup articles during training (Gartner, Forrester,
+// G2, Capterra, McKinsey...) instead of actual competing products — those aren't
+// competitors of the thing being searched for, they're places you'd go to research it.
+// This prompt instead pins the answer to real competing companies/products, and
+// explicitly excludes analyst firms, review directories, and generic media unless
+// the query is itself about that category of source.
+function buildCitationPrompt(topic: string): string {
+  return `List the top 5 companies, products, or tools (no more than 5, ranked best to worst) that are the actual competing solutions most commonly recommended when someone searches for: "${topic}".
+
+Rules:
+- Only name real vendors/products/companies that directly solve this need — never review sites, software directories (e.g. G2, Capterra, Software Advice, GetApp), industry analysts (e.g. Gartner, Forrester, McKinsey, Deloitte), or generic media/blogs (e.g. TechCrunch, HubSpot Blog) — UNLESS the query is explicitly asking about analyst firms, review platforms, or media outlets themselves.
+- Each entry must be a distinct company or product, not a source of information about the category.
+
+For each one, in this format:
+- Reason: a brief reason why it's recommended.
+- Sentiment: classify your framing as one of top_pick / strong_option / niche_fit / honorable_mention / not_recommended, with a one-line justification.
+- URL: its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.
+Do not return more than 5 sources.`;
+}
+
 // Providers return the actual reason (invalid model, bad request shape, etc.) in the
 // response body — surfacing it turns "HTTP 400" into something actually debuggable.
 async function readErrorDetail(res: Response): Promise<string> {
@@ -242,11 +264,7 @@ async function runCitationQuery(
   allCitationUrls: string[];
   error?: string;
 }> {
-  const query = `List the top 5 sources, websites, or brands (no more than 5, ranked best to worst) that are most cited or recommended when someone searches for: "${topic}". For each source, in this format:
-- Reason: a brief reason why it's cited or recommended.
-- Sentiment: classify your framing as one of top_pick / strong_option / niche_fit / honorable_mention / not_recommended, with a one-line justification.
-- URL: its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.
-Do not return more than 5 sources.`;
+  const query = buildCitationPrompt(topic);
   try {
     const raw = await withRetry(callFn, {
       retries: 2,
@@ -319,7 +337,10 @@ export async function POST(request: NextRequest) {
     }
     userId = user.id;
 
-    const allowed = await checkRateLimit(`prompt-run:user:${user.id}`, 15, 60_000);
+    // The bulk-prompt page runs up to 100 prompts at RUN_ALL_CONCURRENCY=5, each
+    // call taking ~13-20s — sustained throughput is ~19 req/min, so this limit
+    // must clear that with headroom or a legitimate "Run All" always 429s itself.
+    const allowed = await checkRateLimit(`prompt-run:user:${user.id}`, 40, 60_000);
     if (!allowed) {
       return NextResponse.json(
         { error: "Too many prompt runs, slow down.", errorCode: "RATE_LIMITED" },
@@ -431,11 +452,7 @@ export async function POST(request: NextRequest) {
     let citations: Awaited<ReturnType<typeof runCitationQuery>>[] = [];
 
     if (runCitations) {
-      const citationPrompt = `List the top 5 sources, websites, or brands (no more than 5, ranked best to worst) that are most cited or recommended when someone searches for: "${topic}". For each source, in this format:
-- Reason: a brief reason why it's cited or recommended.
-- Sentiment: classify your framing as one of top_pick / strong_option / niche_fit / honorable_mention / not_recommended, with a one-line justification.
-- URL: its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.
-Do not return more than 5 sources.`;
+      const citationPrompt = buildCitationPrompt(topic);
 
       // Cache Gemini citation result so ai-overview reuses it
       let geminiCitationPromise: Promise<Awaited<ReturnType<typeof runCitationQuery>>> | null = null;

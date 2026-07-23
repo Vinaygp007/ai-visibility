@@ -521,6 +521,32 @@ let _id = 0;
 function genId() { return `p_${++_id}_${Math.random().toString(36).slice(2, 6)}`; }
 function genBatchId() { return `bulk_prompt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// /api/prompt-run 429s when a user's request rate crosses its bucket limit. Without
+// this, a worker in the concurrency pool (see runWithConcurrency) just treats a 429
+// as a normal failure and immediately grabs the next queued item — since 429s come
+// back in ~1-2s (a DB check) vs. ~15s for a real provider round trip, that turns one
+// rate-limit hit into a rapid-fire loop that burns through the rest of the queue as
+// failures instead of actually slowing down. Backing off and retrying in place keeps
+// the worker's concurrency slot occupied so the pool self-throttles instead.
+const RATE_LIMIT_MAX_RETRIES = 5;
+async function fetchPromptRun(body: unknown): Promise<{ res: Response; data: any }> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch("/api/prompt-run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 429 && attempt < RATE_LIMIT_MAX_RETRIES) {
+      await sleep(2000 * (attempt + 1)); // 2s, 4s, 6s, 8s, 10s
+      continue;
+    }
+    return { res, data };
+  }
+}
+
 // Runs `worker` over `items` with at most `limit` in flight at once. Firing all N
 // prompts via Promise.all floods every provider at once (each prompt already makes
 // ~3-4 provider calls); a small worker pool keeps real concurrent API load bounded.
@@ -751,6 +777,19 @@ function parseCitationSnippet(snippet: string): { name: string; reason: string; 
   if (boldMatch) {
     name = boldMatch[1].replace(/^\d+\.\s*/, "").trim();
     text = text.slice(boldMatch.index! + boldMatch[0].length);
+
+    // Some providers bold a generic label ("Source:", "Name:") instead of the
+    // actual entity, e.g. "**Source:** Genetec\n- Reason: ...", leaving the
+    // real name as plain text right after it. Recover it from there instead
+    // of keeping the label — otherwise "Genetec" never gets extracted and
+    // leaks into `reason` as "Genetec - Reason: ...".
+    if (/^(source|name|brand)s?:?$/i.test(name)) {
+      const leadMatch = text.match(/^\s*[:\-]?\s*([^\n-]+)/);
+      if (leadMatch) {
+        name = leadMatch[1].trim();
+        text = text.slice(leadMatch[0].length);
+      }
+    }
   }
 
   // Pull out a labelled "Sentiment: ..." segment, wherever it falls in the text
@@ -878,19 +917,14 @@ export default function MultiPromptPage() {
     if (!c || !c.prompt.trim()) { runningRef.current.delete(id); return; }
 
     try {
-      const res = await fetch("/api/prompt-run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: c.prompt,
-          url: c.url,
-          runCitations,
-          batchId,
-          promptId: id,
-          executionId,
-        }),
+      const { res, data } = await fetchPromptRun({
+        prompt: c.prompt,
+        url: c.url,
+        runCitations,
+        batchId,
+        promptId: id,
+        executionId,
       });
-      const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`);
 
       const firstProvider = data.responses?.[0]?.provider ?? "";
