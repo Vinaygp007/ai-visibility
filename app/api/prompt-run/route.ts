@@ -94,9 +94,11 @@ function buildCitationPrompt(topic: string): string {
 Rules:
 - Only name real vendors/products/companies that directly solve this need — never review sites, software directories (e.g. G2, Capterra, Software Advice, GetApp), industry analysts (e.g. Gartner, Forrester, McKinsey, Deloitte), or generic media/blogs (e.g. TechCrunch, HubSpot Blog) — UNLESS the query is explicitly asking about analyst firms, review platforms, or media outlets themselves.
 - Each entry must be a distinct company or product, not a source of information about the category.
+- The query above often has a specific qualifying constraint, not just a broad category — e.g. "AI-powered", "built specifically for X", "without commission", "for businesses and family offices", "from natural language prompts", "to reduce Y". Before including any name, check it actually satisfies every qualifying constraint in the query, not just the general category. A famous incumbent that only fits the broad category but fails the specific constraint (e.g. a legacy data terminal when the query asks for an "AI-native" tool, or a commission-charging marketplace when the query asks for "without commission") does not belong on the list, no matter how well-known it is.
+- It is fine to return fewer than 5 entries if fewer than 5 vendors genuinely satisfy every constraint — do not pad the list with generic, well-known names just to reach 5.
 
 For each one, in this format:
-- Reason: a brief reason why it's recommended.
+- Reason: a brief reason why it's recommended, including why it satisfies the query's specific constraint (not just the general category).
 - Sentiment: classify your framing as one of top_pick / strong_option / niche_fit / honorable_mention / not_recommended, with a one-line justification.
 - URL: its full URL starting with https:// (e.g. https://example.com). Always include the full https:// URL — do not omit it.
 Do not return more than 5 sources.`;
