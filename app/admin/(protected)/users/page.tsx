@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+type Plan = "free" | "starter" | "growth" | "agency" | "scale";
+const PLANS: Plan[] = ["free", "starter", "growth", "agency", "scale"];
+
 interface AdminUser {
   id: string;
   email: string;
@@ -9,6 +12,7 @@ interface AdminUser {
   role: "user" | "admin";
   status: "pending" | "active" | "suspended";
   referralCode: string;
+  plan: Plan;
   createdAt: string;
   balance: number;
 }
@@ -73,6 +77,18 @@ export default function AdminUsersPage() {
     });
     if (res.ok) {
       showMessage(`${user.email} is now ${nextRole}.`);
+      loadUsers(search);
+    }
+  };
+
+  const handlePlanChange = async (user: AdminUser, nextPlan: Plan) => {
+    const res = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id, plan: nextPlan }),
+    });
+    if (res.ok) {
+      showMessage(`${user.email} is now on ${nextPlan}.`);
       loadUsers(search);
     }
   };
@@ -145,7 +161,17 @@ export default function AdminUsersPage() {
                     {u.role} · {u.status} · balance: {u.balance} · joined {new Date(u.createdAt).toLocaleDateString()}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  <select
+                    value={u.plan}
+                    onChange={(e) => handlePlanChange(u, e.target.value as Plan)}
+                    className="px-3 py-1.5 rounded-lg text-xs border"
+                    style={{ borderColor: "rgba(var(--overlay-rgb),0.12)", color: "var(--text)", background: "rgba(var(--overlay-rgb),0.03)" }}
+                  >
+                    {PLANS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
                   <button
                     onClick={() => handleRoleToggle(u)}
                     className="px-3 py-1.5 rounded-lg text-xs border"

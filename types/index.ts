@@ -1,5 +1,8 @@
 export type CheckStatus = "pass" | "fail" | "warn";
 
+// Mirrors the `user_plan` Postgres enum (supabase/migrations/20260727000002_plan_gating.sql).
+export type UserPlan = "free" | "starter" | "growth" | "agency" | "scale";
+
 export interface Check {
   status: CheckStatus;
   label: string;

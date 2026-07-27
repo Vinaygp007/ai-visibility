@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ReportModal from "@/components/ReportModal";
-import { AnalysisResult } from "@/types";
+import { AnalysisResult, UserPlan } from "@/types";
 import { toPlainText, extractProviderText } from "@/lib/plainText";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -370,9 +370,14 @@ async function loadJsPDF(): Promise<any> {
 }
 
 // ── Shared PDF helpers ────────────────────────────────────────────────────────
-function makePdfHelpers(doc: any) {
+// Export branding follows the tiers on the pricing page: Free carries a
+// watermark on top of the branded footer, Starter/Growth keep the branded
+// footer only, and Agency/Scale are white-label (no AiScope branding at all
+// so agencies can hand reports to their own clients).
+function makePdfHelpers(doc: any, plan: UserPlan) {
   const PAGE_W = 210, PAGE_H = 297, MARGIN = 16, LINE = 5.5;
   const COL_W = PAGE_W - MARGIN * 2;
+  const isWhiteLabel = plan === "agency" || plan === "scale";
   let y = MARGIN;
 
   const newPage = () => { doc.addPage(); y = MARGIN; };
@@ -402,8 +407,14 @@ function makePdfHelpers(doc: any) {
     const pageCount = (doc as any).internal.getNumberOfPages();
     for (let p = 1; p <= pageCount; p++) {
       doc.setPage(p);
+
+      if (plan === "free") {
+        doc.setFontSize(58); doc.setFont("helvetica", "bold"); doc.setTextColor(235, 235, 235);
+        doc.text("AISCOPE", PAGE_W / 2, PAGE_H / 2, { align: "center", angle: 45 });
+      }
+
       doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150);
-      doc.text(`AiScope — ${label} — by Marcstrat`, MARGIN, PAGE_H - 8);
+      if (!isWhiteLabel) doc.text(`AiScope — ${label} — by Marcstrat`, MARGIN, PAGE_H - 8);
       doc.text(`Page ${p} of ${pageCount}`, PAGE_W - MARGIN, PAGE_H - 8, { align: "right" });
     }
   };
@@ -411,16 +422,23 @@ function makePdfHelpers(doc: any) {
   return { writeLine, writeLabel, writeSeparator, addPageNumbers, newPage, needsSpace, getY: () => y, setY: (v: number) => { y = v; } };
 }
 
-async function exportHomepagePDF(reports: ReportSummary[]) {
-  const JsPDF = await loadJsPDF();
-  const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const h = makePdfHelpers(doc);
-
+// Draws the report title block, dropping the AiScope/Marcstrat byline for
+// white-label plans (Agency/Scale).
+function writeReportHeader(doc: any, plan: UserPlan, brandedTitle: string) {
+  const isWhiteLabel = plan === "agency" || plan === "scale";
   doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(20, 20, 20);
-  doc.text("AiScope — Homepage Scan Report", 16, 16);
+  doc.text(isWhiteLabel ? brandedTitle.replace(/^AiScope — /, "") : brandedTitle, 16, 16);
   doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(90, 90, 90);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 16, 22);
-  doc.text("by Marcstrat", 16, 27);
+  if (!isWhiteLabel) doc.text("by Marcstrat", 16, 27);
+}
+
+async function exportHomepagePDF(reports: ReportSummary[], plan: UserPlan) {
+  const JsPDF = await loadJsPDF();
+  const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const h = makePdfHelpers(doc, plan);
+
+  writeReportHeader(doc, plan, "AiScope — Homepage Scan Report");
   h.setY(33);
   h.writeSeparator();
 
@@ -455,10 +473,10 @@ async function exportHomepagePDF(reports: ReportSummary[]) {
   doc.save(`aiscope-homepage-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
-async function exportBulkPDF(jobs: BulkJob[]) {
+async function exportBulkPDF(jobs: BulkJob[], plan: UserPlan) {
   const JsPDF = await loadJsPDF();
   const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const h = makePdfHelpers(doc);
+  const h = makePdfHelpers(doc, plan);
 
   const rows = jobs.flatMap((job) =>
     job.results.map((r) => ({
@@ -474,15 +492,7 @@ async function exportBulkPDF(jobs: BulkJob[]) {
     ? Math.round(successRows.reduce((sum, { r }) => sum + (r.score ?? 0), 0) / successRows.length)
     : 0;
 
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(20, 20, 20);
-  doc.text("AiScope — AI Visibility Bulk Report", 16, 16);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(90, 90, 90);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 16, 22);
-  doc.text("by Marcstrat", 16, 27);
+  writeReportHeader(doc, plan, "AiScope — AI Visibility Bulk Report");
   h.setY(33);
   h.writeSeparator();
 
@@ -665,16 +675,12 @@ async function exportBulkPDF(jobs: BulkJob[]) {
   h.addPageNumbers("Bulk Scan Report");
   doc.save(`aiscope-bulk-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
-async function exportBulkPromptPDF(batches: BulkPromptBatch[]) {
+async function exportBulkPromptPDF(batches: BulkPromptBatch[], plan: UserPlan) {
   const JsPDF = await loadJsPDF();
   const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const h = makePdfHelpers(doc);
+  const h = makePdfHelpers(doc, plan);
 
-  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(20, 20, 20);
-  doc.text("AiScope — Bulk Prompt Report", 16, 16);
-  doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(90, 90, 90);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 16, 22);
-  doc.text("by Marcstrat", 16, 27);
+  writeReportHeader(doc, plan, "AiScope — Bulk Prompt Report");
   h.setY(33);
   h.writeSeparator();
 
@@ -901,9 +907,10 @@ interface ExportMenuProps {
   homepageReports: ReportSummary[];
   bulkJobs: BulkJob[];
   bulkPromptBatches: BulkPromptBatch[];
+  plan: UserPlan;
 }
 
-function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches }: ExportMenuProps) {
+function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches, plan }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -921,11 +928,11 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches }:
     setOpen(false);
     try {
       if (activeTab === "homepage") {
-        format === "csv" ? exportHomepageCSV(homepageReports) : await exportHomepagePDF(homepageReports);
+        format === "csv" ? exportHomepageCSV(homepageReports) : await exportHomepagePDF(homepageReports, plan);
       } else if (activeTab === "bulk") {
-        format === "csv" ? exportBulkCSV(bulkJobs) : await exportBulkPDF(bulkJobs);
+        format === "csv" ? exportBulkCSV(bulkJobs) : await exportBulkPDF(bulkJobs, plan);
       } else {
-        format === "csv" ? exportBulkPromptCSV(bulkPromptBatches) : await exportBulkPromptPDF(bulkPromptBatches);
+        format === "csv" ? exportBulkPromptCSV(bulkPromptBatches) : await exportBulkPromptPDF(bulkPromptBatches, plan);
       }
     } catch (e) {
       console.error("Export error:", e);
@@ -1020,6 +1027,14 @@ export default function PreviousReportsPage() {
   const [search, setSearch] = useState("");
   const [selectedReport, setSelectedReport] = useState<AnalysisResult | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [plan, setPlan] = useState<UserPlan>("free");
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data?.plan) setPlan(data.plan); })
+      .catch(() => {});
+  }, []);
 
   // ── Fetch homepage reports ─────────────────────────────────────────────────
   const fetchReports = useCallback(async (cursor?: string) => {
@@ -1164,6 +1179,7 @@ export default function PreviousReportsPage() {
               homepageReports={reports}
               bulkJobs={bulkJobs}
               bulkPromptBatches={bulkPromptBatches}
+              plan={plan}
             />
           </div>
         </div>
@@ -1293,7 +1309,7 @@ export default function PreviousReportsPage() {
               />
             ) : (
               <div className="space-y-4">
-                {filteredBulk.map((job) => <BulkJobCard key={job.id} job={job} />)}
+                {filteredBulk.map((job) => <BulkJobCard key={job.id} job={job} plan={plan} />)}
               </div>
             )}
           </>
@@ -1309,7 +1325,7 @@ export default function PreviousReportsPage() {
               />
             ) : (
               <div className="space-y-4">
-                {filteredPrompt.map((batch) => <BulkPromptCard key={batch.id} batch={batch} />)}
+                {filteredPrompt.map((batch) => <BulkPromptCard key={batch.id} batch={batch} plan={plan} />)}
               </div>
             )}
           </>
@@ -1652,7 +1668,7 @@ function BulkResultRow({
 
 // ── BulkJobCard ───────────────────────────────────────────────────────────────
 
-function BulkJobCard({ job }: { job: BulkJob }) {
+function BulkJobCard({ job, plan }: { job: BulkJob; plan: UserPlan }) {
   const [expanded, setExpanded] = useState(false);
   const [modalReport, setModalReport] = useState<AnalysisResult | null>(null);
   const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
@@ -1664,7 +1680,7 @@ function BulkJobCard({ job }: { job: BulkJob }) {
       if (format === "csv") {
         exportBulkCSV([job]);
       } else {
-        await exportBulkPDF([job]);
+        await exportBulkPDF([job], plan);
       }
     } catch (e) {
       console.error("Bulk job export error:", e);
@@ -1904,7 +1920,7 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
 
 // ── BulkPromptCard ────────────────────────────────────────────────────────────
 
-function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
+function BulkPromptCard({ batch, plan }: { batch: BulkPromptBatch; plan: UserPlan }) {
   const [expanded, setExpanded] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
   // ✅ batch.runs is an array now
@@ -1916,7 +1932,7 @@ function BulkPromptCard({ batch }: { batch: BulkPromptBatch }) {
       if (format === "csv") {
         exportBulkPromptCSV([batch]);
       } else {
-        await exportBulkPromptPDF([batch]);
+        await exportBulkPromptPDF([batch], plan);
       }
     } catch (e) {
       console.error("Bulk prompt export error:", e);

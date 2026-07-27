@@ -11,15 +11,20 @@ const CHECKS = [
   "Scanning 14 AI crawlers",
 ];
 
+// Individual targets deliberately differ (each provider "sees" the site a
+// little differently) but average out to TARGET_SCORE, so the combined
+// ring lands on the same number the merge always used to show.
 const PROVIDERS = [
-  { name: "Gemini", color: "#4285f4" },
-  { name: "ChatGPT", color: "#10a37f" },
-  { name: "Perplexity", color: "#20b2aa" },
+  { name: "Gemini", color: "#4285f4", target: 95 },
+  { name: "ChatGPT", color: "#10a37f", target: 88 },
+  { name: "Perplexity", color: "#20b2aa", target: 93 },
 ];
 
-const TARGET_SCORE = 92;
+const TARGET_SCORE = Math.round(PROVIDERS.reduce((s, p) => s + p.target, 0) / PROVIDERS.length);
 const RING_RADIUS = 40;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const DIAL_RADIUS = 19;
+const DIAL_CIRCUMFERENCE = 2 * Math.PI * DIAL_RADIUS;
 
 function scoreColor(score: number) {
   if (score >= 80) return "var(--success)";
@@ -27,14 +32,47 @@ function scoreColor(score: number) {
   return "var(--danger)";
 }
 
-type Phase = "typing" | "checking" | "scoring" | "hold" | "reset";
+type Phase = "typing" | "checking" | "scoring" | "merging" | "hold" | "reset";
+
+function ProviderDial({ name, color, score, active }: { name: string; color: string; score: number; active: boolean }) {
+  const offset = DIAL_CIRCUMFERENCE * (1 - score / 100);
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative" style={{ width: 48, height: 48 }}>
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r={DIAL_RADIUS} fill="none" stroke="rgba(var(--overlay-rgb),0.08)" strokeWidth="4" />
+          <circle
+            cx="24" cy="24" r={DIAL_RADIUS}
+            fill="none"
+            stroke={color}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={DIAL_CIRCUMFERENCE}
+            strokeDashoffset={active ? offset : DIAL_CIRCUMFERENCE}
+            transform="rotate(-90 24 24)"
+            style={{ transition: "stroke-dashoffset 0.15s linear" }}
+          />
+        </svg>
+        <div
+          className="absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums"
+          style={{ color: active ? color : "var(--text-dim)" }}
+        >
+          {active ? score : "—"}
+        </div>
+      </div>
+      <span className="text-[9px] font-mono" style={{ color: "var(--text-dim)" }}>{name}</span>
+    </div>
+  );
+}
 
 export default function HeroScanPreview() {
   const [domainIndex, setDomainIndex] = useState(0);
   const [typed, setTyped] = useState("");
   const [phase, setPhase] = useState<Phase>("typing");
   const [checkedCount, setCheckedCount] = useState(0);
+  const [providerScores, setProviderScores] = useState<number[]>([0, 0, 0]);
   const [score, setScore] = useState(0);
+  const [justMerged, setJustMerged] = useState(0);
   const cancelled = useRef(false);
 
   useEffect(() => {
@@ -70,18 +108,32 @@ export default function HeroScanPreview() {
         await wait(300);
         if (cancelled.current) return;
 
-        // Count the score up
+        // Each provider scores the site independently, in parallel
         setPhase("scoring");
+        setProviderScores([0, 0, 0]);
         setScore(0);
-        const steps = 30;
+        const dialSteps = 26;
+        for (let i = 1; i <= dialSteps; i++) {
+          if (cancelled.current) return;
+          await wait(16);
+          setProviderScores(PROVIDERS.map((p) => Math.round((p.target / dialSteps) * i)));
+        }
+
+        await wait(350);
+        if (cancelled.current) return;
+
+        // Merge the three into one combined score
+        setPhase("merging");
+        setJustMerged((n) => n + 1);
+        const steps = 26;
         for (let i = 1; i <= steps; i++) {
           if (cancelled.current) return;
-          await wait(18);
+          await wait(16);
           setScore(Math.round((TARGET_SCORE / steps) * i));
         }
 
         setPhase("hold");
-        await wait(2600);
+        await wait(2400);
         if (cancelled.current) return;
 
         setPhase("reset");
@@ -101,6 +153,8 @@ export default function HeroScanPreview() {
 
   const ringOffset = RING_CIRCUMFERENCE * (1 - score / 100);
   const isFading = phase === "reset";
+  const dialsActive = phase === "scoring" || phase === "merging" || phase === "hold";
+  const ringActive = phase === "merging" || phase === "hold";
 
   return (
     <div
@@ -159,9 +213,26 @@ export default function HeroScanPreview() {
         })}
       </div>
 
-      {/* Score readout */}
+      {/* Per-provider dials — each engine scores independently, in parallel */}
       <div
-        className="flex items-center justify-between pt-4 border-t"
+        className="flex items-center justify-around pt-4 mb-1 border-t transition-opacity duration-300"
+        style={{ borderColor: "rgba(var(--overlay-rgb),0.08)", opacity: dialsActive ? 1 : 0.35 }}
+      >
+        {PROVIDERS.map((p, i) => (
+          <ProviderDial key={p.name} name={p.name} color={p.color} score={providerScores[i]} active={dialsActive} />
+        ))}
+      </div>
+
+      <div className="flex justify-center my-1">
+        <span className="text-[9px] font-mono" style={{ color: "var(--text-dim)" }}>
+          {ringActive ? "↓ merged into one score ↓" : "↓ merges into one score ↓"}
+        </span>
+      </div>
+
+      {/* Combined score readout */}
+      <div
+        key={justMerged}
+        className={`flex items-center justify-between pt-3 border-t rounded-xl ${ringActive ? "merge-pulse" : ""}`}
         style={{ borderColor: "rgba(var(--overlay-rgb),0.08)" }}
       >
         <div>

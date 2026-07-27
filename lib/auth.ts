@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { UserPlan } from "@/types";
 
 export interface CurrentUser {
   id: string;
@@ -9,6 +10,7 @@ export interface CurrentUser {
   status: "pending" | "active" | "suspended";
   referralCode: string;
   creditBalance: number;
+  plan: UserPlan;
 }
 
 /**
@@ -28,7 +30,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role, status, referral_code")
+    .select("full_name, role, status, referral_code, plan")
     .eq("id", user.id)
     .single();
 
@@ -48,5 +50,6 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     status: profile.status,
     referralCode: profile.referral_code,
     creditBalance: balanceRow?.balance ?? 0,
+    plan: profile.plan,
   };
 }

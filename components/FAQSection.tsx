@@ -17,6 +17,18 @@ const FAQS = [
     a: "Yes. Traditional SEO tools assume Googlebot can crawl your site and stop there. We check whether AI-specific crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, and others) can actually reach your content, and whether AI answers already cite you.",
   },
   {
+    q: "What's a credit and how many do I need per scan?",
+    a: "Each active AI provider (Gemini, ChatGPT, and Perplexity by default) costs 1 credit per URL, or 2 credits if you turn on live citation checking — so a 3-provider scan runs 3–6 credits depending on that toggle. Bulk scans and bulk prompt runs draw from the same pool, per URL or per prompt.",
+  },
+  {
+    q: "What happens if I run out of credits?",
+    a: "You can buy more any time for $10 per 500 credits — those never expire. Monthly plan credits reset with your billing cycle and don't carry over, so a big one-off batch is usually cheaper covered by overage credits than by upgrading a tier.",
+  },
+  {
+    q: "What's the difference between the plans?",
+    a: "Free gives you 20 credits once, just to try it out. Starter and Growth raise your monthly credit pool and bulk-scan cap. Agency adds white-label PDF exports, a 500-URL bulk cap, and 100 bulk prompts per batch. Scale unlocks all 7 AI providers — including Claude, Copilot, and Meta AI — alongside Agency's bulk limits.",
+  },
+  {
     q: "Do you store my website's data?",
     a: "We store the scan results (score, findings, recommendations) tied to your account so you can revisit past reports. We don't scrape or retain your site's full content beyond what's needed to run the audit.",
   },

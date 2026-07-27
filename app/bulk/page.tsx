@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { AnalysisResult } from "@/types";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { AnalysisResult, UserPlan } from "@/types";
 import { toPlainText, extractProviderText } from "@/lib/plainText";
 import CategoryCard from "@/components/CategoryCard";
 import Recommendations from "@/components/Recommendations";
@@ -58,7 +58,11 @@ function durationLabel(ms?: number) {
 // using shared plain-text helpers from lib/plainText
 
 // ── PDF Export ─────────────────────────────────────────────────────────────
-async function exportPdf(rows: BulkRow[]) {
+// Branding follows the pricing page tiers: Free carries a watermark on top
+// of the branded footer, Starter/Growth keep the branded footer only, and
+// Agency/Scale are white-label (no AiScope branding).
+async function exportPdf(rows: BulkRow[], plan: UserPlan) {
+  const isWhiteLabel = plan === "agency" || plan === "scale";
   // Dynamically load jsPDF from CDN
   if (!(window as any).jspdf) {
     await new Promise<void>((resolve, reject) => {
@@ -139,7 +143,7 @@ async function exportPdf(rows: BulkRow[]) {
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(20, 20, 20);
-  doc.text("AiScope — AI Visibility Bulk Report", MARGIN, y);
+  doc.text(isWhiteLabel ? "AI Visibility Bulk Report" : "AiScope — AI Visibility Bulk Report", MARGIN, y);
   y += 8;
 
   doc.setFontSize(9);
@@ -147,8 +151,11 @@ async function exportPdf(rows: BulkRow[]) {
   doc.setTextColor(90, 90, 90);
   doc.text(`Generated: ${new Date().toLocaleString()}`, MARGIN, y);
   y += 5;
-  doc.text("by Marcstrat", MARGIN, y);
-  y += 8;
+  if (!isWhiteLabel) {
+    doc.text("by Marcstrat", MARGIN, y);
+    y += 5;
+  }
+  y += 3;
 
   writeSeparator();
 
@@ -359,10 +366,18 @@ async function exportPdf(rows: BulkRow[]) {
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
+
+    if (plan === "free") {
+      doc.setFontSize(58);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(235, 235, 235);
+      doc.text("AISCOPE", PAGE_W / 2, PAGE_H / 2, { align: "center", angle: 45 });
+    }
+
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(150, 150, 150);
-    doc.text("AiScope Bulk Report — by Marcstrat", MARGIN, PAGE_H - 8);
+    if (!isWhiteLabel) doc.text("AiScope Bulk Report — by Marcstrat", MARGIN, PAGE_H - 8);
     doc.text(`Page ${p} of ${pageCount}`, PAGE_W - MARGIN, PAGE_H - 8, { align: "right" });
   }
 
@@ -742,7 +757,15 @@ export default function BulkPage() {
   const [filter, setFilter] = useState<"all" | "success" | "failed" | "running" | "queued">("all");
   const [sortBy, setSortBy] = useState<"url" | "score" | "status">("status");
   const [expandedUrl, setExpandedUrl] = useState<string | null>(null);
+  const [plan, setPlan] = useState<UserPlan>("free");
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data?.plan) setPlan(data.plan); })
+      .catch(() => {});
+  }, []);
 
   const parsedUrls = parseUrls(rawInput);
 
@@ -1115,7 +1138,7 @@ export default function BulkPage() {
             {phase === "done" && (
               <>
                 <button
-                  onClick={() => exportPdf(rows)}
+                  onClick={() => exportPdf(rows, plan)}
                   className="px-4 py-2 rounded-xl border text-sm transition-all hover:opacity-80"
                   style={{ borderColor: "rgba(0,232,122,0.3)", color: "var(--success)", background: "rgba(0,232,122,0.05)" }}
                 >
@@ -1193,7 +1216,7 @@ export default function BulkPage() {
 
           {phase === "done" && (
             <button
-              onClick={() => exportPdf(rows)}
+              onClick={() => exportPdf(rows, plan)}
               className="px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
               style={{ color: "var(--success)", background: "rgba(0,232,122,0.06)", border: "1px solid rgba(0,232,122,0.2)" }}
             >

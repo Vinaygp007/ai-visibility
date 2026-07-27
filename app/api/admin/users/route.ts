@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   let query = admin
     .from("profiles")
-    .select("id, email, full_name, role, status, referral_code, created_at")
+    .select("id, email, full_name, role, status, referral_code, plan, created_at")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
     role: p.role,
     status: p.status,
     referralCode: p.referral_code,
+    plan: p.plan,
     createdAt: p.created_at,
     balance: balanceByUser.get(p.id) ?? 0,
   }));
@@ -119,6 +120,7 @@ const patchSchema = z.object({
   userId: z.string().uuid(),
   role: z.enum(["user", "admin"]).optional(),
   status: z.enum(["pending", "active", "suspended"]).optional(),
+  plan: z.enum(["free", "starter", "growth", "agency", "scale"]).optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -126,15 +128,16 @@ export async function PATCH(req: NextRequest) {
   if (!gate.ok) return gate.error;
 
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success || (!parsed.data.role && !parsed.data.status)) {
-    return NextResponse.json({ error: { code: "invalid_input", message: "userId plus role and/or status are required." } }, { status: 422, headers: CORS_HEADERS });
+  if (!parsed.success || (!parsed.data.role && !parsed.data.status && !parsed.data.plan)) {
+    return NextResponse.json({ error: { code: "invalid_input", message: "userId plus role, status, and/or plan are required." } }, { status: 422, headers: CORS_HEADERS });
   }
 
-  const { userId, role, status } = parsed.data;
+  const { userId, role, status, plan } = parsed.data;
   const admin = createAdminClient();
   const updates: Record<string, string> = {};
   if (role) updates.role = role;
   if (status) updates.status = status;
+  if (plan) updates.plan = plan;
 
   const { error } = await admin.from("profiles").update(updates).eq("id", userId);
   if (error) {
@@ -143,7 +146,7 @@ export async function PATCH(req: NextRequest) {
 
   await logAdminAction({
     actorId: gate.user.id,
-    action: role ? "user.role_change" : "user.status_change",
+    action: plan ? "user.plan_change" : role ? "user.role_change" : "user.status_change",
     targetType: "profiles",
     targetId: userId,
     metadata: updates,
