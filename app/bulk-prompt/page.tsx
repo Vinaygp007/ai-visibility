@@ -1019,9 +1019,9 @@ export default function MultiPromptPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
-      <div className="md:pl-64">
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "60px 20px 80px" }}
-          className="md:!px-8 md:!pt-8"
+      <div>
+        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 20px 80px" }}
+          className="md:!px-8"
         >
 
           {/* Page header */}

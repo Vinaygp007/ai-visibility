@@ -1162,7 +1162,7 @@ export default function PreviousReportsPage() {
     promptError;
 
   return (
-    <div className="min-h-screen md:pl-64" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <div className="max-w-5xl mx-auto px-8 py-12">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}

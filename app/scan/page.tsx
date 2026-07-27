@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import LoadingSection from "@/components/LoadingSection";
 import ResultsSection from "@/components/ResultsSection";
@@ -144,8 +143,7 @@ export default function ScanPage() {
   const isRateLimit = errorCode === "QUOTA_EXCEEDED";
 
   return (
-    <div className="min-h-screen md:pl-64" style={{ background: "var(--bg)" }}>
-      <Navbar />
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <HeroSection
         onAnalyze={(url, citations) => handleAnalyze(url, citations === true)}
         isLoading={state === "loading"}

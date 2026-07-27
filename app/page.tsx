@@ -1,8 +1,6 @@
-import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import ScrollProgressBar from "@/components/ScrollProgressBar";
 import BotMarquee from "@/components/BotMarquee";
-import Reveal from "@/components/Reveal";
 import ProblemSection from "@/components/ProblemSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import FeaturesSection from "@/components/FeaturesSection";
@@ -12,6 +10,8 @@ import AudienceSection from "@/components/AudienceSection";
 import PricingSection from "@/components/PricingSection";
 import FAQSection from "@/components/FAQSection";
 import HeroScanPreview from "@/components/HeroScanPreview";
+import HeroCTA from "@/components/HeroCTA";
+import BottomCTA from "@/components/BottomCTA";
 import Footer from "@/components/Footer";
 
 const FEATURE_CHIPS = [
@@ -97,25 +97,7 @@ export default function LandingPage() {
               all 3 run simultaneously · scores averaged
             </p>
 
-            <div className="animate-fade-up fade-up-4 flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-4">
-              <Link
-                href="/waitlist"
-                className="rounded-xl px-7 py-3 text-sm font-semibold text-[var(--on-accent)] transition-all hover:opacity-85 hover:scale-[1.03] active:scale-95"
-                style={{ background: "var(--accent)", boxShadow: "0 8px 30px -8px rgba(0,229,255,0.5)" }}
-              >
-                Join the Waitlist →
-              </Link>
-              <Link
-                href="/login"
-                className="rounded-xl px-7 py-3 text-sm font-medium border transition-all hover:border-[rgba(var(--overlay-rgb),0.3)]"
-                style={{ borderColor: "rgba(var(--overlay-rgb),0.13)", color: "var(--text)" }}
-              >
-                Log in
-              </Link>
-            </div>
-            <p className="animate-fade-up fade-up-4 text-[12px]" style={{ color: "var(--text-dim)" }}>
-              Invite-only beta — agencies and active SEO/GEO practitioners get priority access.
-            </p>
+            <HeroCTA />
 
             <div className="animate-fade-up fade-up-5 flex flex-wrap gap-4 justify-center lg:justify-start mt-8">
               {FEATURE_CHIPS.map((feat) => (
@@ -153,23 +135,7 @@ export default function LandingPage() {
       <div className="border-t" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }} />
       <FAQSection />
 
-      <section className="max-w-2xl mx-auto px-6 pb-24 text-center">
-        <Reveal className="flex flex-col items-center">
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-4 text-[var(--text)]">
-            See how AI sees your site
-          </h2>
-          <p className="text-[15px] mb-7" style={{ color: "var(--text-muted)" }}>
-            Join the waitlist to get scanning — early access goes out on a rolling basis.
-          </p>
-          <Link
-            href="/waitlist"
-            className="inline-block rounded-xl px-7 py-3 text-sm font-semibold text-[var(--on-accent)] transition-all hover:opacity-85 hover:scale-[1.03] active:scale-95"
-            style={{ background: "var(--accent)", boxShadow: "0 8px 30px -8px rgba(0,229,255,0.5)" }}
-          >
-            Join the Waitlist →
-          </Link>
-        </Reveal>
-      </section>
+      <BottomCTA />
 
       <Footer />
     </div>

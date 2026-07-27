@@ -45,8 +45,8 @@ export default function CreditsPage() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   return (
-    <div className="min-h-screen md:pl-64" style={{ background: "var(--bg)" }}>
-      <div className="max-w-3xl mx-auto px-4 sm:px-8 pt-16 md:pt-12 pb-12">
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      <div className="max-w-3xl mx-auto px-4 sm:px-8 pt-12 pb-12">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[var(--text)] mb-2">Credit History</h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>

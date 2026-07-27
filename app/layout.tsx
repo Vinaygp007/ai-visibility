@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import LayoutWithSidebar from "@/components/LayoutWithSidebar";
+import AppShell from "@/components/AppShell";
 import PostHogProvider from "@/components/PostHogProvider";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { inter, spaceGrotesk, jetbrainsMono } from "@/lib/fonts";
@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <PostHogProvider>
-          <LayoutWithSidebar>{children}</LayoutWithSidebar>
+          <AppShell>{children}</AppShell>
         </PostHogProvider>
       </body>
     </html>

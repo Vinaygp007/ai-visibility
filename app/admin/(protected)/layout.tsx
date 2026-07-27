@@ -17,8 +17,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   ];
 
   return (
-    <div className="min-h-screen md:pl-64" style={{ background: "var(--bg)" }}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-16 md:pt-12 pb-12">
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-12 pb-12">
         <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold text-[var(--text)] mb-1">Admin</h1>

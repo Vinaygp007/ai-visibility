@@ -929,8 +929,8 @@ export default function BulkPage() {
   // ── IDLE / INPUT PHASE ─────────────────────────────────────────────────
   if (phase === "idle") {
     return (
-      <div className="min-h-screen md:pl-64" style={{ background: "var(--bg)" }}>
-        <div className="max-w-3xl mx-auto px-6 pt-20 md:pt-16 pb-20">
+      <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+        <div className="max-w-3xl mx-auto px-6 pt-16 pb-20">
 
           <div className="mb-10">
             <div
@@ -1075,8 +1075,8 @@ export default function BulkPage() {
 
   // ── RUNNING / DONE PHASE ───────────────────────────────────────────────
   return (
-    <div className="min-h-screen md:pl-64" style={{ background: "var(--bg)" }}>
-      <div className="max-w-[1100px] mx-auto px-6 pt-16 md:pt-10 pb-20">
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      <div className="max-w-[1100px] mx-auto px-6 pt-10 pb-20">
 
         {/* Top stats bar */}
         <div
