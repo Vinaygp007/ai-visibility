@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 
 function supabaseAuthErrorMessage(message: string): string {
   if (/invalid login credentials/i.test(message)) return "Invalid email or password.";
@@ -12,6 +13,7 @@ function supabaseAuthErrorMessage(message: string): string {
 }
 
 function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from") || "/scan";
   const [mode, setMode] = useState<"password" | "magic-link">("password");
@@ -20,6 +22,14 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Already signed in (and account is active — useCurrentUser reflects the
+  // same /api/me check the rest of the app uses) — bounce straight past the
+  // login form instead of making them look at it again.
+  const { authed, checked } = useCurrentUser();
+  useEffect(() => {
+    if (checked && authed) router.replace(from);
+  }, [checked, authed, from, router]);
 
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,6 +84,12 @@ function LoginForm() {
       },
     });
     if (error) setError(supabaseAuthErrorMessage(error.message));
+  }
+
+  // Still checking, or already authed and about to be redirected away —
+  // don't flash the login form in either case.
+  if (!checked || authed) {
+    return <div className="min-h-screen" style={{ background: "var(--bg)" }} />;
   }
 
   return (

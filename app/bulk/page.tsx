@@ -9,6 +9,20 @@ import ScoreGauge from "@/components/ScoreGauge";
 import PromptResponsePanel from "@/components/PromptResponsePanel";
 import CitationsPanel from "@/components/CitationsPanel";
 
+const PROVIDERS = [
+  { name: "Gemini 2.0", icon: "✦", color: "#4285f4" },
+  { name: "ChatGPT", icon: "⬡", color: "#10a37f" },
+  { name: "Perplexity", icon: "◎", color: "#20b2aa" },
+];
+
+const FEATURE_CHIPS = [
+  "14 AI Bots Checked",
+  "llms.txt Detection",
+  "Structured Data",
+  "Streams results live",
+  "CSV & PDF export",
+];
+
 // ── Types ──────────────────────────────────────────────────────────────────
 type RowStatus = "queued" | "running" | "success" | "failed";
 
@@ -948,10 +962,35 @@ export default function BulkPage() {
             >
               Scan Up to 500 Sites<br />at Once
             </h1>
-            <p className="text-[15px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            <p className="text-[15px] leading-relaxed mb-5" style={{ color: "var(--text-muted)" }}>
               Paste URLs (one per line or comma-separated), or upload a .txt / .csv file.
               Results stream in real-time as each site is analysed.
             </p>
+
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>POWERED BY</span>
+              {PROVIDERS.map((p) => (
+                <span
+                  key={p.name}
+                  className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl border"
+                  style={{ color: p.color, background: `${p.color}12`, borderColor: `${p.color}35` }}
+                >
+                  <span style={{ fontSize: 13 }}>{p.icon}</span>{p.name}
+                </span>
+              ))}
+            </div>
+            <p className="text-[11px] font-mono mb-4" style={{ color: "var(--text-muted)" }}>
+              every URL scanned by all 3, in parallel · scores averaged
+            </p>
+
+            <div className="flex flex-wrap gap-4">
+              {FEATURE_CHIPS.map((feat) => (
+                <div key={feat} className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "var(--success)" }} />
+                  {feat}
+                </div>
+              ))}
+            </div>
           </div>
 
           <div

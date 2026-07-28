@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 
 const PLANS = [
   {
@@ -49,6 +50,9 @@ const PLANS = [
 
 export default function PricingSection() {
   const [yearly, setYearly] = useState(false);
+  // No billing/upgrade flow exists yet, so an already-signed-in visitor
+  // gets sent back into the app instead of the waitlist for every plan.
+  const { authed } = useCurrentUser();
 
   return (
     <section id="pricing" className="max-w-6xl mx-auto px-6 py-20">
@@ -153,7 +157,7 @@ export default function PricingSection() {
                 </ul>
 
                 <Link
-                  href="/waitlist"
+                  href={authed ? "/scan" : "/waitlist"}
                   className="text-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all hover:opacity-85 active:scale-95"
                   style={
                     plan.highlight
@@ -161,7 +165,7 @@ export default function PricingSection() {
                       : { background: "transparent", color: "var(--text)", border: "1px solid rgba(var(--overlay-rgb),0.13)" }
                   }
                 >
-                  Join Waitlist
+                  {authed ? "Go to Scan" : "Join Waitlist"}
                 </Link>
               </div>
             </Reveal>

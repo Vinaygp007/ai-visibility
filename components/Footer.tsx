@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 
 const PROVIDERS = [
   { name: "Gemini", color: "#4285f4" },
@@ -7,9 +10,9 @@ const PROVIDERS = [
 ];
 
 const PRODUCT_LINKS = [
-  { href: "#features", label: "Features" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#features", label: "Features" },
+  { href: "/#pricing", label: "Pricing" },
+  { href: "/#faq", label: "FAQ" },
   { href: "/scan", label: "Run a Scan" },
 ];
 
@@ -19,8 +22,16 @@ const ACCOUNT_LINKS = [
   { href: "/signup", label: "Have an invite? Sign up" },
 ];
 
+const AUTHED_ACCOUNT_LINKS = [
+  { href: "/scan", label: "Go to Scan" },
+  { href: "/reports", label: "Previous Reports" },
+  { href: "/credits", label: "Credit History" },
+];
+
 export default function Footer() {
   const year = new Date().getFullYear();
+  const { authed } = useCurrentUser();
+  const accountLinks = authed ? AUTHED_ACCOUNT_LINKS : ACCOUNT_LINKS;
 
   return (
     <footer
@@ -98,7 +109,7 @@ export default function Footer() {
               ACCOUNT
             </div>
             <ul className="space-y-3">
-              {ACCOUNT_LINKS.map((link) => (
+              {accountLinks.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}

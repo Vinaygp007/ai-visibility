@@ -4,6 +4,14 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { PROMPT_CHAR_LIMIT } from "@/lib/limits";
 import { UserPlan } from "@/types";
 
+const PROVIDERS = [
+  { name: "Gemini 2.0", icon: "✦", color: "#4285f4" },
+  { name: "ChatGPT", icon: "⬡", color: "#10a37f" },
+  { name: "Perplexity", icon: "◎", color: "#20b2aa" },
+];
+
+const FEATURE_CHIPS = ["Up to 100 prompts", "Runs in parallel", "AI citation research", "CSV & PDF export"];
+
 // ── Types ─────────────────────────────────────────────────────────────────
 interface ProviderResponse {
   provider: string;
@@ -1039,9 +1047,42 @@ export default function MultiPromptPage() {
                 Bulk Prompt Runner
               </h1>
             </div>
-            <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" }}>
               Add up to 100 independent prompts · run all in parallel · each gets its own AI response
             </p>
+
+            <div style={{
+              background: "var(--surface)", border: "1px solid rgba(var(--overlay-rgb),0.08)",
+              borderRadius: 14, padding: "14px 16px",
+              display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--text-muted)" }}>POWERED BY</span>
+                {PROVIDERS.map((p) => (
+                  <span
+                    key={p.name}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      fontSize: 13, fontWeight: 500, padding: "6px 12px", borderRadius: 12,
+                      color: p.color, background: `${p.color}12`, border: `1px solid ${p.color}35`,
+                    }}
+                  >
+                    <span style={{ fontSize: 13 }}>{p.icon}</span>{p.name}
+                  </span>
+                ))}
+              </div>
+
+              <div style={{ width: 1, alignSelf: "stretch", background: "rgba(var(--overlay-rgb),0.08)" }} />
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+                {FEATURE_CHIPS.map((feat) => (
+                  <div key={feat} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)" }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", display: "inline-block", background: "var(--success)" }} />
+                    {feat}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Global controls bar */}
