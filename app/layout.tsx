@@ -5,7 +5,10 @@ import PostHogProvider from "@/components/PostHogProvider";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { inter, spaceGrotesk, jetbrainsMono } from "@/lib/fonts";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aiscope.io";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "AiScope — AI Visibility Checker",
   description:
     "Instantly audit how AI systems like ChatGPT, Claude, and Perplexity discover, crawl, and reference your website.",
