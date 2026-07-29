@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCachedPageCheck, savePageCheck } from "@/lib/pageCache";
+import { getCurrentUser } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const maxDuration = 60;
 
@@ -173,6 +175,17 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401, headers: CORS });
+    }
+    // Each call fires two Lighthouse runs (mobile + desktop) against Google's
+    // PSI API, which has its own quota — cap per-user throughput on our side too.
+    const allowed = await checkRateLimit(`pagespeed:user:${user.id}`, 10, 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many speed tests, slow down." }, { status: 429, headers: CORS });
+    }
+
     const { url } = await req.json();
     if (!url) return NextResponse.json({ error: "URL required" }, { status: 400, headers: CORS });
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
@@ -12,6 +13,7 @@ import { createScan, completeScan, failScan, findCachedScan, setScanLedgerDebit,
 import { qualifyReferral } from "@/lib/referrals";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { captureEvent } from "@/lib/analytics/posthog";
+import { guardedFetch } from "@/lib/ssrf";
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -76,15 +78,35 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+const analyzeBodySchema = z.object({
+  url: z.string().trim().min(1, "URL is required"),
+  bustCache: z.boolean().optional(),
+  disableFirestoreWrite: z.boolean().optional(),
+  runCitations: z.boolean().optional(),
+  bulkJobId: z.string().trim().min(1).optional(),
+});
+
+/** Normalizes a bare domain to https:// and rejects anything that isn't a well-formed http(s) URL. */
+function parsePublicUrl(raw: string): string | null {
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(withProtocol);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    if (!parsed.hostname) return null;
+    return parsed.href;
+  } catch {
+    return null;
+  }
+}
+
 // ── HTTP Fetcher ───────────────────────────────────────────────────────────
 async function safeFetch(url: string, ms = 7000): Promise<{ text: string; status: number; headers: Record<string, string> }> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    const res = await fetch(url, {
+    const res = await guardedFetch(url, {
       signal: ctrl.signal,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; AiScope/1.0)", Accept: "text/html,text/plain,*/*" },
-      redirect: "follow",
     });
     const headers: Record<string, string> = {};
     res.headers.forEach((val, key) => { headers[key.toLowerCase()] = val; });
@@ -1679,20 +1701,24 @@ export async function POST(request: NextRequest) {
   let spendSucceeded = false;
 
   try {
-    const body = await request.json();
-    const url = body?.url as string | undefined;
-    const bustCache = body?.bustCache as boolean | undefined;
+    const parsedBody = analyzeBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "URL is required", errorCode: "MISSING_URL" }, { status: 400, headers: CORS_HEADERS });
+    }
+    const body = parsedBody.data;
+    const url = parsePublicUrl(body.url);
+    const bustCache = body.bustCache;
     // Legacy name from the Firestore era — bulk still sends this to mean
     // "don't use the shared scan cache for this call". Kept as-is rather
     // than touching bulk's request contract in this pass.
-    const disableCache = body?.disableFirestoreWrite === true;
+    const disableCache = body.disableFirestoreWrite === true;
     // Default citations ON for all integrations. Only explicit false disables.
-    const runCitations = body?.runCitations === false ? false : true;
+    const runCitations = body.runCitations === false ? false : true;
     // Set when this call originates from /api/bulk — ties the resulting scan
     // back to its bulk_jobs row and tags it as a bulk item instead of a
     // standalone audit (see lib/scans.ts's ScanKind).
-    const bulkJobId = typeof body?.bulkJobId === "string" && body.bulkJobId.trim() ? body.bulkJobId.trim() : null;
-    if (!url) return NextResponse.json({ error: "URL is required", errorCode: "MISSING_URL" }, { status: 400, headers: CORS_HEADERS });
+    const bulkJobId = body.bulkJobId ?? null;
+    if (!url) return NextResponse.json({ error: "That doesn't look like a valid URL.", errorCode: "INVALID_URL" }, { status: 400, headers: CORS_HEADERS });
 
     const user = await getCurrentUser();
     if (!user) {

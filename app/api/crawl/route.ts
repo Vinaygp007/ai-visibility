@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCachedPageCheck, savePageCheck } from "@/lib/pageCache";
+import { assertPublicHttpUrl, guardedFetch } from "@/lib/ssrf";
+import { getCurrentUser } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const maxDuration = 60;
 
@@ -20,10 +23,9 @@ async function fetchPage(url: string): Promise<{ html: string; status: number; m
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   const t0 = Date.now();
   try {
-    const res = await fetch(url, {
+    const res = await guardedFetch(url, {
       signal: ctrl.signal,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; AiScope/1.0)", Accept: "text/html,*/*" },
-      redirect: "follow",
     });
     const html = res.ok ? await res.text() : "";
     return { html, status: res.status, ms: Date.now() - t0 };
@@ -141,6 +143,17 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401, headers: CORS });
+    }
+    // Each call walks up to MAX_PAGES pages at CONCURRENCY-way fan-out — cap
+    // per-user throughput independent of the shared auth-gate middleware.
+    const allowed = await checkRateLimit(`crawl:user:${user.id}`, 5, 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many crawls, slow down." }, { status: 429, headers: CORS });
+    }
+
     const body = await req.json();
     const rawUrl: string = body?.url;
     const maxPages: number = Math.min(body?.maxPages ?? MAX_PAGES, MAX_PAGES);
