@@ -251,7 +251,7 @@ export default function ResultsSection({
                               : "var(--text-muted)",
                         }}
                       >
-                        {p.score ?? "—"}
+                        {p.score ?? "-"}
                       </div>
                       <div
                         className="text-[10px] font-mono mt-0.5"
@@ -306,7 +306,7 @@ export default function ResultsSection({
           {botAccessible.length > 0 && (
             <div className="mb-5">
               <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--success)" }}>
-                Accessible — {botAccessible.length}
+                Accessible: {botAccessible.length}
               </div>
               <div className="flex flex-wrap gap-2">
                 {botAccessible.map(bot => {
@@ -331,7 +331,7 @@ export default function ResultsSection({
           {botBlocked.length > 0 && (
             <div>
               <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--danger)" }}>
-                Blocked — {botBlocked.length}
+                Blocked: {botBlocked.length}
               </div>
               <div className="flex flex-col gap-2">
                 {botBlocked.map(bot => {

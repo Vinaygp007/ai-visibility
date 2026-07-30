@@ -27,7 +27,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
           Something went wrong
         </h1>
         <p className="text-[15px] leading-relaxed mb-8" style={{ color: "var(--text-muted)" }}>
-          An unexpected error occurred. It's been logged — try again, or head back home.
+          An unexpected error occurred. It's been logged. Try again, or head back home.
         </p>
         <div className="flex items-center justify-center gap-3">
           <button

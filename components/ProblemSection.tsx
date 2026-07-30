@@ -1,20 +1,22 @@
 import Reveal from "@/components/Reveal";
+import { Bot, MessageSquare, SearchX } from "lucide-react";
+import { ICON_GRADIENT, ICON_GRADIENT_FALLBACK } from "@/lib/iconGradient";
 
 const REALITIES = [
   {
-    icon: "🤖",
+    Icon: Bot,
     title: "AI crawlers aren't Googlebot",
     body: "GPTBot, ClaudeBot, PerplexityBot and Google-Extended each decide independently whether to access your site. Being indexed by Google guarantees none of them can actually read your pages.",
   },
   {
-    icon: "💬",
+    Icon: MessageSquare,
     title: "AI answers summarize, not link",
-    body: "When ChatGPT or Perplexity answers a question about your industry, it's reading and paraphrasing sources — if it can't parse or trust yours, you don't show up in that answer at all.",
+    body: "When ChatGPT or Perplexity answers a question about your industry, it's reading and paraphrasing sources. If it can't parse or trust yours, you don't show up in that answer at all.",
   },
   {
-    icon: "🕳️",
+    Icon: SearchX,
     title: "There's no \"Ahrefs for AI\" yet",
-    body: "Most SEO and marketing teams have checked their Google rankings a hundred times, and their AI-crawler access zero times — because until now there hasn't been an easy way to check it.",
+    body: "Most SEO and marketing teams have checked their Google rankings a hundred times, and their AI-crawler access zero times, because until now there hasn't been an easy way to check it.",
   },
 ];
 
@@ -32,7 +34,7 @@ export default function ProblemSection() {
           Search is splitting in two
         </h2>
         <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Alongside classic Google search, more discovery now happens through AI answers and AI chat — Google's AI
+          Alongside classic Google search, more discovery now happens through AI answers and AI chat: Google's AI
           Overviews, ChatGPT, Perplexity, Copilot. Traditional SEO tells you nothing about how you show up in that
           half of the picture.
         </p>
@@ -45,7 +47,7 @@ export default function ProblemSection() {
               className="rounded-2xl border p-6 h-full transition-all duration-300 hover:-translate-y-1 hover:border-[var(--warning)] hover:shadow-lg"
               style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
             >
-              <div className="text-2xl mb-3">{r.icon}</div>
+              <div className="mb-3"><r.Icon size={26} color={ICON_GRADIENT} style={{ color: ICON_GRADIENT_FALLBACK }} /></div>
               <h3 className="text-[15px] font-semibold mb-2" style={{ color: "var(--text)" }}>{r.title}</h3>
               <p className="text-[13.5px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{r.body}</p>
             </div>

@@ -15,7 +15,7 @@ function scoreColor(score: number | null): string {
 }
 
 function scoreLabel(score: number | null): string {
-  if (score === null) return "—";
+  if (score === null) return "-";
   if (score >= 90) return "Good";
   if (score >= 50) return "Needs Work";
   return "Poor";
@@ -53,7 +53,7 @@ function ScoreGaugeMini({ score, label }: { score: number | null; label: string 
           style={{ transition: "stroke-dashoffset 0.6s ease" }}
         />
         <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="bold" fill={color}>
-          {score ?? "—"}
+          {score ?? "-"}
         </text>
       </svg>
       <span className="text-[10px] font-mono uppercase tracking-wider mt-1" style={{ color: "var(--text-muted)" }}>{label}</span>
@@ -154,7 +154,7 @@ export default function SpeedSection({ url, autoRun = false }: { url: string; au
           </div>
           {state === "done" && data && (
             <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-              Mobile {data.mobile.performanceScore ?? "—"} · Desktop {data.desktop.performanceScore ?? "—"}
+              Mobile {data.mobile.performanceScore ?? "-"} · Desktop {data.desktop.performanceScore ?? "-"}
             </div>
           )}
         </div>

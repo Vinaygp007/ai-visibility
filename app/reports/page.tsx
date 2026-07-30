@@ -144,7 +144,7 @@ function normalizeBulkAnalysisResult(
     site_name: (data?.site_name as string) ?? fallback?.site_name ?? fallback?.url ?? "",
     url: (data?.url as string) ?? fallback?.url ?? "",
     overall_score: Number(data?.overall_score ?? data?.score ?? fallback?.score ?? 0),
-    grade: (data?.grade as string) ?? fallback?.grade ?? "—",
+    grade: (data?.grade as string) ?? fallback?.grade ?? "-",
     summary: (data?.summary as string) ?? fallback?.summary ?? "",
     stats: {
       checks_passed: Number(stats.checks_passed ?? 0),
@@ -414,7 +414,7 @@ function makePdfHelpers(doc: any, plan: UserPlan) {
       }
 
       doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150);
-      if (!isWhiteLabel) doc.text(`AiScope — ${label} — by Marcstrat`, MARGIN, PAGE_H - 8);
+      if (!isWhiteLabel) doc.text(`AiScope: ${label} · by Marcstrat`, MARGIN, PAGE_H - 8);
       doc.text(`Page ${p} of ${pageCount}`, PAGE_W - MARGIN, PAGE_H - 8, { align: "right" });
     }
   };
@@ -427,7 +427,7 @@ function makePdfHelpers(doc: any, plan: UserPlan) {
 function writeReportHeader(doc: any, plan: UserPlan, brandedTitle: string) {
   const isWhiteLabel = plan === "agency" || plan === "scale";
   doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(20, 20, 20);
-  doc.text(isWhiteLabel ? brandedTitle.replace(/^AiScope — /, "") : brandedTitle, 16, 16);
+  doc.text(isWhiteLabel ? brandedTitle.replace(/^AiScope: /, "") : brandedTitle, 16, 16);
   doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(90, 90, 90);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 16, 22);
   if (!isWhiteLabel) doc.text("by Marcstrat", 16, 27);
@@ -438,7 +438,7 @@ async function exportHomepagePDF(reports: ReportSummary[], plan: UserPlan) {
   const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const h = makePdfHelpers(doc, plan);
 
-  writeReportHeader(doc, plan, "AiScope — Homepage Scan Report");
+  writeReportHeader(doc, plan, "AiScope: Homepage Scan Report");
   h.setY(33);
   h.writeSeparator();
 
@@ -492,7 +492,7 @@ async function exportBulkPDF(jobs: BulkJob[], plan: UserPlan) {
     ? Math.round(successRows.reduce((sum, { r }) => sum + (r.score ?? 0), 0) / successRows.length)
     : 0;
 
-  writeReportHeader(doc, plan, "AiScope — AI Visibility Bulk Report");
+  writeReportHeader(doc, plan, "AiScope: AI Visibility Bulk Report");
   h.setY(33);
   h.writeSeparator();
 
@@ -518,7 +518,7 @@ async function exportBulkPDF(jobs: BulkJob[], plan: UserPlan) {
     h.writeLabel("Top Performers");
     topRows.forEach(({ r, fd }, i) => {
       const name = (fd?.site_name || r.site_name || r.url.replace(/^https?:\/\//, "")).slice(0, 60);
-      h.writeLine(`${i + 1}. ${name}  —  Score: ${r.score ?? "—"}  Grade: ${r.grade ?? "—"}`, 9);
+      h.writeLine(`${i + 1}. ${name}: Score: ${r.score ?? "-"}  Grade: ${r.grade ?? "-"}`, 9);
     });
     h.setY(h.getY() + 4);
   }
@@ -549,7 +549,7 @@ async function exportBulkPDF(jobs: BulkJob[], plan: UserPlan) {
 
     h.writeLine(`${idx + 1}. [${status}]  ${url}`, 9, "bold");
     if (name) h.writeLine(`   ${name}`, 8, "normal", 4);
-    if (r.score != null) h.writeLine(`   Score: ${r.score}/100   Grade: ${r.grade ?? "—"}   Time: ${dur}`, 8, "normal", 4);
+    if (r.score != null) h.writeLine(`   Score: ${r.score}/100   Grade: ${r.grade ?? "-"}   Time: ${dur}`, 8, "normal", 4);
     if (r.summary || fd?.summary) h.writeLine(`   ${r.summary ?? fd?.summary ?? ""}`, 8, "italic", 4);
     if (r.error) h.writeLine(`   Error: ${r.error}`, 8, "italic", 4);
     h.setY(h.getY() + 3);
@@ -563,7 +563,7 @@ async function exportBulkPDF(jobs: BulkJob[], plan: UserPlan) {
     h.writeLine(siteName, 16, "bold");
     h.writeLine(r.url, 9, "normal");
     h.setY(h.getY() + 2);
-    h.writeLine(`Score: ${r.score ?? "—"} / 100   Grade: ${r.grade ?? "—"}`, 10, "bold");
+    h.writeLine(`Score: ${r.score ?? "-"} / 100   Grade: ${r.grade ?? "-"}`, 10, "bold");
     if (report.summary) {
       h.setY(h.getY() + 2);
       h.writeLine(report.summary, 9, "italic");
@@ -580,7 +580,7 @@ async function exportBulkPDF(jobs: BulkJob[], plan: UserPlan) {
       providers.forEach((provider: any) => {
         const providerName = provider.name ?? provider.provider ?? "Provider";
         const status2 = provider.status === "success" ? "OK" : "FAILED";
-        h.writeLine(`${providerName}  [${status2}]  Score: ${provider.score ?? "—"}  Time: ${provider.durationMs ?? "—"}ms`, 9, "bold");
+        h.writeLine(`${providerName}  [${status2}]  Score: ${provider.score ?? "-"}  Time: ${provider.durationMs ?? "-"}ms`, 9, "bold");
 
         const responseText = extractProviderText(provider.rawResponse ?? "");
         const cleanText = toPlainText(responseText);
@@ -649,10 +649,10 @@ async function exportBulkPDF(jobs: BulkJob[], plan: UserPlan) {
       h.writeLabel("Category Breakdown");
       report.categories.forEach((cat: any) => {
         h.needsSpace(10);
-        h.writeLine(`${cat.name ?? cat.category ?? "Unknown"}  —  ${cat.score}/100`, 10, "bold");
+        h.writeLine(`${cat.name ?? cat.category ?? "Unknown"}: ${cat.score}/100`, 10, "bold");
         cat.checks?.forEach((check: any) => {
           const sym = check.status === "pass" ? "[+]" : check.status === "warn" ? "[!]" : "[x]";
-          const detail = check.detail ? ` — ${check.detail}` : "";
+          const detail = check.detail ? `: ${check.detail}` : "";
           h.writeLine(`  ${sym} ${check.label}${detail}`, 8, "normal", 4);
         });
         h.setY(h.getY() + 2);
@@ -680,7 +680,7 @@ async function exportBulkPromptPDF(batches: BulkPromptBatch[], plan: UserPlan) {
   const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const h = makePdfHelpers(doc, plan);
 
-  writeReportHeader(doc, plan, "AiScope — Bulk Prompt Report");
+  writeReportHeader(doc, plan, "AiScope: Bulk Prompt Report");
   h.setY(33);
   h.writeSeparator();
 
@@ -714,8 +714,8 @@ async function exportBulkPromptPDF(batches: BulkPromptBatch[], plan: UserPlan) {
         h.needsSpace(16);
         h.writeLine(`${ri + 1}. [${run.status.toUpperCase()}]  Prompt: ${run.promptId}`, 9, "bold");
         if (run.url) h.writeLine(`   URL: ${run.url}`, 8, "normal", 4);
-        if (run.provider) h.writeLine(`   Provider: ${run.provider}   Duration: ${run.durationMs != null ? `${run.durationMs}ms` : "—"}`, 8, "normal", 4);
-        h.writeLine(`   Date: ${run.createdAt ?? "—"}`, 8, "normal", 4);
+        if (run.provider) h.writeLine(`   Provider: ${run.provider}   Duration: ${run.durationMs != null ? `${run.durationMs}ms` : "-"}`, 8, "normal", 4);
+        h.writeLine(`   Date: ${run.createdAt ?? "-"}`, 8, "normal", 4);
 
         // All provider responses
         if (run.responses && run.responses.length > 0) {
@@ -1501,7 +1501,7 @@ function BulkResultRow({
                         className="text-[10px] font-mono font-bold flex-shrink-0"
                         style={{ color: getScoreColor(cat.score ?? 0) }}
                       >
-                        {cat.score ?? "—"}
+                        {cat.score ?? "-"}
                       </span>
                     </div>
                     {Array.isArray(cat.checks) && cat.checks.length > 0 && (
@@ -1513,7 +1513,7 @@ function BulkResultRow({
                             </span>
                             <span style={{ color: "var(--text-muted)" }}>
                               {check.label}
-                              {check.detail ? ` — ${check.detail}` : ""}
+                              {check.detail ? `: ${check.detail}` : ""}
                             </span>
                           </div>
                         ))}
@@ -1572,7 +1572,7 @@ function BulkResultRow({
                 ))}
                 {citations.length > 5 && (
                   <div className="text-[10px] font-mono" style={{ color: "var(--text-dim)" }}>
-                    +{citations.length - 5} more — click "Full Report" to see all
+                    +{citations.length - 5} more, click "Full Report" to see all
                   </div>
                 )}
               </div>

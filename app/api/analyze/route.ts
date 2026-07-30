@@ -140,7 +140,7 @@ function checkBot(robotsTxt: string, botKey: string): {
   allowed: boolean; reason: string; directive: string | null; blockType: BlockType;
 } {
   if (!robotsTxt) return {
-    allowed: true, reason: "No robots.txt — allowed by default", directive: null, blockType: "no_robots",
+    allowed: true, reason: "No robots.txt, allowed by default", directive: null, blockType: "no_robots",
   };
 
   // Preserve original casing so we can display the actual directive line
@@ -177,7 +177,7 @@ function checkBot(robotsTxt: string, botKey: string): {
   if (botFound && botAllow)        return { allowed: true,  reason: `${botKey} explicitly allowed`,    directive: botAllow,       blockType: "explicit_allow" };
   if (botFound && botDisallow)     return { allowed: false, reason: `${botKey} blocked in robots.txt`, directive: botDisallow,    blockType: "explicit_block" };
   if (!botFound && globalDisallow) return { allowed: false, reason: "Blocked by User-agent: * rule",   directive: globalDisallow, blockType: "global_block"   };
-  return { allowed: true, reason: botFound ? `${botKey} found — no block rule` : "Not mentioned — allowed by default", directive: null, blockType: "not_mentioned" };
+  return { allowed: true, reason: botFound ? `${botKey} found: no block rule` : "Not mentioned, allowed by default", directive: null, blockType: "not_mentioned" };
 }
 
 // ── HTML parsers ───────────────────────────────────────────────────────────
@@ -337,7 +337,7 @@ function computeScores(t: Tech): {
       label: "robots.txt found",
       detail: t.robotsFound
         ? t.allowedCount + "/" + AI_BOTS.length + " AI bots allowed"
-        : "No robots.txt — all bots allowed by default",
+        : "No robots.txt: all bots allowed by default",
     },
   ];
 
@@ -347,15 +347,15 @@ function computeScores(t: Tech): {
     t.llmsFound && t.llmsTxtLength > 200 ? "pass" : t.llmsFound ? "warn" : "fail";
   const llmsChecks: CheckItem[] = [
     { status: t.llmsFound ? "pass" : "fail", label: "llms.txt present",
-      detail: t.llmsFound ? "llms.txt found — AI systems can read structured site context" : "Missing /llms.txt — add one to help AI systems understand your site" },
+      detail: t.llmsFound ? "llms.txt found: AI systems can read structured site context" : "Missing /llms.txt: add one to help AI systems understand your site" },
     { status: t.llmsFullFound ? "pass" : "warn", label: "llms-full.txt present",
-      detail: t.llmsFullFound ? "llms-full.txt found" : "Missing /llms-full.txt — extended AI context not available" },
+      detail: t.llmsFullFound ? "llms-full.txt found" : "Missing /llms-full.txt: extended AI context not available" },
     { status: llmsQualityStatus, label: "AI context file quality",
       detail: t.llmsFound
         ? t.llmsTxtLength > 200
           ? "llms.txt has sufficient content (" + t.llmsTxtLength + " chars)"
-          : "llms.txt is too short (" + t.llmsTxtLength + " chars) — expand with site description, topics, and contact"
-        : "No AI context files found — add llms.txt to guide AI systems" },
+          : "llms.txt is too short (" + t.llmsTxtLength + " chars): expand with site description, topics, and contact"
+        : "No AI context files found: add llms.txt to guide AI systems" },
   ];
 
   // Category 3: Structured Data
@@ -363,13 +363,13 @@ function computeScores(t: Tech): {
     { status: t.hasSchema ? "pass" : "fail", label: "Schema.org markup",
       detail: t.hasSchema ? "Schema.org detected" + (t.jsonLd.types.length ? " (" + t.jsonLd.types.slice(0,3).join(", ") + ")" : "") : "No Schema.org markup found" },
     { status: t.jsonLd.found ? "pass" : "fail", label: "JSON-LD structured data",
-      detail: t.jsonLd.found ? "JSON-LD found" + (t.jsonLd.types.length ? " — types: " + t.jsonLd.types.join(", ") : "") : "No JSON-LD — add it for best AI comprehension" },
+      detail: t.jsonLd.found ? "JSON-LD found" + (t.jsonLd.types.length ? ", types: " + t.jsonLd.types.join(", ") : "") : "No JSON-LD: add it for best AI comprehension" },
     { status: t.ogTitle ? "pass" : "warn", label: "Open Graph tags",
       detail: t.ogTitle ? "og:title and og:description present" : "Missing Open Graph tags" },
     { status: t.twitterCard ? "pass" : "warn", label: "Twitter/X Card",
       detail: t.twitterCard ? "Twitter card: " + t.twitterCard : "No Twitter card meta tags" },
     { status: t.metaDesc ? "pass" : "fail", label: "Meta description",
-      detail: t.metaDesc ? "Meta description present" : "No meta description — critical for AI summaries" },
+      detail: t.metaDesc ? "Meta description present" : "No meta description: critical for AI summaries" },
   ];
 
   // Category 4: Content Discoverability
@@ -389,12 +389,12 @@ function computeScores(t: Tech): {
     citationScore >= 4
       ? `Strong signals (${citationScore}/5): ${citationSignals.join(", ")}`
       : citationScore >= 2
-      ? `Moderate signals (${citationScore}/5): ${citationSignals.join(", ")} — add ${t.jsonLd.found ? "" : "JSON-LD, "}${t.metaDesc ? "" : "meta description"}`.replace(/,\s*$/, "").replace(/^.*—\s*add\s*$/, `${citationScore}/5 signals — add JSON-LD and meta description`)
-      : `Weak signals (${citationScore}/5) — missing meta description, JSON-LD, and structured data`;
+      ? `Moderate signals (${citationScore}/5): ${citationSignals.join(", ")}, add ${t.jsonLd.found ? "" : "JSON-LD, "}${t.metaDesc ? "" : "meta description"}`.replace(/,\s*$/, "").replace(/^.*,\s*add\s*$/, `${citationScore}/5 signals: add JSON-LD and meta description`)
+      : `Weak signals (${citationScore}/5): missing meta description, JSON-LD, and structured data`;
 
   const discoverChecks: CheckItem[] = [
     { status: t.sitemapFound ? "pass" : "warn", label: "XML Sitemap",
-      detail: t.sitemapFound ? "sitemap.xml found — AI crawlers can discover all pages" : "No sitemap.xml found" },
+      detail: t.sitemapFound ? "sitemap.xml found: AI crawlers can discover all pages" : "No sitemap.xml found" },
     { status: h1h2Status, label: "Heading structure",
       detail: t.h1Count + " H1 and " + t.h2Count + " H2 tags on homepage" },
     { status: t.pageTitle ? "pass" : "fail", label: "Page title",
@@ -415,25 +415,25 @@ function computeScores(t: Tech): {
       ? "Fully ready: HTTPS, sitemap, canonical, language, and AI bots accessible"
       : indexingPassed >= 3
       ? `Partially ready (${indexingPassed}/5): missing ${[!t.isHttps && "HTTPS", !t.sitemapFound && "sitemap", !t.canonical && "canonical", !t.htmlLang && "lang attr", !majorityBotsAllowed && "bot access"].filter(Boolean).join(", ")}`
-      : `Not ready (${indexingPassed}/5) — site may not be properly indexed by AI systems`;
+      : `Not ready (${indexingPassed}/5): site may not be properly indexed by AI systems`;
 
   const techChecks: CheckItem[] = [
     { status: t.isHttps ? "pass" : "fail", label: "HTTPS enabled",
-      detail: t.isHttps ? "Site uses HTTPS — trusted by AI crawlers" : "HTTP only — upgrade to HTTPS" },
+      detail: t.isHttps ? "Site uses HTTPS: trusted by AI crawlers" : "HTTP only: upgrade to HTTPS" },
     { status: t.viewport ? "pass" : "warn", label: "Mobile viewport",
       detail: t.viewport ? "Viewport meta present" : "Missing viewport meta tag" },
     { status: t.viewportProper ? "pass" : "warn", label: "Viewport configured correctly",
-      detail: t.viewportProper ? "width=device-width set — proper mobile rendering" : "Viewport missing width=device-width" },
+      detail: t.viewportProper ? "width=device-width set: proper mobile rendering" : "Viewport missing width=device-width" },
     { status: t.touchIcon ? "pass" : "warn", label: "Apple touch icon",
-      detail: t.touchIcon ? "Touch icon present — correct PWA/mobile experience" : "No apple-touch-icon — add for mobile home screen" },
+      detail: t.touchIcon ? "Touch icon present: correct PWA/mobile experience" : "No apple-touch-icon: add for mobile home screen" },
     { status: t.canonicalConflict ? "warn" : t.canonical ? "pass" : "warn", label: "Canonical URL",
-      detail: t.canonicalConflict ? "Multiple canonical tags — conflicts override each other" : t.canonical ? "Canonical tag present" : "No canonical tag — may cause duplicate content issues" },
+      detail: t.canonicalConflict ? "Multiple canonical tags: conflicts override each other" : t.canonical ? "Canonical tag present" : "No canonical tag: may cause duplicate content issues" },
     { status: t.canonicalConflict ? "fail" : "pass", label: "No canonical conflict",
-      detail: t.canonicalConflict ? "Multiple canonical tags detected — keep only one" : "Single canonical tag — no conflict" },
+      detail: t.canonicalConflict ? "Multiple canonical tags detected: keep only one" : "Single canonical tag: no conflict" },
     { status: t.hasHreflang ? "pass" : "pass", label: "Hreflang / international",
-      detail: t.hasHreflang ? "hreflang tags found — international SEO configured" : "No hreflang (optional — only needed for multi-language sites)" },
+      detail: t.hasHreflang ? "hreflang tags found: international SEO configured" : "No hreflang (optional, only needed for multi-language sites)" },
     { status: t.mixedContent ? "fail" : "pass", label: "No mixed content",
-      detail: t.mixedContent ? "HTTP resources found on HTTPS page — fix mixed content" : "No mixed content issues detected" },
+      detail: t.mixedContent ? "HTTP resources found on HTTPS page: fix mixed content" : "No mixed content issues detected" },
     { status: t.htmlLang ? "pass" : "warn", label: "Language declaration",
       detail: t.htmlLang ? "lang=" + t.htmlLang : "No lang attribute on <html>" },
     { status: indexingStatus, label: "AI indexing readiness", detail: indexingDetail },
@@ -442,17 +442,17 @@ function computeScores(t: Tech): {
   // Category 6: Security & Headers
   const securityChecks: CheckItem[] = [
     { status: t.hasHSTS ? "pass" : "warn", label: "HSTS (Strict-Transport-Security)",
-      detail: t.hasHSTS ? "HSTS header present — forces HTTPS connections" : "Missing HSTS header — add Strict-Transport-Security" },
+      detail: t.hasHSTS ? "HSTS header present: forces HTTPS connections" : "Missing HSTS header: add Strict-Transport-Security" },
     { status: t.hasCSP ? "pass" : "warn", label: "Content-Security-Policy",
-      detail: t.hasCSP ? "CSP header configured" : "No CSP header — add to prevent XSS attacks" },
+      detail: t.hasCSP ? "CSP header configured" : "No CSP header: add to prevent XSS attacks" },
     { status: t.hasXFrame ? "pass" : "warn", label: "Clickjacking protection",
-      detail: t.hasXFrame ? "X-Frame-Options or CSP frame-ancestors present" : "Missing X-Frame-Options — site may be embeddable in iframes" },
+      detail: t.hasXFrame ? "X-Frame-Options or CSP frame-ancestors present" : "Missing X-Frame-Options: site may be embeddable in iframes" },
     { status: t.hasXContent ? "pass" : "warn", label: "X-Content-Type-Options",
-      detail: t.hasXContent ? "X-Content-Type-Options: nosniff present" : "Missing — add X-Content-Type-Options: nosniff" },
+      detail: t.hasXContent ? "X-Content-Type-Options: nosniff present" : "Missing: add X-Content-Type-Options: nosniff" },
     { status: t.hasReferrer ? "pass" : "warn", label: "Referrer-Policy",
-      detail: t.hasReferrer ? "Referrer-Policy header set" : "No Referrer-Policy — controls how referrer data is shared" },
+      detail: t.hasReferrer ? "Referrer-Policy header set" : "No Referrer-Policy: controls how referrer data is shared" },
     { status: t.hasPrivacyLink ? "pass" : "warn", label: "Privacy & terms pages",
-      detail: t.hasPrivacyLink ? "Privacy or terms page linked — trust signal" : "No privacy/terms link found on homepage" },
+      detail: t.hasPrivacyLink ? "Privacy or terms page linked: trust signal" : "No privacy/terms link found on homepage" },
   ];
 
   // Category 7: Content Quality & EEAT
@@ -464,17 +464,17 @@ function computeScores(t: Tech): {
     : "fail";
   const contentChecks: CheckItem[] = [
     { status: wordCountStatus, label: "Homepage word count",
-      detail: t.homepageWordCount + " words" + (t.homepageWordCount < 300 ? " — aim for 300+ for content depth" : " — good content volume") },
+      detail: t.homepageWordCount + " words" + (t.homepageWordCount < 300 ? ", aim for 300+ for content depth" : ", good content volume") },
     { status: readabilityStatus, label: "Readability (sentence length)",
-      detail: t.avgSentenceWords > 0 ? "Avg " + t.avgSentenceWords + " words/sentence" + (t.avgSentenceWords > 20 ? " — simplify for better readability" : " — readable") : "Could not measure" },
+      detail: t.avgSentenceWords > 0 ? "Avg " + t.avgSentenceWords + " words/sentence" + (t.avgSentenceWords > 20 ? ", simplify for better readability" : ", readable") : "Could not measure" },
     { status: t.hasAuthorSchema ? "pass" : "warn", label: "Author / Person schema (EEAT)",
-      detail: t.hasAuthorSchema ? "Author schema found — strong EEAT signal" : "No author schema — add Person/Author markup for EEAT" },
+      detail: t.hasAuthorSchema ? "Author schema found: strong EEAT signal" : "No author schema: add Person/Author markup for EEAT" },
     { status: t.hasReviewSchema || t.hasFAQSchema ? "pass" : "warn", label: "Review or FAQ schema",
-      detail: t.hasReviewSchema ? "Review/AggregateRating schema found" : t.hasFAQSchema ? "FAQPage schema found" : "No Review or FAQ schema — add for rich results" },
+      detail: t.hasReviewSchema ? "Review/AggregateRating schema found" : t.hasFAQSchema ? "FAQPage schema found" : "No Review or FAQ schema: add for rich results" },
     { status: t.hasAboutLink ? "pass" : "warn", label: "About page linked (EEAT)",
-      detail: t.hasAboutLink ? "About page linked from homepage — trust signal" : "No about page link found — add for EEAT" },
+      detail: t.hasAboutLink ? "About page linked from homepage: trust signal" : "No about page link found: add for EEAT" },
     { status: t.hasContactLink ? "pass" : "warn", label: "Contact info accessible (EEAT)",
-      detail: t.hasContactLink ? "Contact link or email found — accessible to users" : "No contact link found — critical for EEAT" },
+      detail: t.hasContactLink ? "Contact link or email found: accessible to users" : "No contact link found: critical for EEAT" },
   ];
 
   const categories: ScoredCategory[] = [
@@ -530,7 +530,7 @@ function buildPrompt(url: string, t: Tech, customTemplate?: string): string {
     "BOTS ALLOWED: " + t.allowedCount + "/" + AI_BOTS.length + "\n" +
     "BLOCKED AI PLATFORMS: " + (t.blocked.length > 0
       ? t.blocked.map(b => b.label + " (" + (b.access.blockType === "global_block" ? "via User-agent:* wildcard" : "direct Disallow:/") + ")").join(", ")
-      : "None — all AI platforms accessible") + "\n" +
+      : "None: all AI platforms accessible") + "\n" +
     "LLMS.TXT: " + (t.llmsFound ? "found" : "not found") + "\n" +
     "LLMS-FULL.TXT: " + (t.llmsFullFound ? "found" : "not found") + "\n" +
     "JSON-LD: " + (t.jsonLd.found ? "found, types: " + t.jsonLd.types.slice(0,3).join(", ") : "not found") + "\n" +
@@ -837,7 +837,7 @@ async function callDuckDuckGoAI(_prompt: string): Promise<object> {
 
 async function callMetaAI(prompt: string, model = "meta-llama/Llama-3.3-70B-Instruct-Turbo"): Promise<object> {
   const apiKey = process.env.META_AI_API_KEY;
-  if (!apiKey) throw new Error("META_AI_API_KEY not configured — use a Together AI key for Meta Llama models");
+  if (!apiKey) throw new Error("META_AI_API_KEY not configured: use a Together AI key for Meta Llama models");
 
   const res = await fetch("https://api.together.xyz/v1/chat/completions", {
     method: "POST",
@@ -1162,15 +1162,15 @@ function citationQuery(companyName: string, companyUrl: string, customTemplate?:
   return (
     "Act as an elite Go-To-Market (GTM) Strategist and Generative Engine Optimization (GEO) expert.\n" +
     "I want you to run a deep-dive competitive landscape and GEO analysis for the following company:\n" +
-    "* Company Name & URL: " + companyName + " — " + companyUrl + "\n\n" +
+    "* Company Name & URL: " + companyName + " (" + companyUrl + ")" + "\n\n" +
     "Phase 1: Live Research & Context Gathering\n\n" +
-    "Before generating any analysis, you MUST search the web to research and establish ALL of the following about this company. Do not skip any item — each one feeds directly into the analysis:\n\n" +
+    "Before generating any analysis, you MUST search the web to research and establish ALL of the following about this company. Do not skip any item. Each one feeds directly into the analysis:\n\n" +
     "1. Core Product/Service: What exactly do they sell or offer? Who is the primary target buyer persona?\n" +
     "2. Industry & Category Term: What industry do they operate in? What is the most accurate category term for their space (e.g., \"Agentic AI Support\", \"Recruitment CRM\", \"Revenue Intelligence Platform\")? Use the term their competitors and analysts use, not generic labels.\n" +
     "3. Legal Entity & Compliance: What is their registered legal entity name? Where is their HQ? Do they hold any compliance certifications (SOC 2, ISO 27001, GDPR-ready, HIPAA, FCA-regulated, etc.)? If you cannot find certifications, state that explicitly.\n" +
     "4. Key Personnel: Who are the founders and key executives? Any notable prior employers (ex-Google, ex-McKinsey, etc.) or domain expertise that builds credibility?\n" +
     "5. Recent Momentum: Any recent funding rounds, accelerator participation, partnerships, or press coverage?\n" +
-    "6. Primary Competitor: Based on your research, identify their single most dominant competitor — the brand a buyer would most likely evaluate them against.\n" +
+    "6. Primary Competitor: Based on your research, identify their single most dominant competitor: the brand a buyer would most likely evaluate them against.\n" +
     "7. Target Keyword/Prompt: What is the most commercially valuable search query or AI prompt that a potential buyer would use when looking for a solution in this company's category? (e.g., \"best AI compliance tool\", \"CoStar alternative\", \"automated accounts payable software\")\n" +
     "8. Current Web Presence: Assess the quality and focus of their existing blog posts, case studies, whitepapers, and landing pages. Are they publishing content that targets their category term? Is it generic or specific?\n\n" +
     "Phase 2: The Analysis Generation\n\n" +
@@ -1179,9 +1179,9 @@ function citationQuery(companyName: string, companyUrl: string, customTemplate?:
     "Write a brief, punchy introduction explaining the specific, nuanced market this company operates in. Define the main legacy problem they are trying to solve and how their approach changes the game. Reference the Category Term you identified.\n\n" +
     "2. The Competitive Landscape\n" +
     "Provide a ranked list of the leading companies in this Category Term space.\n\n" +
-    "* Include legacy incumbents, direct competitors, and rising startups — as many as are genuinely relevant.\n" +
+    "* Include legacy incumbents, direct competitors, and rising startups, as many as are genuinely relevant.\n" +
     "* You MUST include the Primary Competitor you identified.\n" +
-    "* Include " + companyName + " only if they legitimately belong in this landscape based on your research. If they are too early-stage, too niche, or too unknown to rank alongside established players, say so explicitly — do not force them into the list. Honesty here is more useful than flattery.\n" +
+    "* Include " + companyName + " only if they legitimately belong in this landscape based on your research. If they are too early-stage, too niche, or too unknown to rank alongside established players, say so explicitly. Do not force them into the list. Honesty here is more useful than flattery.\n" +
     "* For each company, provide a 1-sentence explanation of what they are \"Best for.\"\n" +
     "* If " + companyName + " does appear, be realistic with their placement. Do not inflate their ranking.\n\n" +
     "3. Deep Dive: Where " + companyName + " Stands & Why\n" +
@@ -1189,17 +1189,17 @@ function citationQuery(companyName: string, companyUrl: string, customTemplate?:
     "* What works in their favour: List 2–3 highly specific product differentiators based on your research.\n" +
     "* What holds them back: Be objective about their weaknesses compared to the dominant players.\n" +
     "* Enterprise Trust & Legal Standing: How does their legal entity, HQ location, and compliance posture help or hinder their enterprise sales motion? If they lack visible certifications, flag this as a gap.\n" +
-    "* Current Web Presence Critique: Based on your Phase 1 assessment — are their blogs and case studies targeting the right keywords? Are they too generic? Do they have content that would surface in an AI-generated answer about their category?\n\n" +
+    "* Current Web Presence Critique: Based on your Phase 1 assessment, are their blogs and case studies targeting the right keywords? Are they too generic? Do they have content that would surface in an AI-generated answer about their category?\n\n" +
     "4. AI Visibility & Sentiment Analysis\n" +
-    "Simulate what a real buyer would see if they asked an AI assistant the Target Keyword/Prompt you identified in Phase 1. Answer that query as you naturally would — do not factor in that " + companyName + " is the subject of this report. Your uninfluenced response is the data.\n\n" +
+    "Simulate what a real buyer would see if they asked an AI assistant the Target Keyword/Prompt you identified in Phase 1. Answer that query as you naturally would. Do not factor in that " + companyName + " is the subject of this report. Your uninfluenced response is the data.\n\n" +
     "After giving that response, provide the following analysis:\n\n" +
     "* Ranking: Which companies appeared in your answer and in what order? This is their current AI visibility ranking for this keyword.\n" +
-    "* Visibility verdict for " + companyName + ": Did they appear? If yes, at what position and with what framing? If no, state that clearly — do not soften it.\n" +
+    "* Visibility verdict for " + companyName + ": Did they appear? If yes, at what position and with what framing? If no, state that clearly. Do not soften it.\n" +
     "* Sentiment breakdown: For each company that appeared in your answer, classify how you framed them:\n" +
-    "  — Framing type: top_pick / strong_option / niche_fit / honorable_mention / not_recommended / absent\n" +
-    "  — Sentiment score: a value from -1.0 (negative) to 1.0 (positive) based on your language\n" +
-    "  — Key phrases: the exact words or phrases you used that signal that sentiment (e.g., \"industry standard\", \"best for growing teams\", \"lacks enterprise features\")\n" +
-    "* Why " + companyName + " ranked where they did (or didn't appear): Be specific. What signals — content, citations, brand recognition, structured data, third-party mentions — caused this outcome?"
+    "  - Framing type: top_pick / strong_option / niche_fit / honorable_mention / not_recommended / absent\n" +
+    "  - Sentiment score: a value from -1.0 (negative) to 1.0 (positive) based on your language\n" +
+    "  - Key phrases: the exact words or phrases you used that signal that sentiment (e.g., \"industry standard\", \"best for growing teams\", \"lacks enterprise features\")\n" +
+    "* Why " + companyName + " ranked where they did (or didn't appear): Be specific. What signals (content, citations, brand recognition, structured data, third-party mentions) caused this outcome?"
   );
 }
 

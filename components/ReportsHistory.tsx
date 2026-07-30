@@ -89,7 +89,7 @@ function EmptyState() {
       </div>
       <p className="text-sm font-medium text-[var(--text)] mb-1">No reports yet</p>
       <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
-        Scan your first website — it will appear here for quick re-access.
+        Scan your first website. It will appear here for quick re-access.
       </p>
     </div>
   );

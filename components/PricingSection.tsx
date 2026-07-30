@@ -67,7 +67,7 @@ export default function PricingSection() {
           Simple, usage-based pricing
         </h2>
         <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Currently invite-only during beta — join the waitlist to lock in early pricing.
+          Currently invite-only during beta. Join the waitlist to lock in early pricing.
         </p>
       </Reveal>
 

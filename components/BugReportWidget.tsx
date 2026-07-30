@@ -35,7 +35,7 @@ export default function BugReportWidget() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setError(data?.error?.message ?? "Failed to submit — try again.");
+        setError(data?.error?.message ?? "Failed to submit. Try again.");
         return;
       }
       setDone(true);
@@ -43,7 +43,7 @@ export default function BugReportWidget() {
       setDescription("");
       setSeverity("medium");
     } catch {
-      setError("Failed to submit — try again.");
+      setError("Failed to submit. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -80,7 +80,7 @@ export default function BugReportWidget() {
 
             {done ? (
               <div className="text-[13px] rounded-lg px-3 py-3 border text-center" style={{ color: "var(--accent)", background: "rgba(0,229,255,0.08)", borderColor: "rgba(0,229,255,0.25)" }}>
-                Thanks — we&apos;ll take a look.
+                Thanks. We&apos;ll take a look.
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-3">
@@ -107,10 +107,10 @@ export default function BugReportWidget() {
                   className="w-full px-3 py-2.5 rounded-lg border text-sm"
                   style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 >
-                  <option value="low">Low — minor annoyance</option>
-                  <option value="medium">Medium — got in the way</option>
-                  <option value="high">High — blocked me</option>
-                  <option value="critical">Critical — lost data / broken</option>
+                  <option value="low">Low: minor annoyance</option>
+                  <option value="medium">Medium: got in the way</option>
+                  <option value="high">High: blocked me</option>
+                  <option value="critical">Critical: lost data / broken</option>
                 </select>
 
                 {error && (

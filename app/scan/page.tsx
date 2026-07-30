@@ -265,7 +265,7 @@ export default function ScanPage() {
         className="text-center py-8 text-[13px] border-t"
         style={{ color: "var(--text-muted)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
       >
-        <div className="mb-1">Powered by Gemini · ChatGPT · Perplexity — results merged &amp; averaged</div>
+        <div className="mb-1">Powered by Gemini · ChatGPT · Perplexity: results merged &amp; averaged</div>
         <div className="text-[15px] font-bold" style={{ color: "var(--text-dim)" }}>By Marcstrat</div>
       </footer>
     </div>

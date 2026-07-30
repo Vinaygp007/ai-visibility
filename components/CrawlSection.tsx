@@ -156,7 +156,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           <div className="text-2xl mb-3">🕷️</div>
           <p className="text-sm font-medium text-[var(--text)] mb-1">Deep Technical Crawl</p>
           <p className="text-[12px] max-w-sm mx-auto leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            Crawls up to 20 pages — checks status codes, broken links, word count, H1/H2 structure,
+            Crawls up to 20 pages: checks status codes, broken links, word count, H1/H2 structure,
             text ratio, meta titles, and more. Takes 10–30 seconds.
           </p>
         </div>
@@ -256,7 +256,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           {result.orphanPages.length > 0 && (
             <div className="rounded-xl border p-4 mb-4" style={{ background: "rgba(255,184,48,0.04)", borderColor: "rgba(255,184,48,0.15)" }}>
               <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--warning)" }}>
-                Orphan Pages — {result.orphanPages.length} (no inbound links)
+                Orphan Pages: {result.orphanPages.length} (no inbound links)
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {result.orphanPages.map(u => (
@@ -352,12 +352,12 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
 
                       {/* Word count */}
                       <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.wordCount < 100 ? "var(--warning)" : "var(--text-muted)") : "var(--text-muted)" }}>
-                        {isOk ? page.wordCount : "—"}
+                        {isOk ? page.wordCount : "-"}
                       </td>
 
                       {/* H1 */}
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        {!isOk ? <span style={{ color: "var(--text-muted)" }}>—</span>
+                        {!isOk ? <span style={{ color: "var(--text-muted)" }}>-</span>
                           : page.h1Count === 0 ? <span style={{ color: "var(--danger)" }}>✕</span>
                           : page.h1Count > 1 ? <span style={{ color: "var(--warning)" }}>{page.h1Count}x</span>
                           : <span style={{ color: "var(--success)" }}>✓</span>}
@@ -365,17 +365,17 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
 
                       {/* H2 count */}
                       <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                        {isOk ? page.h2Count : "—"}
+                        {isOk ? page.h2Count : "-"}
                       </td>
 
                       {/* Text ratio */}
                       <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: isOk ? (page.textRatioPercent < 10 ? "var(--warning)" : "var(--text-muted)") : "var(--text-muted)" }}>
-                        {isOk ? page.textRatioPercent + "%" : "—"}
+                        {isOk ? page.textRatioPercent + "%" : "-"}
                       </td>
 
                       {/* Title length */}
                       <td className="px-3 py-2.5 font-mono whitespace-nowrap" style={{ color: titleColor }}>
-                        {titleLen > 0 ? titleLen + " ch" : "—"}
+                        {titleLen > 0 ? titleLen + " ch" : "-"}
                       </td>
 
                       {/* Link depth */}

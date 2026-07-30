@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, clientIp } from "@/lib/rateLimit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { captureEvent } from "@/lib/analytics/posthog";
@@ -16,12 +17,24 @@ const bodySchema = z.object({
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
 
-  const allowed = await checkRateLimit(`waitlist:ip:${ip}`, 5, 60 * 60_000);
-  if (!allowed) {
-    return NextResponse.json(
-      { error: { code: "rate_limited", message: "Too many submissions. Try again later." } },
-      { status: 429 }
-    );
+  // An already-authenticated caller (e.g. just completed Google OAuth and is
+  // being auto-registered from the waitlist page) proved they're human via
+  // the OAuth flow itself, and it's one call per sign-in rather than an
+  // arbitrarily-repeatable public form submission — skip both the IP rate
+  // limit (shared with the anonymous form, and trivially exhausted by
+  // middleware repeatedly bouncing a pending account back to this page) and
+  // the Turnstile check (no widget was ever shown to them).
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    const allowed = await checkRateLimit(`waitlist:ip:${ip}`, 5, 60 * 60_000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: { code: "rate_limited", message: "Too many submissions. Try again later." } },
+        { status: 429 }
+      );
+    }
   }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
@@ -32,10 +45,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const captchaOk = await verifyTurnstile(parsed.data.turnstileToken ?? "", ip);
+  const captchaOk = user ? true : await verifyTurnstile(parsed.data.turnstileToken ?? "", ip);
   if (!captchaOk) {
     return NextResponse.json(
-      { error: { code: "captcha_failed", message: "Verification failed — please try again." } },
+      { error: { code: "captcha_failed", message: "Verification failed. Please try again." } },
       { status: 422 }
     );
   }

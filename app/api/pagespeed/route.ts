@@ -44,8 +44,8 @@ function metricScore(audit: Record<string, unknown> | undefined): number | null 
 }
 
 function metricDisplay(audit: Record<string, unknown> | undefined): string {
-  if (!audit) return "—";
-  return String(audit.displayValue ?? "—");
+  if (!audit) return "-";
+  return String(audit.displayValue ?? "-");
 }
 
 function numericVal(audit: Record<string, unknown> | undefined): number | undefined {
@@ -83,9 +83,9 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
     const raw = String(err);
     const friendly =
       raw.includes("abort") || raw.includes("Abort")
-        ? "Speed test timed out (45s) — the URL may be slow or PSI unavailable"
+        ? "Speed test timed out (45s). The URL may be slow or PSI unavailable"
         : raw.includes("fetch failed") || raw.includes("ENOTFOUND") || raw.includes("ECONNREFUSED")
-        ? "Cannot reach Google PageSpeed API — ensure the URL is publicly accessible and internet is available. Add PAGESPEED_API_KEY to .env for higher rate limits."
+        ? "Cannot reach Google PageSpeed API. Ensure the URL is publicly accessible and internet is available. Add PAGESPEED_API_KEY to .env for higher rate limits."
         : raw.slice(0, 200);
     return emptyResult(strategy, friendly);
   } finally {
@@ -159,7 +159,7 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
 }
 
 function emptyResult(strategy: "mobile" | "desktop", error: string): SpeedResult {
-  const empty: MetricValue = { displayValue: "—", score: null };
+  const empty: MetricValue = { displayValue: "-", score: null };
   return {
     strategy, performanceScore: null,
     metrics: { lcp: empty, cls: empty, inp: empty, fcp: empty, ttfb: empty, tbt: empty },

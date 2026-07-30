@@ -19,7 +19,7 @@ function Mark({ value }: { value: MarkValue }) {
   if (value === "partial") {
     return <span style={{ color: "var(--warning)" }}>~</span>;
   }
-  return <span style={{ color: "var(--text-dim)" }}>—</span>;
+  return <span style={{ color: "var(--text-dim)" }}>-</span>;
 }
 
 export default function ComparisonSection() {

@@ -1,4 +1,6 @@
 import Reveal from "@/components/Reveal";
+import { Zap, MessagesSquare } from "lucide-react";
+import { ICON_GRADIENT, ICON_GRADIENT_FALLBACK } from "@/lib/iconGradient";
 
 const BULK_SCAN_ROWS = [
   { url: "acmehq.com", score: 92, color: "var(--success)" },
@@ -31,13 +33,13 @@ export default function BulkToolsSection() {
             className="rounded-2xl border p-7 h-full transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent2)] hover:shadow-lg"
             style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
           >
-            <div className="text-2xl mb-3">⚡</div>
+            <div className="mb-3"><Zap size={26} color={ICON_GRADIENT} style={{ color: ICON_GRADIENT_FALLBACK }} /></div>
             <h3 className="text-[17px] font-semibold mb-2" style={{ color: "var(--text)" }}>
-              Bulk Scanner — up to 500 sites at once
+              Bulk Scanner: up to 500 sites at once
             </h3>
             <p className="text-[13.5px] leading-relaxed mb-5" style={{ color: "var(--text-muted)" }}>
               Paste a list of URLs or upload a .txt / .csv file. Every site is scanned in parallel and results stream
-              in as each one finishes — built for auditing an entire client list in one pass instead of one scan at a
+              in as each one finishes. Built for auditing an entire client list in one pass instead of one scan at a
               time.
             </p>
             <div
@@ -63,31 +65,31 @@ export default function BulkToolsSection() {
             className="rounded-2xl border p-7 h-full transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent2)] hover:shadow-lg"
             style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
           >
-            <div className="text-2xl mb-3">💬</div>
+            <div className="mb-3"><MessagesSquare size={26} color={ICON_GRADIENT} style={{ color: ICON_GRADIENT_FALLBACK }} /></div>
             <h3 className="text-[17px] font-semibold mb-2" style={{ color: "var(--text)" }}>
-              Bulk Prompt Runner — up to 100 prompts in parallel
+              Bulk Prompt Runner: up to 100 prompts in parallel
             </h3>
             <p className="text-[13.5px] leading-relaxed mb-5" style={{ color: "var(--text-muted)" }}>
-              Run the exact buyer-intent questions your customers ask AI — "best CRM for startups," "top project
-              management tools for remote teams" — across Gemini, ChatGPT and Perplexity at once, and see whether
-              you're the answer they get back.
+              Run the exact buyer-intent questions your customers ask AI, like "best CRM for startups" or "top
+              project management tools for remote teams," across Gemini, ChatGPT and Perplexity at once, and see
+              whether you're the answer they get back.
             </p>
             <div
               className="rounded-xl border p-3.5 space-y-2"
               style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
             >
               <div className="text-[11.5px] font-mono" style={{ color: "var(--text-dim)" }}>
-                "Best 5 CRM platforms for startups — rank them with pros, cons, and pricing."
+                "Best 5 CRM platforms for startups: rank them with pros, cons, and pricing."
               </div>
               <div
                 className="text-[11.5px] leading-relaxed rounded-lg px-2.5 py-2"
                 style={{ background: "rgba(0,229,255,0.06)", color: "var(--text-muted)" }}
               >
-                1. <span style={{ color: "var(--accent)" }}>Acme CRM</span> — free tier, strong automation…
+                1. <span style={{ color: "var(--accent)" }}>Acme CRM</span>: free tier, strong automation…
               </div>
             </div>
             <p className="text-[11.5px] mt-4" style={{ color: "var(--text-dim)" }}>
-              Runs on your existing scan credits — no separate tool to buy.
+              Runs on your existing scan credits. No separate tool to buy.
             </p>
           </div>
         </Reveal>

@@ -35,7 +35,7 @@ export default function HeroCTA() {
       </div>
       {checked && !authed && (
         <p className="animate-fade-up fade-up-4 text-[12px]" style={{ color: "var(--text-dim)" }}>
-          Invite-only beta — agencies and active SEO/GEO practitioners get priority access.
+          Invite-only beta. Agencies and active SEO/GEO practitioners get priority access.
         </p>
       )}
     </>

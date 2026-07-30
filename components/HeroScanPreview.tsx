@@ -57,7 +57,7 @@ function ProviderDial({ name, color, score, active }: { name: string; color: str
           className="absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums"
           style={{ color: active ? color : "var(--text-dim)" }}
         >
-          {active ? score : "—"}
+          {active ? score : "-"}
         </div>
       </div>
       <span className="text-[9px] font-mono" style={{ color: "var(--text-dim)" }}>{name}</span>
@@ -261,7 +261,7 @@ export default function HeroScanPreview() {
       </div>
 
       <p className="text-[10px] text-center mt-4" style={{ color: "var(--text-dim)" }}>
-        Illustrative preview — run a real scan after you're in
+        Illustrative preview. Run a real scan after you're in
       </p>
     </div>
   );

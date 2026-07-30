@@ -190,9 +190,9 @@ export default function AdminProvidersPage() {
                       apiKeyDrafts[provider.id] !== undefined
                         ? ""
                         : provider.keySource === "database"
-                          ? "•••••••••••••• (stored — leave blank to keep)"
+                          ? "•••••••••••••• (stored: leave blank to keep)"
                           : provider.keySource === "env"
-                            ? "Using server env var — leave blank to keep"
+                            ? "Using server env var: leave blank to keep"
                             : "No key set"
                     }
                     className="flex-1 px-4 py-2 rounded-xl border text-sm"
@@ -213,8 +213,8 @@ export default function AdminProvidersPage() {
                   {provider.keySource === "database"
                     ? "Stored in the database, overrides the server env var."
                     : provider.keySource === "env"
-                      ? "Falling back to the server env var — set one here to override without redeploying."
-                      : "No key available from the database or server env vars — this provider will be skipped."}
+                      ? "Falling back to the server env var. Set one here to override without redeploying."
+                      : "No key available from the database or server env vars. This provider will be skipped."}
                 </p>
               </div>
             </div>
@@ -312,7 +312,7 @@ export default function AdminProvidersPage() {
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
           <strong className="text-[var(--text)]">💡 Note:</strong> API keys entered here are stored in the database and
           take priority over server environment variables. Leave a key field blank to keep whatever's already
-          stored — the actual value is never shown again once saved.
+          stored. The actual value is never shown again once saved.
         </p>
       </div>
     </div>

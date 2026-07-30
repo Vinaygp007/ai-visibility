@@ -1,23 +1,25 @@
 import Reveal from "@/components/Reveal";
+import { Link2, ScanSearch, Sparkles, ClipboardCheck } from "lucide-react";
+import { ICON_GRADIENT, ICON_GRADIENT_FALLBACK } from "@/lib/iconGradient";
 
 const STEPS = [
   {
-    icon: "🔗",
+    Icon: Link2,
     title: "Paste your URL",
-    body: "Drop in your homepage — no setup, no tracking script to install, no account needed to see how it works.",
+    body: "Drop in your homepage: no setup, no tracking script to install, no account needed to see how it works.",
   },
   {
-    icon: "🕷️",
+    Icon: ScanSearch,
     title: "We fetch & scan",
     body: "robots.txt and llms.txt are fetched, then your HTML, meta tags and structured data are scanned, and 14 AI bot permissions are checked.",
   },
   {
-    icon: "✦",
+    Icon: Sparkles,
     title: "Gemini, ChatGPT & Perplexity run in parallel",
-    body: "All three independently audit AI-crawler access and research how — or whether — AI answers already reference your brand.",
+    body: "All three independently audit AI-crawler access and research how (or whether) AI answers already reference your brand.",
   },
   {
-    icon: "📋",
+    Icon: ClipboardCheck,
     title: "Get one merged score + fixes",
     body: "Results are averaged into a single AI Visibility Score with a prioritized list of what to fix first, from quick wins to structural changes.",
   },
@@ -37,7 +39,7 @@ export default function HowItWorksSection() {
           From URL to AI-visibility score in under a minute
         </h2>
         <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          No crawler to configure, no dashboard to learn first — one input, one report.
+          No crawler to configure, no dashboard to learn first: one input, one report.
         </p>
       </Reveal>
 
@@ -62,7 +64,9 @@ export default function HowItWorksSection() {
             >
               {i + 1}
             </div>
-            <div className="text-xl mb-2">{step.icon}</div>
+            <div className="mb-2 flex justify-center md:justify-start">
+              <step.Icon size={22} color={ICON_GRADIENT} style={{ color: ICON_GRADIENT_FALLBACK }} />
+            </div>
             <h3 className="text-[15px] font-semibold mb-2" style={{ color: "var(--text)" }}>{step.title}</h3>
             <p className="text-[13.5px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{step.body}</p>
           </Reveal>

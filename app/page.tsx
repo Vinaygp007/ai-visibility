@@ -13,6 +13,7 @@ import HeroScanPreview from "@/components/HeroScanPreview";
 import HeroCTA from "@/components/HeroCTA";
 import BottomCTA from "@/components/BottomCTA";
 import Footer from "@/components/Footer";
+import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "@/components/ProviderIcons";
 
 const FEATURE_CHIPS = [
   "14 AI Bots Checked",
@@ -23,9 +24,9 @@ const FEATURE_CHIPS = [
 ];
 
 const PROVIDERS = [
-  { name: "Gemini 2.0", icon: "✦", color: "#4285f4" },
-  { name: "ChatGPT", icon: "⬡", color: "#10a37f" },
-  { name: "Perplexity", icon: "◎", color: "#20b2aa" },
+  { name: "Gemini 2.0", Icon: GeminiIcon, color: "#4285f4" },
+  { name: "ChatGPT", Icon: ChatGPTIcon, color: "#10a37f" },
+  { name: "Perplexity", Icon: PerplexityIcon, color: "#20b2aa" },
 ];
 
 export default function LandingPage() {
@@ -88,7 +89,7 @@ export default function LandingPage() {
                   className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl border transition-transform hover:-translate-y-0.5"
                   style={{ color: p.color, background: `${p.color}12`, borderColor: `${p.color}35` }}
                 >
-                  <span style={{ fontSize: 13 }}>{p.icon}</span>
+                  <p.Icon size={18} className="shrink-0" />
                   {p.name}
                 </span>
               ))}

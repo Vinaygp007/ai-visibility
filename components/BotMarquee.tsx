@@ -1,7 +1,6 @@
 const BOTS = [
-  "GPTBot", "OAI-SearchBot", "ClaudeBot", "anthropic-ai", "PerplexityBot",
-  "Googlebot-Extended", "meta-externalagent", "cohere-ai", "Bytespider",
-  "CCBot", "Amazonbot", "YouBot", "Applebot-Extended", "DuckAssistBot",
+  "GPTBot", "OAI-SearchBot", "ClaudeBot", "anthropic-ai",
+  "PerplexityBot", "Googlebot-Extended", "meta-externalagent",
 ];
 
 export default function BotMarquee() {

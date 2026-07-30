@@ -64,7 +64,7 @@ function gradeColor(grade?: string) {
 }
 
 function durationLabel(ms?: number) {
-  if (!ms) return "—";
+  if (!ms) return "-";
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
@@ -157,7 +157,7 @@ async function exportPdf(rows: BulkRow[], plan: UserPlan) {
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(20, 20, 20);
-  doc.text(isWhiteLabel ? "AI Visibility Bulk Report" : "AiScope — AI Visibility Bulk Report", MARGIN, y);
+  doc.text(isWhiteLabel ? "AI Visibility Bulk Report" : "AiScope: AI Visibility Bulk Report", MARGIN, y);
   y += 8;
 
   doc.setFontSize(9);
@@ -198,7 +198,7 @@ async function exportPdf(rows: BulkRow[], plan: UserPlan) {
     writeLabel("Top Performers");
     topRows.forEach((row, i) => {
       const name = (row.site_name || row.url.replace(/^https?:\/\//, "")).slice(0, 60);
-      writeLine(`${i + 1}. ${name}  —  Score: ${row.score ?? "—"}  Grade: ${row.grade ?? "—"}`, 9);
+      writeLine(`${i + 1}. ${name}: Score: ${row.score ?? "-"}  Grade: ${row.grade ?? "-"}`, 9);
     });
     y += 4;
   }
@@ -234,7 +234,7 @@ async function exportPdf(rows: BulkRow[], plan: UserPlan) {
 
     writeLine(`${idx + 1}. [${status}]  ${url}`, 9, "bold");
     if (name) writeLine(`   ${name}`, 8, "normal", 4);
-    if (row.score != null) writeLine(`   Score: ${row.score}/100   Grade: ${row.grade ?? "—"}   Time: ${dur}`, 8, "normal", 4);
+    if (row.score != null) writeLine(`   Score: ${row.score}/100   Grade: ${row.grade ?? "-"}   Time: ${dur}`, 8, "normal", 4);
     if (row.summary) writeLine(`   ${row.summary}`, 8, "italic", 4);
     if (row.error)   writeLine(`   Error: ${row.error}`, 8, "italic", 4);
     y += 3;
@@ -254,7 +254,7 @@ async function exportPdf(rows: BulkRow[], plan: UserPlan) {
     writeLine(siteName, 16, "bold");
     writeLine(row.url, 9, "normal");
     y += 2;
-    writeLine(`Score: ${row.score ?? "—"} / 100   Grade: ${row.grade ?? "—"}`, 10, "bold");
+    writeLine(`Score: ${row.score ?? "-"} / 100   Grade: ${row.grade ?? "-"}`, 10, "bold");
     if (fd.summary) {
       y += 2;
       writeLine(fd.summary, 9, "italic");
@@ -272,7 +272,7 @@ async function exportPdf(rows: BulkRow[], plan: UserPlan) {
       writeLabel("AI Provider Results");
       providers.forEach((p) => {
         const status2 = p.status === "success" ? "OK" : "FAILED";
-        writeLine(`${p.name}  [${status2}]  Score: ${p.score ?? "—"}  Time: ${p.durationMs}ms`, 9, "bold");
+        writeLine(`${p.name}  [${status2}]  Score: ${p.score ?? "-"}  Time: ${p.durationMs}ms`, 9, "bold");
 
         let responseText = "";
         if (p.rawResponse) {
@@ -352,10 +352,10 @@ async function exportPdf(rows: BulkRow[], plan: UserPlan) {
       writeLabel("Category Breakdown");
       fd.categories.forEach((cat) => {
         needsSpace(10);
-        writeLine(`${cat.name}  —  ${cat.score}/100`, 10, "bold");
+        writeLine(`${cat.name}: ${cat.score}/100`, 10, "bold");
         cat.checks.forEach((check) => {
           const sym = check.status === "pass" ? "[+]" : check.status === "warn" ? "[!]" : "[x]";
-          const detail = check.detail ? ` — ${check.detail}` : "";
+          const detail = check.detail ? `: ${check.detail}` : "";
           writeLine(`  ${sym} ${check.label}${detail}`, 8, "normal", 4);
         });
         y += 2;
@@ -391,7 +391,7 @@ async function exportPdf(rows: BulkRow[], plan: UserPlan) {
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(150, 150, 150);
-    if (!isWhiteLabel) doc.text("AiScope Bulk Report — by Marcstrat", MARGIN, PAGE_H - 8);
+    if (!isWhiteLabel) doc.text("AiScope Bulk Report · by Marcstrat", MARGIN, PAGE_H - 8);
     doc.text(`Page ${p} of ${pageCount}`, PAGE_W - MARGIN, PAGE_H - 8, { align: "right" });
   }
 
@@ -676,7 +676,7 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
                         className="text-2xl font-bold tracking-tight"
                         style={{ color: p.score != null ? scoreColor(p.score) : "var(--text-muted)" }}
                       >
-                        {p.score ?? "—"}
+                        {p.score ?? "-"}
                       </div>
                       <div className="text-[10px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>score / 100</div>
                     </div>
@@ -1096,7 +1096,7 @@ export default function BulkPage() {
           >
             {parsedUrls.length === 0
               ? "Paste URLs to begin"
-              : `▶ Start Bulk Scan — ${parsedUrls.length} site${parsedUrls.length > 1 ? "s" : ""}`}
+              : `▶ Start Bulk Scan: ${parsedUrls.length} site${parsedUrls.length > 1 ? "s" : ""}`}
           </button>
 
           <div className="flex flex-wrap gap-4 justify-center mt-6">
@@ -1391,12 +1391,12 @@ export default function BulkPage() {
 
                       {/* Score */}
                       <div className="text-sm font-bold font-mono" style={{ color: sc }}>
-                        {row.score != null ? row.score : "—"}
+                        {row.score != null ? row.score : "-"}
                       </div>
 
                       {/* Grade */}
                       <div className="text-sm font-bold font-mono" style={{ color: gc }}>
-                        {row.grade ?? "—"}
+                        {row.grade ?? "-"}
                       </div>
 
                       {/* Summary / error */}

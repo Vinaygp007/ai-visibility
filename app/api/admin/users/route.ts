@@ -174,9 +174,20 @@ export async function DELETE(req: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // waitlist.email is unique and unrelated to auth.users (no FK), so it
+  // survives the account delete below — grab it first so a re-submission
+  // (form or "Continue with Google") isn't silently swallowed by the old
+  // invited/rejected row once the account is gone.
+  const { data: profile } = await admin.from("profiles").select("email").eq("id", userId).single();
+
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) {
     return NextResponse.json({ error: { code: "internal", message: "Failed to delete user." } }, { status: 500, headers: CORS_HEADERS });
+  }
+
+  if (profile?.email) {
+    await admin.from("waitlist").delete().eq("email", profile.email.toLowerCase());
   }
 
   await logAdminAction({

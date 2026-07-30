@@ -17,7 +17,7 @@ export default function BottomCTA() {
           <p className="text-[15px] mb-7" style={{ color: "var(--text-muted)" }}>
             {authed
               ? "Jump back in and audit another URL."
-              : "Join the waitlist to get scanning — early access goes out on a rolling basis."}
+              : "Join the waitlist to get scanning. Early access goes out on a rolling basis."}
           </p>
           <Link
             href={authed ? "/scan" : "/waitlist"}

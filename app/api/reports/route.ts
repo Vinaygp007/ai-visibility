@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         url: (d.url as string) ?? row.url ?? "",
         site_name: (d.site_name as string) ?? row.url ?? "",
         overall_score: (d.overall_score as number) ?? 0,
-        grade: (d.grade as string) ?? "—",
+        grade: (d.grade as string) ?? "-",
         summary: (d.summary as string) ?? "",
         createdAt: row.created_at ? new Date(row.created_at).getTime() : null,
         _cached: (d._cached as boolean) ?? false,

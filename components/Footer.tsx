@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "./ProviderIcons";
 
 const PROVIDERS = [
-  { name: "Gemini", color: "#4285f4" },
-  { name: "ChatGPT", color: "#10a37f" },
-  { name: "Perplexity", color: "#20b2aa" },
+  { name: "Gemini", Icon: GeminiIcon, color: "#4285f4" },
+  { name: "ChatGPT", Icon: ChatGPTIcon, color: "#10a37f" },
+  { name: "Perplexity", Icon: PerplexityIcon, color: "#20b2aa" },
 ];
 
 const PRODUCT_LINKS = [
@@ -76,7 +77,7 @@ export default function Footer() {
                   className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1 rounded-full border"
                   style={{ color: p.color, background: `${p.color}12`, borderColor: `${p.color}35` }}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: p.color }} />
+                  <p.Icon size={14} className="shrink-0" />
                   {p.name}
                 </span>
               ))}

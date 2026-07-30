@@ -66,10 +66,10 @@ const PROVIDER_CONFIG: Record<string, { color: string; bg: string; border: strin
 const DEFAULT_PROVIDER_CFG = { color: "var(--text-muted)", bg: "rgba(var(--overlay-rgb),0.05)", border: "rgba(var(--overlay-rgb),0.12)", icon: "◎" };
 
 const PROMPT_PRESETS = [
-  "Best 5 CRM platforms for startups — rank them with pros, cons, and pricing URL.",
-  "Top 5 AI writing tools in 2025 — who are they best for? Include website URLs.",
-  "Best project management software for remote teams — compare features and pricing.",
-  "Top 5 email marketing platforms — rank by deliverability, ease of use, and cost.",
+  "Best 5 CRM platforms for startups: rank them with pros, cons, and pricing URL.",
+  "Top 5 AI writing tools in 2025: who are they best for? Include website URLs.",
+  "Best project management software for remote teams: compare features and pricing.",
+  "Top 5 email marketing platforms: rank by deliverability, ease of use, and cost.",
 ];
 
 // ── Markdown renderer ─────────────────────────────────────────────────────
@@ -224,7 +224,7 @@ function PromptCard({
           value={url}
           onChange={(e) => onUpdate(id, { url: e.target.value })}
           disabled={isRunning}
-          placeholder="URL (optional) — e.g. https://example.com"
+          placeholder="URL (optional), e.g. https://example.com"
           style={{
             width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
             borderRadius: 8, padding: "6px 12px", fontSize: 11, fontFamily: "monospace",
@@ -633,7 +633,7 @@ async function exportToPdf(containers: PromptContainer[], plan: UserPlan) {
   };
   const blank = () => { y += LH; };
 
-  writeLine(isWhiteLabel ? "MULTI-PROMPT REPORT" : "AISCOPE — MULTI-PROMPT REPORT", 11, true);
+  writeLine(isWhiteLabel ? "MULTI-PROMPT REPORT" : "AISCOPE: MULTI-PROMPT REPORT", 11, true);
   writeLine(`Generated : ${new Date().toLocaleString()}`);
   writeLine(`Prompts run: ${containers.filter(c => c.status === "done").length} / ${containers.length}`);
   writeLine("=".repeat(76));
@@ -1345,7 +1345,7 @@ export default function MultiPromptPage() {
               Paste JSON
             </p>
             <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 10px" }}>
-              Paste a [&#123; url, prompt &#125;, ...] array — one prompt card gets added per entry.
+              Paste a [&#123; url, prompt &#125;, ...] array. One prompt card gets added per entry.
             </p>
             <textarea
               value={pasteText}

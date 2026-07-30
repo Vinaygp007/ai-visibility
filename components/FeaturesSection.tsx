@@ -1,35 +1,37 @@
 import Reveal from "@/components/Reveal";
+import { Bot, FileText, Tag, Sparkles, MessageSquareQuote, ListChecks } from "lucide-react";
+import { ICON_GRADIENT, ICON_GRADIENT_FALLBACK } from "@/lib/iconGradient";
 
 const FEATURES = [
   {
-    icon: "🤖",
+    Icon: Bot,
     title: "14 AI Bots Checked",
-    desc: "See exactly which AI crawlers — GPTBot, ClaudeBot, PerplexityBot, Google-Extended and 10 more — can and can't reach your site.",
+    desc: "See exactly which AI crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended and 10 more) can and can't reach your site.",
   },
   {
-    icon: "📄",
+    Icon: FileText,
     title: "llms.txt Detection",
     desc: "Find out if you've published an llms.txt file, and what to put in one if you haven't, so AI systems can understand your site faster.",
   },
   {
-    icon: "🏷️",
+    Icon: Tag,
     title: "Structured Data Audit",
     desc: "Check your schema.org markup so AI systems can correctly parse who you are, what you sell, and what to cite.",
   },
   {
-    icon: "✦",
+    Icon: Sparkles,
     title: "3 AI Providers, One Score",
     desc: "Gemini, ChatGPT and Perplexity all run the same audit independently. Results are merged and averaged into a single visibility score.",
   },
   {
-    icon: "💬",
+    Icon: MessageSquareQuote,
     title: "AI Citation Research",
-    desc: "See where AI answers already mention — or ignore — your brand versus competitors for the queries that matter to you.",
+    desc: "See where AI answers already mention (or ignore) your brand versus competitors for the queries that matter to you.",
   },
   {
-    icon: "✅",
+    Icon: ListChecks,
     title: "Prioritized Recommendations",
-    desc: "Not just a score — a ranked fix list, from quick wins to structural changes, so you know what to do next.",
+    desc: "Not just a score: a ranked fix list, from quick wins to structural changes, so you know what to do next.",
   },
 ];
 
@@ -59,10 +61,10 @@ export default function FeaturesSection() {
               style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
             >
               <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center text-xl mb-4"
+                className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
                 style={{ background: "rgba(0,229,255,0.08)" }}
               >
-                {f.icon}
+                <f.Icon size={22} color={ICON_GRADIENT} style={{ color: ICON_GRADIENT_FALLBACK }} />
               </div>
               <h3 className="text-[16px] font-semibold mb-2 text-[var(--text)]">{f.title}</h3>
               <p className="text-[14px] leading-relaxed" style={{ color: "var(--text-muted)" }}>

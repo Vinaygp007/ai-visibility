@@ -54,7 +54,7 @@ export default function CategoryCard({ category }: CategoryCardProps) {
               </div>
               <div style={{ color: "var(--text-muted)" }} className="leading-snug">
                 <span className="font-medium text-[var(--text)]">{check.label}</span>
-                {check.detail ? ` — ${check.detail}` : ""}
+                {check.detail ? `: ${check.detail}` : ""}
               </div>
             </div>
           );

@@ -17,7 +17,7 @@ export default function NotFound() {
           // 404
         </div>
         <h1 className="text-3xl font-bold tracking-tight mb-3" style={{ color: "var(--text)" }}>
-          This page isn't visible to AI — or anyone
+          This page isn't visible to AI, or anyone
         </h1>
         <p className="text-[15px] leading-relaxed mb-8" style={{ color: "var(--text-muted)" }}>
           The page you're looking for doesn't exist or has moved.

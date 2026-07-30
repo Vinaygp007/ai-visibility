@@ -50,7 +50,7 @@ export default function ReferralsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[var(--text)] mb-2">Referrals</h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Share your link — you and your friend each get 25 credits once they run their first scan.
+            Share your link. You and your friend each get 25 credits once they run their first scan.
           </p>
         </div>
 
@@ -89,7 +89,7 @@ export default function ReferralsPage() {
         <div className="rounded-2xl border p-6" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
           <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Your referrals</h3>
           {(!data?.referrals || data.referrals.length === 0) ? (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No referrals yet — share your link above.</p>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No referrals yet. Share your link above.</p>
           ) : (
             <div className="space-y-2">
               {data.referrals.map((r) => (

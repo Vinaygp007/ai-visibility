@@ -60,7 +60,7 @@ async function exportDocx(report: AnalysisResult) {
       children: [
         new TextRun({ text: `${icon}  `, bold: true, color, size: 21 }),
         new TextRun({ text: lbl, size: 21 }),
-        ...(detail ? [new TextRun({ text: `  — ${detail}`, color: "888888", size: 20 })] : []),
+        ...(detail ? [new TextRun({ text: `: ${detail}`, color: "888888", size: 20 })] : []),
       ],
     });
   };
@@ -87,7 +87,7 @@ async function exportDocx(report: AnalysisResult) {
   // ── Meta ──
   children.push(label("Site:", report.site_name));
   children.push(label("URL:", report.url));
-  children.push(label("Score:", `${report.overall_score} / 100  —  Grade: ${report.grade}`));
+  children.push(label("Score:", `${report.overall_score} / 100, Grade: ${report.grade}`));
   children.push(label("Scanned:", scannedAt));
   children.push(divider());
 
@@ -117,7 +117,7 @@ async function exportDocx(report: AnalysisResult) {
           children: [
             new TextRun({ text: `${icon}  `, bold: true, color, size: 21 }),
             new TextRun({ text: platform.replace(/_/g, " "), size: 21, bold: true }),
-            new TextRun({ text: `  —  ${status}`, size: 21, color: "888888" }),
+            new TextRun({ text: `: ${status}`, size: 21, color: "888888" }),
           ],
         })
       );
@@ -129,7 +129,7 @@ async function exportDocx(report: AnalysisResult) {
   if (report.categories?.length) {
     children.push(h1("Detailed Analysis"));
     for (const cat of report.categories) {
-      children.push(h2(`${cat.icon ?? ""} ${cat.name}  —  ${cat.score}/100`));
+      children.push(h2(`${cat.icon ?? ""} ${cat.name}: ${cat.score}/100`));
       for (const chk of cat.checks ?? []) {
         children.push(checkRow(chk.status, chk.label, chk.detail));
       }
@@ -180,7 +180,7 @@ async function exportDocx(report: AnalysisResult) {
   if (report.citations?.length) {
     children.push(h1("AI Citation Queries"));
     for (const c of report.citations) {
-      children.push(h2(`${c.provider}  —  ${c.count} citation${c.count !== 1 ? "s" : ""}`));
+      children.push(h2(`${c.provider}: ${c.count} citation${c.count !== 1 ? "s" : ""}`));
       if (c.systemPrompt) {
         children.push(new Paragraph({ children: [new TextRun({ text: "System Prompt", bold: true, size: 20, color: "555577" })], spacing: { after: 40 } }));
         for (const line of c.systemPrompt.split("\n")) children.push(mono(line));
