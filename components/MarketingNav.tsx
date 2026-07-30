@@ -31,12 +31,10 @@ const ADMIN_LINK = { href: "/admin/providers", label: "Settings" };
 
 function UserMenu({
   name,
-  balance,
   links,
   onLogout,
 }: {
   name: string;
-  balance: number | null;
   links: { href: string; label: string }[];
   onLogout: () => void;
 }) {
@@ -67,15 +65,6 @@ function UserMenu({
           className="absolute right-0 top-full mt-2 rounded-xl border overflow-hidden z-50 min-w-[200px]"
           style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}
         >
-          {balance !== null && (
-            <div
-              className="px-4 py-3 text-[12px] font-mono flex items-center justify-between border-b"
-              style={{ color: "var(--accent)", borderColor: "rgba(var(--overlay-rgb),0.06)" }}
-            >
-              <span style={{ color: "var(--text-dim)" }}>Credits</span>
-              <span className="font-bold">{balance}</span>
-            </div>
-          )}
           {links.map((link) => (
             <Link
               key={link.href}
@@ -138,7 +127,7 @@ export default function MarketingNav() {
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push("/");
     router.refresh();
   }
 
@@ -204,9 +193,19 @@ export default function MarketingNav() {
         className="hidden md:flex items-center gap-3 transition-opacity duration-200"
         style={{ opacity: authChecked ? 1 : 0 }}
       >
-        <ThemeToggle />
         {authed ? (
-          <UserMenu name={displayName} balance={balance} links={accountLinks} onLogout={handleLogout} />
+          <>
+            {balance !== null && (
+              <span
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-mono font-bold"
+                style={{ color: "var(--accent)", background: "rgba(0,229,255,0.08)" }}
+              >
+                <span style={{ color: "var(--text-dim)", fontWeight: 500 }}>Credits</span>
+                {balance}
+              </span>
+            )}
+            <UserMenu name={displayName} links={accountLinks} onLogout={handleLogout} />
+          </>
         ) : (
           <>
             <Link
@@ -225,6 +224,7 @@ export default function MarketingNav() {
             </Link>
           </>
         )}
+        <ThemeToggle />
       </div>
 
       <button
@@ -281,10 +281,10 @@ export default function MarketingNav() {
                   <span className="font-bold">{balance}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between">
-                <button onClick={handleLogout} className="text-[15px] font-medium" style={{ color: "var(--text)" }}>
-                  Log out
-                </button>
+              <button onClick={handleLogout} className="text-[15px] font-medium text-left" style={{ color: "var(--text)" }}>
+                Log out
+              </button>
+              <div className="flex justify-end">
                 <ThemeToggle />
               </div>
             </>
@@ -305,12 +305,9 @@ export default function MarketingNav() {
                 );
               })}
               <div className="h-px" style={{ background: "rgba(var(--overlay-rgb),0.08)" }} />
-              <div className="flex items-center justify-between">
-                <Link href="/login" onClick={() => setMobileOpen(false)} className="text-[15px] font-medium" style={{ color: "var(--text)" }}>
-                  Log in
-                </Link>
-                <ThemeToggle />
-              </div>
+              <Link href="/login" onClick={() => setMobileOpen(false)} className="text-[15px] font-medium" style={{ color: "var(--text)" }}>
+                Log in
+              </Link>
               <Link
                 href="/waitlist"
                 onClick={() => setMobileOpen(false)}
@@ -319,6 +316,9 @@ export default function MarketingNav() {
               >
                 Join Waitlist
               </Link>
+              <div className="flex justify-end">
+                <ThemeToggle />
+              </div>
             </>
           )}
         </div>

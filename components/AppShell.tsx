@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import MarketingNav from "./MarketingNav";
+import Footer from "./Footer";
 import BugReportWidget from "./BugReportWidget";
 import ThemeToggle from "./ThemeToggle";
 
@@ -27,6 +28,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
       {children}
+      {showHeader && <Footer />}
       {showHeader && <BugReportWidget />}
     </>
   );

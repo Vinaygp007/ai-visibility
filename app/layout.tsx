@@ -4,6 +4,8 @@ import AppShell from "@/components/AppShell";
 import PostHogProvider from "@/components/PostHogProvider";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { inter, spaceGrotesk, jetbrainsMono } from "@/lib/fonts";
+import { getCurrentUser } from "@/lib/auth";
+import { CurrentUserProvider } from "@/lib/useCurrentUser";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aiscope.io";
 
@@ -20,11 +22,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const currentUser = await getCurrentUser();
+
   return (
     <html
       lang="en"
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
       <head>
@@ -42,9 +47,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </linearGradient>
           </defs>
         </svg>
-        <PostHogProvider>
-          <AppShell>{children}</AppShell>
-        </PostHogProvider>
+        <CurrentUserProvider initialUser={currentUser}>
+          <PostHogProvider>
+            <AppShell>{children}</AppShell>
+          </PostHogProvider>
+        </CurrentUserProvider>
       </body>
     </html>
   );

@@ -15,7 +15,7 @@ function supabaseAuthErrorMessage(message: string): string {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/scan";
+  const from = searchParams.get("from") || "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

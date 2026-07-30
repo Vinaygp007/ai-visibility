@@ -11,6 +11,7 @@ const bodySchema = z.object({
   fullName: z.string().trim().optional(),
   company: z.string().trim().optional(),
   source: z.string().trim().optional(),
+  ref: z.string().trim().optional(),
   turnstileToken: z.string().optional(),
 });
 
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
     full_name: parsed.data.fullName || null,
     company: parsed.data.company || null,
     source: parsed.data.source || "organic",
+    ref_code: parsed.data.ref || null,
   });
 
   // Unique violation (already on the list) is treated as success — don't

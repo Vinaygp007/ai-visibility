@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Script from "next/script";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -10,7 +11,9 @@ interface TurnstileGlobal {
   render: (el: HTMLElement, opts: { sitekey: string; callback: (token: string) => void }) => void;
 }
 
-export default function WaitlistPage() {
+function WaitlistForm() {
+  const searchParams = useSearchParams();
+  const ref = searchParams.get("ref") ?? "";
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [company, setCompany] = useState("");
@@ -64,6 +67,7 @@ export default function WaitlistPage() {
             email: authedEmail,
             fullName: (data.user?.user_metadata?.full_name as string) || undefined,
             source: "google_oauth",
+            ref: ref || undefined,
           }),
         });
         const resData = await res.json().catch(() => null);
@@ -98,7 +102,7 @@ export default function WaitlistPage() {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, fullName, company, source: "organic", turnstileToken }),
+        body: JSON.stringify({ email, fullName, company, source: "organic", ref: ref || undefined, turnstileToken }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -223,12 +227,20 @@ export default function WaitlistPage() {
 
         <div className="text-center text-[12px] mt-5" style={{ color: "var(--text-dim)" }}>
           Already have an invite?{" "}
-          <a href="/signup" className="underline" style={{ color: "var(--text-muted)" }}>
+          <a href={ref ? `/signup?ref=${encodeURIComponent(ref)}&manual=1` : "/signup"} className="underline" style={{ color: "var(--text-muted)" }}>
             Create an account
           </a>
         </div>
       </div>
       {TURNSTILE_SITE_KEY && <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" />}
     </div>
+  );
+}
+
+export default function WaitlistPage() {
+  return (
+    <Suspense fallback={null}>
+      <WaitlistForm />
+    </Suspense>
   );
 }

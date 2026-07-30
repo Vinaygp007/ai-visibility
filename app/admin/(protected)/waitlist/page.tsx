@@ -8,6 +8,7 @@ interface WaitlistEntry {
   full_name: string | null;
   company: string | null;
   source: string | null;
+  ref_code: string | null;
   status: "pending" | "invited" | "rejected";
   created_at: string;
   inviteCode: string | null;
@@ -39,15 +40,22 @@ export default function AdminWaitlistPage() {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  const inviteLink = (code: string) =>
-    typeof window !== "undefined" ? `${window.location.origin}/signup?invite=${code}` : `/signup?invite=${code}`;
+  // Carries the original ref code forward, if this person came in through a
+  // referral link and was later invited off the waitlist — otherwise the
+  // referrer would never get credited once they actually sign up.
+  const inviteLink = (code: string, refCode?: string | null) => {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const params = new URLSearchParams({ invite: code });
+    if (refCode) params.set("ref", refCode);
+    return `${base}/signup?${params.toString()}`;
+  };
 
-  const copyLink = async (code: string) => {
+  const copyLink = async (code: string, refCode?: string | null) => {
     try {
-      await navigator.clipboard.writeText(inviteLink(code));
+      await navigator.clipboard.writeText(inviteLink(code, refCode));
       showMessage("Invite link copied.");
     } catch {
-      showMessage(inviteLink(code));
+      showMessage(inviteLink(code, refCode));
     }
   };
 
@@ -65,7 +73,8 @@ export default function AdminWaitlistPage() {
         return;
       }
       if (action === "invite") {
-        await copyLink(data.invite.code);
+        const entry = entries.find((e) => e.id === waitlistId);
+        await copyLink(data.invite.code, entry?.ref_code);
       } else {
         showMessage("Marked as rejected.");
       }
@@ -108,6 +117,7 @@ export default function AdminWaitlistPage() {
                   <div className="text-xs" style={{ color: "var(--text-muted)" }}>
                     {entry.full_name || "no name"} · {entry.company || "no company"} · {entry.source || "organic"} ·{" "}
                     {new Date(entry.created_at).toLocaleDateString()}
+                    {entry.ref_code && <> · referred by <span className="font-mono">{entry.ref_code}</span></>}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -155,13 +165,13 @@ export default function AdminWaitlistPage() {
                       </div>
                       {entry.status === "invited" && entry.inviteCode && (
                         <div className="text-xs font-mono mt-1" style={{ color: "var(--accent)" }}>
-                          {inviteLink(entry.inviteCode)}
+                          {inviteLink(entry.inviteCode, entry.ref_code)}
                         </div>
                       )}
                     </div>
                     {entry.status === "invited" && entry.inviteCode ? (
                       <button
-                        onClick={() => copyLink(entry.inviteCode!)}
+                        onClick={() => copyLink(entry.inviteCode!, entry.ref_code)}
                         className="px-3 py-1.5 rounded-lg text-xs border shrink-0 ml-3"
                         style={{ borderColor: "rgba(0,229,255,0.3)", color: "var(--accent)" }}
                       >

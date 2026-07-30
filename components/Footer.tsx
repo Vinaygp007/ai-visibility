@@ -74,10 +74,10 @@ export default function Footer() {
               {PROVIDERS.map((p) => (
                 <span
                   key={p.name}
-                  className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1 rounded-full border"
+                  className="flex items-center gap-1.5 text-[13px] font-mono px-3 py-1.5 rounded-full border"
                   style={{ color: p.color, background: `${p.color}12`, borderColor: `${p.color}35` }}
                 >
-                  <p.Icon size={14} className="shrink-0" />
+                  <p.Icon size={18} className="shrink-0" />
                   {p.name}
                 </span>
               ))}

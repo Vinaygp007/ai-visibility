@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 
 function SignupForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,6 +16,19 @@ function SignupForm() {
   const [loading, setLoading] = useState(false);
 
   const ref = searchParams.get("ref") ?? "";
+  // A referral link alone doesn't get anyone past the invite gate — send
+  // them to the waitlist instead of a signup form they can't submit,
+  // carrying the ref code along so the referrer still gets credited once
+  // this person is eventually invited (see /waitlist's own ref handling).
+  // `manual=1` is set by the waitlist page's own "Already have an invite?"
+  // link — that's someone deliberately asking for the form to type a code
+  // into, so it must skip this redirect instead of bouncing them right back.
+  const needsWaitlist = !!ref && !searchParams.get("invite") && !searchParams.get("manual");
+  useEffect(() => {
+    if (needsWaitlist) router.replace(`/waitlist?ref=${encodeURIComponent(ref)}`);
+  }, [needsWaitlist, ref, router]);
+
+  if (needsWaitlist) return <div className="min-h-screen" style={{ background: "var(--bg)" }} />;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

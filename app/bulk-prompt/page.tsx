@@ -3,11 +3,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { PROMPT_CHAR_LIMIT } from "@/lib/limits";
 import { UserPlan } from "@/types";
+import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "@/components/ProviderIcons";
 
 const PROVIDERS = [
-  { name: "Gemini 2.0", icon: "✦", color: "#4285f4" },
-  { name: "ChatGPT", icon: "⬡", color: "#10a37f" },
-  { name: "Perplexity", icon: "◎", color: "#20b2aa" },
+  { name: "Gemini 2.0", Icon: GeminiIcon, color: "#4285f4" },
+  { name: "ChatGPT", Icon: ChatGPTIcon, color: "#10a37f" },
+  { name: "Perplexity", Icon: PerplexityIcon, color: "#20b2aa" },
 ];
 
 const FEATURE_CHIPS = ["Up to 100 prompts", "Runs in parallel", "AI citation research", "CSV & PDF export"];
@@ -1067,7 +1068,7 @@ export default function MultiPromptPage() {
                       color: p.color, background: `${p.color}12`, border: `1px solid ${p.color}35`,
                     }}
                   >
-                    <span style={{ fontSize: 13 }}>{p.icon}</span>{p.name}
+                    <p.Icon size={14} />{p.name}
                   </span>
                 ))}
               </div>

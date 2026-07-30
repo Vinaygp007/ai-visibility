@@ -8,14 +8,6 @@ interface HeroSectionProps {
   isLoading: boolean;
 }
 
-const FEATURE_CHIPS = [
-  "14 AI Bots Checked",
-  "llms.txt Detection",
-  "Structured Data",
-  "3 AI Providers",
-  "Merged Analysis",
-];
-
 const PROVIDERS = [
   { name: "Gemini 2.0", Icon: GeminiIcon, color: "#4285f4" },
   { name: "ChatGPT",    Icon: ChatGPTIcon, color: "#10a37f" },
@@ -35,39 +27,55 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
   };
 
   return (
-    <section className="max-w-3xl mx-auto px-6 pt-20 pb-12 text-center">
-      <div className="inline-block text-xs font-mono px-4 py-1.5 rounded-full border mb-6 tracking-widest"
-        style={{ color: "var(--accent)", background: "rgba(0,229,255,0.07)", borderColor: "rgba(0,229,255,0.2)" }}>
-        // AI VISIBILITY SCANNER
+    <section className="relative overflow-hidden max-w-3xl mx-auto px-6 pt-20 pb-12 text-center">
+      {/* Aurora background, same treatment as the homepage hero */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div
+          className="aurora-blob aurora-blob-1"
+          style={{ width: 420, height: 420, top: -140, left: "2%", background: "var(--accent)", opacity: 0.16 }}
+        />
+        <div
+          className="aurora-blob aurora-blob-2"
+          style={{ width: 380, height: 380, top: 20, right: "4%", background: "var(--accent2)", opacity: 0.14 }}
+        />
+        <div
+          className="aurora-blob aurora-blob-3"
+          style={{ width: 340, height: 340, bottom: -140, left: "38%", background: "var(--success)", opacity: 0.12 }}
+        />
       </div>
 
-      <h1 className="text-5xl md:text-6xl font-bold leading-none tracking-tight mb-5"
+      <div className="animate-fade-up fade-up-1 inline-block text-xs font-mono px-4 py-1.5 rounded-full border mb-6 tracking-widest"
+        style={{ color: "var(--accent)", background: "rgba(0,229,255,0.07)", borderColor: "rgba(0,229,255,0.2)" }}>
+        // NEW SCAN
+      </div>
+
+      <h1 className="heading-shimmer text-5xl md:text-6xl font-bold leading-none tracking-tight mb-5"
         style={{
-          background: "linear-gradient(135deg, var(--text) 30%, rgba(var(--overlay-rgb),0.45))",
+          background: "linear-gradient(110deg, var(--text) 20%, var(--accent) 50%, var(--text) 80%)",
           WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
         }}>
-        Is Your Website<br />Visible to AI?
+        Run Your AI<br />Visibility Scan
       </h1>
 
-      <p className="text-[17px] leading-relaxed max-w-lg mx-auto mb-7" style={{ color: "var(--text-muted)" }}>
-        Audit how ChatGPT, Claude, Perplexity, Gemini and 10+ other AI systems discover and reference your website.
+      <p className="animate-fade-up fade-up-3 text-[17px] leading-relaxed max-w-lg mx-auto mb-7" style={{ color: "var(--text-muted)" }}>
+        Drop in a URL and we'll check crawler access, structured data and how Gemini, ChatGPT and Perplexity already talk about your site.
       </p>
 
       {/* Provider badges */}
-      <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
+      <div className="animate-fade-up fade-up-3 flex items-center justify-center gap-2 flex-wrap mb-2">
         <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>POWERED BY</span>
         {PROVIDERS.map((p) => (
           <span key={p.name}
-            className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl border"
+            className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl border transition-transform hover:-translate-y-0.5"
             style={{ color: p.color, background: `${p.color}12`, borderColor: `${p.color}35` }}>
             <p.Icon size={18} className="shrink-0" />{p.name}
           </span>
         ))}
       </div>
-      <p className="text-[11px] font-mono mb-6" style={{ color: "var(--text-muted)" }}>all 3 run simultaneously · scores averaged</p>
+      <p className="animate-fade-up fade-up-3 text-[11px] font-mono mb-6" style={{ color: "var(--text-muted)" }}>all 3 run simultaneously · scores averaged</p>
 
       {/* URL input */}
-      <div className="search-box flex items-center rounded-2xl border px-5 py-1.5 max-w-xl mx-auto transition-all"
+      <div className="animate-fade-up fade-up-4 search-box flex items-center rounded-2xl border px-5 py-1.5 max-w-xl mx-auto transition-all"
         style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.13)" }}>
         <input
           type="text"
@@ -88,7 +96,7 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
       </div>
 
       {/* Citations toggle — on by default, user can opt out */}
-      <div className="flex items-center justify-center gap-3 mt-4 mb-1">
+      <div className="animate-fade-up fade-up-4 flex items-center justify-center gap-3 mt-4 mb-1">
         <button
           onClick={() => setWithCitations(!withCitations)}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all"
@@ -121,16 +129,6 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
             ? "Full GEO + competitive analysis included"
             : "Basic scan only: no citation research"}
         </span>
-      </div>
-
-      {/* Feature chips */}
-      <div className="flex flex-wrap gap-4 justify-center mt-5">
-        {FEATURE_CHIPS.map(feat => (
-          <div key={feat} className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "var(--success)" }} />
-            {feat}
-          </div>
-        ))}
       </div>
     </section>
   );
