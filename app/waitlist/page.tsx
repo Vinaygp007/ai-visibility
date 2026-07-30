@@ -22,6 +22,9 @@ function WaitlistForm() {
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [authedPending, setAuthedPending] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
 
   // Widget only renders once TURNSTILE_SITE_KEY is configured (M5 external
@@ -81,6 +84,30 @@ function WaitlistForm() {
       }
     });
   }, []);
+
+  async function handleRedeem(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inviteCode.trim()) return;
+    setRedeemError(null);
+    setRedeeming(true);
+    try {
+      const res = await fetch("/api/invites/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: inviteCode.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setRedeemError(data?.error?.message ?? "Something went wrong.");
+        return;
+      }
+      window.location.href = "/scan";
+    } catch {
+      setRedeemError("Something went wrong. Please try again.");
+    } finally {
+      setRedeeming(false);
+    }
+  }
 
   async function handleGoogle() {
     setError(null);
@@ -163,13 +190,51 @@ function WaitlistForm() {
           </>
         )}
 
-        {done ? (
+        {authedPending ? (
+          <div className="space-y-4">
+            <div
+              className="text-[12px] rounded-lg px-3 py-2 border"
+              style={{
+                color: error ? "var(--danger)" : "var(--accent)",
+                background: error ? "rgba(255,107,107,0.08)" : "rgba(0,229,255,0.08)",
+                borderColor: error ? "rgba(255,107,107,0.25)" : "rgba(0,229,255,0.25)",
+              }}
+            >
+              {error ?? "You're on the list. We'll be in touch."}
+            </div>
+
+            <div className="h-px" style={{ background: "rgba(var(--overlay-rgb),0.08)" }} />
+
+            <form onSubmit={handleRedeem} className="space-y-3">
+              <label className="block text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
+                Already got an invite code?
+              </label>
+              <input
+                type="text"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                placeholder="Paste your invite code"
+                className="w-full rounded-lg px-3 py-2.5 text-sm text-[var(--text)] outline-none border font-mono"
+                style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
+              />
+              {redeemError && (
+                <div className="text-[12px] rounded-lg px-3 py-2 border" style={{ color: "var(--danger)", background: "rgba(255,107,107,0.08)", borderColor: "rgba(255,107,107,0.25)" }}>
+                  {redeemError}
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={redeeming || !inviteCode.trim()}
+                className="w-full rounded-lg py-2.5 text-sm font-semibold text-[var(--on-accent)] disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
+              >
+                {redeeming ? "Activating…" : "Activate account"}
+              </button>
+            </form>
+          </div>
+        ) : done ? (
           <div className="text-[13px] rounded-lg px-3 py-3 border text-center" style={{ color: "var(--accent)", background: "rgba(0,229,255,0.08)", borderColor: "rgba(0,229,255,0.25)" }}>
             You&apos;re on the list. We&apos;ll be in touch.
-          </div>
-        ) : authedPending ? (
-          <div className="text-[12px] rounded-lg px-3 py-2 border" style={{ color: error ? "var(--danger)" : "var(--text-muted)", background: error ? "rgba(255,107,107,0.08)" : "transparent", borderColor: error ? "rgba(255,107,107,0.25)" : "rgba(var(--overlay-rgb),0.1)" }}>
-            {error ?? "Registering you…"}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">

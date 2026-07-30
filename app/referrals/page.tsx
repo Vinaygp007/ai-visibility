@@ -50,7 +50,7 @@ export default function ReferralsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[var(--text)] mb-2">Referrals</h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Share your link. You and your friend each get 25 credits once they run their first scan.
+            Share your link. You get 10 credits once your friend signs up and runs their first scan.
           </p>
         </div>
 
