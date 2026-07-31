@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import MarketingNav from "./MarketingNav";
+import Sidebar from "./Sidebar";
+import AppHeader from "./AppHeader";
 import Footer from "./Footer";
 import BugReportWidget from "./BugReportWidget";
 import ThemeToggle from "./ThemeToggle";
@@ -9,27 +10,38 @@ import ThemeToggle from "./ThemeToggle";
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Hide the app header on /docs and on public, unauthenticated-facing pages
+  // Hide the app shell on /docs and on public, unauthenticated-facing pages
+  // (those render their own MarketingNav directly, or no header at all).
   const PUBLIC_PATHS = ["/", "/login", "/signup", "/waitlist", "/admin/login", "/privacy", "/terms"];
-  const showHeader = !pathname.startsWith("/docs") && !PUBLIC_PATHS.includes(pathname);
-  // Pages that already render their own MarketingNav (with a toggle built in).
-  // /docs stays dark-only (wraps a third-party Swagger widget). Everywhere
-  // else with no app nav (login, signup, waitlist, admin login) gets a
-  // floating toggle instead.
+  const showShell = !pathname.startsWith("/docs") && !PUBLIC_PATHS.includes(pathname);
   const PAGES_WITH_OWN_NAV = ["/", "/privacy", "/terms"];
-  const showFloatingToggle = !showHeader && !PAGES_WITH_OWN_NAV.includes(pathname) && !pathname.startsWith("/docs");
+  const showFloatingToggle = !showShell && !PAGES_WITH_OWN_NAV.includes(pathname) && !pathname.startsWith("/docs");
+
+  if (showShell) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <div className="flex flex-1">
+          <Sidebar />
+          <div className="flex-1 flex flex-col min-w-0">
+            <AppHeader />
+            <main className="flex-1">{children}</main>
+          </div>
+        </div>
+        {/* Full-width, outside the sidebar row — same footer as the homepage. */}
+        <Footer />
+        <BugReportWidget />
+      </div>
+    );
+  }
 
   return (
     <>
-      {showHeader && <MarketingNav />}
       {showFloatingToggle && (
         <div className="fixed top-4 right-4 z-50">
           <ThemeToggle />
         </div>
       )}
       {children}
-      {showHeader && <Footer />}
-      {showHeader && <BugReportWidget />}
     </>
   );
 }

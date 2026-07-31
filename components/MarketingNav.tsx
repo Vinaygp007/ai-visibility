@@ -13,13 +13,6 @@ const MARKETING_LINKS = [
   { href: "#faq", label: "FAQ" },
 ];
 
-// Frequent, always-visible app links.
-const PRIMARY_APP_LINKS = [
-  { href: "/scan", label: "Scan" },
-  { href: "/bulk", label: "Bulk Scanner" },
-  { href: "/bulk-prompt", label: "Prompt Runner" },
-];
-
 // Account-related links, tucked under the user menu.
 const ACCOUNT_LINKS = [
   { href: "/reports", label: "Previous Reports" },
@@ -103,7 +96,6 @@ export default function MarketingNav() {
   const role = user?.role ?? null;
 
   useEffect(() => {
-    if (authed) return; // scroll-spy only applies to the on-page marketing sections
     const sections = MARKETING_LINKS.map((link) => document.getElementById(link.href.slice(1))).filter(
       (el): el is HTMLElement => el !== null
     );
@@ -122,7 +114,7 @@ export default function MarketingNav() {
 
     sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
-  }, [authed]);
+  }, []);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -162,30 +154,19 @@ export default function MarketingNav() {
         className="hidden md:flex items-center gap-8 transition-opacity duration-200"
         style={{ opacity: authChecked ? 1 : 0 }}
       >
-        {authed
-          ? PRIMARY_APP_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-[14px] font-medium transition-colors hover:text-[var(--text)]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                {link.label}
-              </Link>
-            ))
-          : MARKETING_LINKS.map((link) => {
-              const isActive = activeId === link.href.slice(1);
-              return (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="text-[14px] font-medium transition-colors hover:text-[var(--text)]"
-                  style={{ color: isActive ? "var(--accent)" : "var(--text-muted)" }}
-                >
-                  {link.label}
-                </a>
-              );
-            })}
+        {MARKETING_LINKS.map((link) => {
+          const isActive = activeId === link.href.slice(1);
+          return (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-[14px] font-medium transition-colors hover:text-[var(--text)]"
+              style={{ color: isActive ? "var(--accent)" : "var(--text-muted)" }}
+            >
+              {link.label}
+            </a>
+          );
+        })}
       </div>
       </div>
 
@@ -246,17 +227,20 @@ export default function MarketingNav() {
         >
           {authed ? (
             <>
-              {PRIMARY_APP_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="text-[15px] font-medium"
-                  style={{ color: "var(--text)" }}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {MARKETING_LINKS.map((link) => {
+                const isActive = activeId === link.href.slice(1);
+                return (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="text-[15px] font-medium"
+                    style={{ color: isActive ? "var(--accent)" : "var(--text)" }}
+                  >
+                    {link.label}
+                  </a>
+                );
+              })}
               <div className="h-px" style={{ background: "rgba(var(--overlay-rgb),0.08)" }} />
               <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
                 {displayName}
