@@ -125,8 +125,9 @@ export default function CitationsPanel({
       const h1 = line.match(/^# (.+)/);
       const bullet = line.match(/^[*-] (.+)/);
       const numbered = line.match(/^(\d+)\. (.+)/);
+      const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const renderInline = (t: string) =>
-        t
+        escapeHtml(t)
           .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
           .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>')
           .replace(/\*(.+?)\*/g, "<em>$1</em>");

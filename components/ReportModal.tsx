@@ -276,12 +276,6 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
 
   if (!isOpen || !report) return null;
 
-  console.log("📊 MODAL - Full Report Data:", report);
-  console.log("📊 Categories:", report.categories);
-  console.log("📊 Citations:", report.citations);
-  console.log("📊 AI Platform Coverage:", report.ai_platform_coverage);
-  console.log("📊 Providers:", report._providers);
-
   // Normalize providers & citations to match ResultsSection behavior
   const providers = report._providers ?? [];
   const normName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
