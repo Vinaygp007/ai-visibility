@@ -3,7 +3,9 @@ import { getCachedPageCheck, savePageCheck } from "@/lib/pageCache";
 import { getCurrentUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 
-export const maxDuration = 60;
+// A full Lighthouse run on a heavy site can legitimately take 30-40s+ per
+// strategy; mobile/desktop run in parallel but each needs its own headroom.
+export const maxDuration = 120;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -68,7 +70,7 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
 
   let data: Record<string, unknown>;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 45_000);
+  const timer = setTimeout(() => ctrl.abort(), 110_000);
   try {
     const res = await fetch(`${PSI}?${params}`, {
       headers: { Accept: "application/json" },
@@ -83,7 +85,7 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
     const raw = String(err);
     const friendly =
       raw.includes("abort") || raw.includes("Abort")
-        ? "Speed test timed out (45s). The URL may be slow or PSI unavailable"
+        ? "Speed test timed out (110s). This site's full Lighthouse audit is taking unusually long — try again, or it may have anti-bot protection blocking Google's crawler."
         : raw.includes("fetch failed") || raw.includes("ENOTFOUND") || raw.includes("ECONNREFUSED")
         ? "Cannot reach Google PageSpeed API. Ensure the URL is publicly accessible and internet is available. Add PAGESPEED_API_KEY to .env for higher rate limits."
         : raw.slice(0, 200);
@@ -158,6 +160,28 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
   return { strategy, performanceScore, metrics, opportunities: opps, diagnostics, fetchTime };
 }
 
+// Google's PSI runners execute on Google's own infrastructure, so they can
+// never reach a caller's localhost or private-network address — that always
+// times out after the full 45s wait. Reject it immediately instead.
+function isPubliclyUnreachable(url: string): boolean {
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (host === "localhost" || host.endsWith(".localhost") || host === "127.0.0.1" || host === "::1") return true;
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [a, b] = ipv4.slice(1).map(Number);
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+  }
+  return false;
+}
+
 function emptyResult(strategy: "mobile" | "desktop", error: string): SpeedResult {
   const empty: MetricValue = { displayValue: "-", score: null };
   return {
@@ -188,6 +212,14 @@ export async function POST(req: NextRequest) {
 
     const { url } = await req.json();
     if (!url) return NextResponse.json({ error: "URL required" }, { status: 400, headers: CORS });
+
+    if (isPubliclyUnreachable(url)) {
+      const err = "This URL isn't publicly reachable (localhost or a private network address), so Google's PageSpeed servers can never reach it. Deploy the site or scan a public URL instead.";
+      return NextResponse.json(
+        { mobile: emptyResult("mobile", err), desktop: emptyResult("desktop", err), hasApiKey: Boolean(process.env.PAGESPEED_API_KEY), _cached: false },
+        { headers: CORS }
+      );
+    }
 
     const cached = await getCachedPageCheck("pagespeed", url);
     if (cached) {

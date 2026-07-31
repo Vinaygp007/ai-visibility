@@ -7,6 +7,8 @@ import CategoryCard from "./CategoryCard";
 import Recommendations from "./Recommendations";
 import PromptResponsePanel from "./PromptResponsePanel";
 import CitationsPanel from "./CitationsPanel";
+import SpeedSection from "./SpeedSection";
+import CrawlSection from "./CrawlSection";
 
 function extractResponseText(rawResponse: string): string {
   try {
@@ -519,17 +521,47 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
               </div>
             )}
 
-            
-
-            
-
             {/* Recommendations */}
             <div>
               <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Recommendations</h3>
               <Recommendations recommendations={report.recommendations} />
             </div>
 
-            
+            {/* Keyword Intelligence */}
+            {report.keywords && report.keywords.length > 0 && (
+              <div className="rounded-2xl border p-5" style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+                <div className="text-[13px] font-mono tracking-widest uppercase mb-4" style={{ color: "var(--text-muted)" }}>
+                  Keyword Intelligence
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {report.keywords.map(kw => (
+                    <div
+                      key={kw.word}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px]"
+                      style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
+                      title={`In title: ${kw.inTitle} · In H1: ${kw.inH1} · In meta: ${kw.inMeta}`}
+                    >
+                      <span className="font-medium" style={{ color: "var(--text)" }}>{kw.word}</span>
+                      <span className="font-mono text-[9px]" style={{ color: "var(--text-muted)" }}>{kw.count}×</span>
+                      {kw.inTitle && <span title="In title" style={{ color: "var(--success)", fontSize: 8 }}>T</span>}
+                      {kw.inH1    && <span title="In H1"    style={{ color: "#4285f4", fontSize: 8 }}>H1</span>}
+                      {kw.inMeta  && <span title="In meta"  style={{ color: "var(--warning)", fontSize: 8 }}>M</span>}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] mt-3" style={{ color: "var(--text-muted)" }}>
+                  <span style={{ color: "var(--success)" }}>T</span> = in title · <span style={{ color: "#4285f4" }}>H1</span> = in H1 · <span style={{ color: "var(--warning)" }}>M</span> = in meta description
+                </p>
+              </div>
+            )}
+
+            {/* Core Web Vitals & Speed */}
+            <SpeedSection url={report.url} autoRun />
+
+            {/* Technical Crawl */}
+            <CrawlSection url={report.url} autoRun />
+
+
           </div>
 
           {/* Footer */}
