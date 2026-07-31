@@ -80,8 +80,9 @@ function renderMarkdown(text: string) {
     const h3 = line.match(/^### (.+)/);
     const bullet = line.match(/^[*-] (.+)/);
     const numbered = line.match(/^(\d+)\. (.+)/);
+    const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const bold = (t: string) =>
-      t.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>');
+      escapeHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>');
 
     if (h2) return <h2 key={i} style={{ color: "var(--text)", fontSize: 13, fontWeight: 700, margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: bold(h2[1]) }} />;
     if (h3) return <h3 key={i} style={{ color: "var(--text)", fontSize: 12, fontWeight: 600, margin: "8px 0 2px" }} dangerouslySetInnerHTML={{ __html: bold(h3[1]) }} />;
