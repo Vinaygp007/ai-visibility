@@ -174,7 +174,7 @@ export default function CitationsPanel({
       {/* ── Header ── */}
       <div
         className="px-5 py-3.5 border-b flex items-center justify-between"
-        style={{ borderColor: "rgba(var(--overlay-rgb),0.07)", background: "rgba(0,0,0,0.2)" }}
+        style={{ borderColor: "rgba(var(--overlay-rgb),0.07)", background: "rgba(var(--overlay-rgb),0.05)" }}
       >
         {/* Left: title + stats */}
         <div className="flex items-center gap-3">
@@ -382,7 +382,7 @@ export default function CitationsPanel({
             {/* ── Right: Mentions + Cited Pages ── */}
             <div
               className="flex flex-col"
-              style={{ width: 240, flexShrink: 0, background: "rgba(0,0,0,0.15)" }}
+              style={{ width: 240, flexShrink: 0, background: "rgba(var(--overlay-rgb),0.03)" }}
             >
               {/* Mentions */}
               <div

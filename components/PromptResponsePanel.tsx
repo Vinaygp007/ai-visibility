@@ -153,7 +153,7 @@ export default function PromptResponsePanel({ providers, citations = [] }: Promp
       {/* ── Header ── */}
       <div
         className="px-5 py-3 border-b flex items-center justify-between"
-        style={{ borderColor: "rgba(var(--overlay-rgb),0.06)", background: "rgba(0,0,0,0.18)" }}
+        style={{ borderColor: "rgba(var(--overlay-rgb),0.06)", background: "rgba(var(--overlay-rgb),0.05)" }}
       >
         <span className="text-[11px] font-mono tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
           Prompts &amp; Responses
@@ -339,7 +339,7 @@ export default function PromptResponsePanel({ providers, citations = [] }: Promp
               </div>
 
               {/* Right: Mentions */}
-              <div className="flex flex-col" style={{ width: 220, flexShrink: 0, background: "rgba(0,0,0,0.15)" }}>
+              <div className="flex flex-col" style={{ width: 220, flexShrink: 0, background: "rgba(var(--overlay-rgb),0.03)" }}>
                 <div className="px-4 py-4">
                   <div className="flex items-baseline gap-2 mb-3">
                     <span className="text-[12px] font-semibold text-[var(--text)]">Mentions</span>
@@ -435,7 +435,7 @@ export default function PromptResponsePanel({ providers, citations = [] }: Promp
               </div>
 
               {/* Right: Mentions + Cited Pages */}
-              <div className="flex flex-col" style={{ width: 240, flexShrink: 0, background: "rgba(0,0,0,0.15)" }}>
+              <div className="flex flex-col" style={{ width: 240, flexShrink: 0, background: "rgba(var(--overlay-rgb),0.03)" }}>
                 {/* Mentions */}
                 <div className="px-4 py-4 border-b" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
                   <div className="flex items-baseline gap-2 mb-3">
