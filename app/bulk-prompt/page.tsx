@@ -834,6 +834,19 @@ function parseCitationSnippet(snippet: string): { name: string; reason: string; 
   return { name, reason: reason || text.trim(), sentiment };
 }
 
+// Strips scheme/www/path down to a bare, lowercased hostname so the tested
+// company's URL can be compared against a citation URL regardless of how
+// either one is formatted (http vs https, trailing path, www. prefix, ...).
+function getDomain(url: string): string {
+  if (!url) return "";
+  try {
+    const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+    return u.hostname.replace(/^www\./i, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
 // ── Shared citation record builder ────────────────────────────────────────
 // Loops over every container passed in (i.e. every prompt that was run), so
 // running N prompts and exporting/sharing once always covers all of them.
@@ -852,11 +865,18 @@ function buildCitationRecords(containers: PromptContainer[]): CitationRecord[] {
   containers
     .filter(c => c.status === "done" && c.prompt.trim())
     .forEach(c => {
+      const ownDomain = getDomain(c.url);
       c.citations
         .filter(cit => cit.status === "success" && cit.rawAnswer)
         .forEach(cit => {
-          // Cap at top 5 even if a provider ignores the "top 5" instruction in the prompt
-          const snippets = extractCitationSnippets(cit.rawAnswer).slice(0, 5);
+          // Cap at top 5 even if a provider ignores the "top 5" instruction in the prompt.
+          // The tested company showing up in its own results is expected, not a bug — but
+          // it shouldn't eat into the 5 competitor slots, so extend the cap by 1 per
+          // self-mention (max 2) to keep a full competitor set alongside it.
+          const allSnippets = extractCitationSnippets(cit.rawAnswer);
+          const selfMentions = ownDomain ? allSnippets.filter(({ url }) => getDomain(url) === ownDomain).length : 0;
+          const cap = 5 + Math.min(selfMentions, 2);
+          const snippets = allSnippets.slice(0, cap);
           if (snippets.length > 0) {
             snippets.forEach(({ url, snippet }) => {
               records.push({ prompt: c.prompt, inputUrl: c.url, citationUrl: url, provider: cit.provider, response: parseCitationSnippet(snippet) });
