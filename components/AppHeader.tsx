@@ -66,7 +66,7 @@ export default function AppHeader() {
               {balance}
             </span>
           )}
-          <UserMenu name={displayName} links={accountLinks} onLogout={handleLogout} />
+          <UserMenu name={displayName} />
           <ThemeToggle />
         </div>
       </header>
@@ -114,6 +114,16 @@ export default function AppHeader() {
                 {link.label}
               </Link>
             ))}
+
+            <div className="h-px my-3" style={{ background: "rgba(var(--overlay-rgb),0.08)" }} />
+
+            <button
+              onClick={() => { setMobileOpen(false); handleLogout(); }}
+              className="px-3 py-2.5 rounded-lg text-[15px] font-medium text-left"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Log out
+            </button>
           </div>
         </div>
       )}
