@@ -13,7 +13,7 @@ export default function TermsOfServicePage() {
     <LegalPage title="Terms of Service" updated="July 21, 2026">
       <p>
         These terms govern your use of AiScope, an AI-visibility auditing tool operated by Marcstrat, currently
-        available as an invite-only beta. By creating an account or using the waitlist, you agree to these terms.
+        available as a public beta. By creating an account, you agree to these terms.
       </p>
 
       <section>
@@ -27,11 +27,11 @@ export default function TermsOfServicePage() {
       </section>
 
       <section>
-        <H2>Accounts and invites</H2>
+        <H2>Accounts</H2>
         <p>
-          Access currently requires a valid invite code redeemed against a waitlist signup. We reserve the right to
-          revoke invites, suspend accounts, or limit access at our discretion during the beta period, including to
-          manage capacity or address abuse.
+          Anyone can create an account with Google or an email and password. We reserve the right to suspend
+          accounts or limit access at our discretion during the beta period, including to manage capacity or
+          address abuse.
         </p>
       </section>
 

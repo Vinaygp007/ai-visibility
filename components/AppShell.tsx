@@ -12,7 +12,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   // Hide the app shell on /docs and on public, unauthenticated-facing pages
   // (those render their own MarketingNav directly, or no header at all).
-  const PUBLIC_PATHS = ["/", "/login", "/signup", "/waitlist", "/admin/login", "/privacy", "/terms"];
+  const PUBLIC_PATHS = ["/", "/login", "/signup", "/admin/login", "/privacy", "/terms"];
   const showShell = !pathname.startsWith("/docs") && !PUBLIC_PATHS.includes(pathname);
   const PAGES_WITH_OWN_NAV = ["/", "/privacy", "/terms"];
   const showFloatingToggle = !showShell && !PAGES_WITH_OWN_NAV.includes(pathname) && !pathname.startsWith("/docs");

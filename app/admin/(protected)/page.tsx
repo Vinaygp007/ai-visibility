@@ -3,11 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 async function getStats() {
   const supabase = await createClient();
 
-  const [{ count: userCount }, { count: activeCount }, { count: pendingWaitlist }, { count: scanCount }, { data: ledgerRows }] =
+  const [{ count: userCount }, { count: activeCount }, { count: scanCount }, { data: ledgerRows }] =
     await Promise.all([
       supabase.from("profiles").select("*", { count: "exact", head: true }),
       supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "active"),
-      supabase.from("waitlist").select("*", { count: "exact", head: true }).eq("status", "pending"),
       supabase.from("scans").select("*", { count: "exact", head: true }),
       supabase.from("credit_ledger").select("amount"),
     ]);
@@ -18,7 +17,6 @@ async function getStats() {
   return {
     userCount: userCount ?? 0,
     activeCount: activeCount ?? 0,
-    pendingWaitlist: pendingWaitlist ?? 0,
     scanCount: scanCount ?? 0,
     granted,
     spent,
@@ -31,7 +29,6 @@ export default async function AdminDashboardPage() {
   const tiles = [
     { label: "Total accounts", value: stats.userCount },
     { label: "Active accounts", value: stats.activeCount },
-    { label: "Pending waitlist", value: stats.pendingWaitlist },
     { label: "Total scans", value: stats.scanCount },
     { label: "Credits granted", value: stats.granted },
     { label: "Credits spent", value: stats.spent },

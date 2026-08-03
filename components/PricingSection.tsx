@@ -51,7 +51,7 @@ const PLANS = [
 export default function PricingSection() {
   const [yearly, setYearly] = useState(false);
   // No billing/upgrade flow exists yet, so an already-signed-in visitor
-  // gets sent back into the app instead of the waitlist for every plan.
+  // gets sent back into the app instead of signup for every plan.
   const { authed } = useCurrentUser();
 
   return (
@@ -67,7 +67,7 @@ export default function PricingSection() {
           Simple, usage-based pricing
         </h2>
         <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Currently invite-only during beta. Join the waitlist to lock in early pricing.
+          Sign up free and lock in early beta pricing.
         </p>
       </Reveal>
 
@@ -157,7 +157,7 @@ export default function PricingSection() {
                 </ul>
 
                 <Link
-                  href={authed ? "/scan" : "/waitlist"}
+                  href={authed ? "/scan" : "/signup"}
                   className="text-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all hover:opacity-85 active:scale-95"
                   style={
                     plan.highlight
@@ -165,7 +165,7 @@ export default function PricingSection() {
                       : { background: "transparent", color: "var(--text)", border: "1px solid rgba(var(--overlay-rgb),0.13)" }
                   }
                 >
-                  {authed ? "Go to Scan" : "Join Waitlist"}
+                  {authed ? "Go to Scan" : "Sign Up"}
                 </Link>
               </div>
             </Reveal>

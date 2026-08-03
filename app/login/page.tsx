@@ -155,9 +155,9 @@ function LoginForm() {
         </form>
 
         <div className="text-center text-[12px] mt-5" style={{ color: "var(--text-dim)" }}>
-          Invite-only beta. No invite?{" "}
-          <a href="/waitlist" className="underline" style={{ color: "var(--text-muted)" }}>
-            Join the waitlist
+          Don&apos;t have an account?{" "}
+          <a href="/signup" className="underline" style={{ color: "var(--text-muted)" }}>
+            Sign up
           </a>
         </div>
       </div>

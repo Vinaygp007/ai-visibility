@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/waitlist", "/auth/callback", "/admin/login", "/privacy", "/terms"];
-const PUBLIC_API_PREFIXES = ["/api/invites/redeem", "/api/waitlist"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/callback", "/admin/login", "/privacy", "/terms"];
+const PUBLIC_API_PREFIXES: string[] = [];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -25,8 +25,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Invite gate: only an 'active' profile (redeemed a valid invite) gets past
-  // here. Pending/suspended accounts never see the app, per spec §7.2.
+  // Signups are 'active' immediately now — this only blocks admin-suspended
+  // accounts.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -45,9 +45,9 @@ export async function middleware(req: NextRequest) {
 
   if (profile?.status !== "active") {
     if (pathname.startsWith("/api")) {
-      return NextResponse.json({ error: { code: "not_invited", message: "Account is pending an invite." } }, { status: 403 });
+      return NextResponse.json({ error: { code: "account_inactive", message: "Account is not active." } }, { status: 403 });
     }
-    return NextResponse.redirect(new URL("/waitlist", req.url));
+    return NextResponse.redirect(new URL("/login?error=account_inactive", req.url));
   }
 
   return response;

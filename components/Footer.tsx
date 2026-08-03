@@ -18,9 +18,8 @@ const PRODUCT_LINKS = [
 ];
 
 const ACCOUNT_LINKS = [
-  { href: "/waitlist", label: "Join Waitlist" },
+  { href: "/signup", label: "Sign up" },
   { href: "/login", label: "Log in" },
-  { href: "/signup", label: "Have an invite? Sign up" },
 ];
 
 const AUTHED_ACCOUNT_LINKS = [

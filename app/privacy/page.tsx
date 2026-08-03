@@ -12,7 +12,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalPage title="Privacy Policy" updated="July 21, 2026">
       <p>
-        AiScope ("we", "us") is currently an invite-only beta run by Marcstrat. This policy explains what data we
+        AiScope ("we", "us") is currently a public beta run by Marcstrat. This policy explains what data we
         collect when you use the site and the scanner, and how it's used. As the product moves out of beta, this
         page will be updated to reflect any changes.
       </p>
@@ -22,7 +22,6 @@ export default function PrivacyPolicyPage() {
         <ul className="list-disc list-outside pl-5 space-y-2">
           <li><strong style={{ color: "var(--text)" }}>Account data</strong>: email, name, and password/OAuth identity via our authentication provider (Supabase) when you sign up or log in.</li>
           <li><strong style={{ color: "var(--text)" }}>Scan inputs</strong>: the URLs you submit to be audited, and the resulting reports (scores, crawler findings, citation research), which are saved to your account's report history.</li>
-          <li><strong style={{ color: "var(--text)" }}>Waitlist data</strong>: name, email and company, if you join the waitlist.</li>
           <li><strong style={{ color: "var(--text)" }}>Usage analytics</strong>: product usage events (e.g. pages viewed, features used) via PostHog, to understand how the app is used and improve it.</li>
           <li><strong style={{ color: "var(--text)" }}>Credit and referral activity</strong>: scan credit balance and history, and referral relationships if you refer other users.</li>
         </ul>
@@ -32,9 +31,7 @@ export default function PrivacyPolicyPage() {
         <H2>How we use it</H2>
         <p>
           We use this data to run the scans you request, store and display your report history, enforce fair-use
-          rate limits and credit balances, prevent abuse (including bot-protection on the waitlist form via
-          Cloudflare Turnstile), manage the invite/waitlist process, and understand product usage so we can improve
-          it.
+          rate limits and credit balances, prevent abuse, and understand product usage so we can improve it.
         </p>
       </section>
 
@@ -70,8 +67,8 @@ export default function PrivacyPolicyPage() {
         <H2>Your rights</H2>
         <p>
           You can request access to, correction of, or deletion of your personal data at any time. During the
-          invite-only beta, the fastest way to reach us is through the waitlist or login page. We'll add a
-          dedicated contact channel as we move toward general availability.
+          beta, the fastest way to reach us is through the login page. We'll add a dedicated contact channel as we
+          move toward general availability.
         </p>
       </section>
     </LegalPage>

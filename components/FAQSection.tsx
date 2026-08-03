@@ -34,7 +34,7 @@ const FAQS = [
   },
   {
     q: "How do I get access?",
-    a: "AiScope is invite-only during the beta. Join the waitlist and we'll email you when a spot opens up. Agencies and active SEO/GEO practitioners are being let in first.",
+    a: "Just sign up — no invite needed. Create an account with Google or an email and password, and you'll get free credits to run your first scans right away.",
   },
 ];
 

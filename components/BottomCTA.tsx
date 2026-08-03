@@ -17,14 +17,14 @@ export default function BottomCTA() {
           <p className="text-[15px] mb-7" style={{ color: "var(--text-muted)" }}>
             {authed
               ? "Jump back in and audit another URL."
-              : "Join the waitlist to get scanning. Early access goes out on a rolling basis."}
+              : "Sign up free and run your first scan in minutes."}
           </p>
           <Link
-            href={authed ? "/scan" : "/waitlist"}
+            href={authed ? "/scan" : "/signup"}
             className="inline-block rounded-xl px-7 py-3 text-sm font-semibold text-[var(--on-accent)] transition-all hover:opacity-85 hover:scale-[1.03] active:scale-95"
             style={{ background: "var(--accent)", boxShadow: "0 8px 30px -8px rgba(0,229,255,0.5)" }}
           >
-            {authed ? "Go to Scan →" : "Join the Waitlist →"}
+            {authed ? "Go to Scan →" : "Sign up free →"}
           </Link>
         </div>
       </Reveal>

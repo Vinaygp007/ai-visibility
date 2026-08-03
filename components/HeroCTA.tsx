@@ -17,11 +17,11 @@ export default function HeroCTA() {
         style={{ opacity: checked ? 1 : 0 }}
       >
         <Link
-          href={authed ? "/scan" : "/waitlist"}
+          href={authed ? "/scan" : "/signup"}
           className="rounded-xl px-7 py-3 text-sm font-semibold text-[var(--on-accent)] transition-all hover:opacity-85 hover:scale-[1.03] active:scale-95"
           style={{ background: "var(--accent)", boxShadow: "0 8px 30px -8px rgba(0,229,255,0.5)" }}
         >
-          {authed ? "Go to Scan →" : "Join the Waitlist →"}
+          {authed ? "Go to Scan →" : "Sign up free →"}
         </Link>
         {!authed && (
           <Link
@@ -35,7 +35,7 @@ export default function HeroCTA() {
       </div>
       {checked && !authed && (
         <p className="animate-fade-up fade-up-4 text-[12px]" style={{ color: "var(--text-dim)" }}>
-          Invite-only beta. Agencies and active SEO/GEO practitioners get priority access.
+          Free to sign up. Agencies and active SEO/GEO practitioners run scans in seconds.
         </p>
       )}
     </>

@@ -44,7 +44,7 @@ export default function AudienceSection() {
           Who's using AiScope
         </h2>
         <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          We're in an invite-only beta. Here's who we built it for.
+          We're in public beta. Here's who we built it for.
         </p>
       </Reveal>
 

@@ -197,11 +197,11 @@ export default function MarketingNav() {
               Log in
             </Link>
             <Link
-              href="/waitlist"
+              href="/signup"
               className="rounded-xl px-5 py-2.5 text-sm font-semibold text-[var(--on-accent)] transition-all hover:opacity-85 active:scale-95"
               style={{ background: "var(--accent)" }}
             >
-              Join Waitlist
+              Sign Up
             </Link>
           </>
         )}
@@ -293,12 +293,12 @@ export default function MarketingNav() {
                 Log in
               </Link>
               <Link
-                href="/waitlist"
+                href="/signup"
                 onClick={() => setMobileOpen(false)}
                 className="rounded-xl px-5 py-3 text-sm font-semibold text-[var(--on-accent)] text-center"
                 style={{ background: "var(--accent)" }}
               >
-                Join Waitlist
+                Sign Up
               </Link>
               <div className="flex justify-end">
                 <ThemeToggle />
