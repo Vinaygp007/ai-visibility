@@ -51,7 +51,12 @@ export default function Sidebar() {
   return (
     <aside
       className="hidden md:flex flex-col w-56 shrink-0 fixed inset-y-0 left-0 border-r px-3 py-6 overflow-y-auto"
-      style={{ borderColor: "rgba(var(--overlay-rgb),0.07)", background: "var(--surface)" }}
+      style={{
+        borderColor: "rgba(var(--overlay-rgb),0.07)",
+        background: "var(--surface)",
+        transform: "translateZ(0)",
+        willChange: "transform",
+      }}
     >
       <Link href="/" className="flex items-center gap-2.5 mb-8 px-2">
         <div
