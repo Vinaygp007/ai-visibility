@@ -79,6 +79,16 @@ h3 {
     box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.08);
   }
 
+  .auth-input {
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .auth-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.1);
+  }
+
   .cat-card:hover {
     border-color: rgba(255, 255, 255, 0.13);
   }

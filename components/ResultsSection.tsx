@@ -3,38 +3,13 @@
 import { AnalysisResult, BotDetail } from "@/types";
 import CategoryCard from "./CategoryCard";
 import Recommendations from "./Recommendations";
-import ScoreGauge from "./ScoreGauge";
 import PromptResponsePanel from "./PromptResponsePanel";
 import CitationsPanel from "./CitationsPanel";
 import CrawlSection from "./CrawlSection";
 import SpeedSection from "./SpeedSection";
-
-const PLATFORM_ICONS: Record<string, string> = {
-  chatgpt: "⬡", claude: "◈", perplexity: "◎", gemini: "✦",
-  meta_ai: "⬟", you_com: "◉", duckduckgo: "⊙", apple: "◆",
-};
-
-const COMPANY_COLORS: Record<string, { color: string }> = {
-  OpenAI:      { color: "#10a37f" },
-  Anthropic:   { color: "#c87533" },
-  Perplexity:  { color: "#20b2aa" },
-  Google:      { color: "#4285f4" },
-  Meta:        { color: "#0082fb" },
-  "You.com":   { color: "#ff6b35" },
-  DuckDuckGo:  { color: "#de5833" },
-  Apple:       { color: "#888" },
-  Cohere:      { color: "#4db69e" },
-  ByteDance:   { color: "#ff0050" },
-  CommonCrawl: { color: "#9b9b9b" },
-  Amazon:      { color: "#ff9900" },
-};
-
-const PROVIDER_COLORS: Record<string, { color: string; bg: string; border: string }> = {
-  "Gemini 2.0 Flash":  { color: "#4285f4", bg: "rgba(66,133,244,0.08)",  border: "rgba(66,133,244,0.25)" },
-  "ChatGPT (GPT-4o)": { color: "#10a37f", bg: "rgba(16,163,127,0.08)", border: "rgba(16,163,127,0.25)" },
-  "ChatGPT (GPT-4o-mini)": { color: "#10a37f", bg: "rgba(16,163,127,0.08)", border: "rgba(16,163,127,0.25)" },
-  "Perplexity Sonar":  { color: "#20b2aa", bg: "rgba(32,178,170,0.08)",  border: "rgba(32,178,170,0.25)" },
-};
+import StatCards from "./StatCards";
+import ProviderScoreChart from "./ProviderScoreChart";
+import BotCoverageTable from "./BotCoverageTable";
 
 function getScoreColor(score: number) {
   if (score >= 70) return "var(--success)";
@@ -57,9 +32,7 @@ export default function ResultsSection({
 
   const coverage = result.ai_platform_coverage ?? {};
   const coverageEntries = Object.entries(coverage);
-  const indexedCount = coverageEntries.filter(([, v]) => v === "indexed").length;
   const providers = result._providers ?? [];
-  const successfulProviders = providers.filter((p) => p.status === "success");
 
   // Enhanced bot coverage — use rich _botResults when available, fall back to ai_platform_coverage
   const rawBotResults = result._botResults ?? null;
@@ -73,7 +46,6 @@ export default function ResultsSection({
   const botBlocked: BotDetail[] = rawBotResults
     ? rawBotResults.filter(b => !b.allowed)
     : coverageEntries.filter(([, v]) => v === "blocked").map(([k]) => fallbackBots(k, false));
-  const botTotal = (rawBotResults?.length ?? coverageEntries.length);
 
   // Normalize name for fuzzy matching (strips punctuation/spaces/case)
   // This handles mismatches like "ChatGPT (GPT-4o)" vs "ChatGPT (GPT-4o-mini)"
@@ -136,6 +108,17 @@ export default function ResultsSection({
             </p>
           )}
         </div>
+        <button
+          onClick={onReset}
+          className="text-sm px-5 py-2.5 rounded-xl border transition-all hover:border-[var(--accent)] hover:text-[var(--accent)] flex-shrink-0"
+          style={{
+            borderColor: "rgba(var(--overlay-rgb),0.13)",
+            color: "var(--text)",
+            background: "transparent",
+          }}
+        >
+          ← Scan another site
+        </button>
       </div>
 
       {/* ── Prompts & Responses ─────────────────────────────────────────── */}
@@ -171,296 +154,22 @@ export default function ResultsSection({
         </div>
       )}
 
-      <div>
-        <div className="flex pb-6 gap-3 flex-wrap">
-          <ScoreGauge
-            value={result.overall_score}
-            label="AI SCORE"
-            color={scoreColor}
-            fillPercent={result.overall_score}
-          />
-          <ScoreGauge
-            value={result.grade}
-            label="GRADE"
-            color={scoreColor}
-            fillPercent={100}
-          />
-        </div>
-      </div>
+      {/* ── Stats ──────────────────────────────────────────────────────── */}
+      <StatCards
+        score={result.overall_score}
+        grade={result.grade}
+        scoreColor={scoreColor}
+        passed={result.stats?.checks_passed ?? 0}
+        warned={result.stats?.checks_warned ?? 0}
+        failed={result.stats?.checks_failed ?? 0}
+        total={totalChecks}
+      />
 
-{/* ── AI Provider Results ─────────────────────────────────────────── */}
-      {providers.length > 0 && (
-        <div
-          className="rounded-2xl border p-5 mb-6"
-          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div
-              className="text-[13px] font-mono tracking-widest uppercase"
-              style={{ color: "var(--text-muted)" }}
-            >
-              AI Provider Results
-            </div>
-            <span
-              className="text-[11px] font-mono"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {successfulProviders.length}/{providers.length} succeeded · scores
-              averaged
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {providers.map((p) => {
-              const cfg = PROVIDER_COLORS[p.name] ?? {
-                color: "var(--text-muted)",
-                bg: "rgba(var(--overlay-rgb),0.03)",
-                border: "rgba(var(--overlay-rgb),0.1)",
-              };
-              const isOk = p.status === "success";
-              return (
-                <div
-                  key={p.name}
-                  className="rounded-xl border p-4"
-                  style={{
-                    background: isOk ? cfg.bg : "rgba(255,90,90,0.04)",
-                    borderColor: isOk ? cfg.border : "rgba(255,90,90,0.2)",
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className="text-[12px] font-medium"
-                      style={{ color: isOk ? cfg.color : "var(--danger)" }}
-                    >
-                      {p.name}
-                    </span>
-                    <span
-                      className="text-[10px] font-mono"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {p.durationMs}ms
-                    </span>
-                  </div>
-                  {isOk ? (
-                    <div>
-                      <div
-                        className="text-2xl font-bold tracking-tight"
-                        style={{
-                          color:
-                            p.score != null
-                              ? getScoreColor(p.score)
-                              : "var(--text-muted)",
-                        }}
-                      >
-                        {p.score ?? "-"}
-                      </div>
-                      <div
-                        className="text-[10px] font-mono mt-0.5"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        score / 100
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-[11px]" style={{ color: "var(--danger)" }}>
-                      {p.error?.slice(0, 60) ?? "Failed"}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* ── AI Provider Results ─────────────────────────────────────────── */}
+      <ProviderScoreChart providers={providers} />
 
-      {/* ── AI Platform Coverage (Enhanced) ─────────────────────────────── */}
-      {botTotal > 0 && (
-        <div
-          className="rounded-2xl border p-5 mb-6"
-          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-              AI Platform Coverage
-            </div>
-            <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
-              {botAccessible.length}/{botTotal} accessible
-            </span>
-          </div>
-
-          {/* Progress bar */}
-          <div className="h-1 rounded-full mb-5" style={{ background: "rgba(var(--overlay-rgb),0.06)" }}>
-            <div
-              className="h-1 rounded-full transition-all duration-500"
-              style={{
-                width: `${Math.round((botAccessible.length / botTotal) * 100)}%`,
-                background:
-                  botAccessible.length === botTotal ? "var(--success)"
-                  : botAccessible.length > botTotal / 2 ? "var(--warning)"
-                  : "var(--danger)",
-              }}
-            />
-          </div>
-
-          {/* Accessible bots */}
-          {botAccessible.length > 0 && (
-            <div className="mb-5">
-              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--success)" }}>
-                Accessible: {botAccessible.length}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {botAccessible.map(bot => {
-                  const dotColor = COMPANY_COLORS[bot.company]?.color ?? "var(--success)";
-                  return (
-                    <div
-                      key={bot.key}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px]"
-                      style={{ background: "rgba(0,232,122,0.05)", borderColor: "rgba(0,232,122,0.15)" }}
-                      title={bot.reason}
-                    >
-                      <span style={{ color: dotColor, fontSize: 7, lineHeight: 1 }}>●</span>
-                      <span className="font-medium" style={{ color: "var(--text)" }}>{bot.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Blocked bots */}
-          {botBlocked.length > 0 && (
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-widest mb-2.5" style={{ color: "var(--danger)" }}>
-                Blocked: {botBlocked.length}
-              </div>
-              <div className="flex flex-col gap-2">
-                {botBlocked.map(bot => {
-                  const dotColor = COMPANY_COLORS[bot.company]?.color ?? "var(--danger)";
-                  const isGlobal = bot.blockType === "global_block";
-                  const fixHint = isGlobal
-                    ? `Add before User-agent: *  →  User-agent: ${bot.key}  then  Allow: /`
-                    : `Under User-agent: ${bot.key}  →  change Disallow: / to Allow: /`;
-                  return (
-                    <div
-                      key={bot.key}
-                      className="rounded-xl border p-3"
-                      style={{ background: "rgba(255,90,90,0.04)", borderColor: "rgba(255,90,90,0.18)" }}
-                    >
-                      {/* Bot name + badge */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <span style={{ color: dotColor, fontSize: 7, lineHeight: 1 }}>●</span>
-                        <span className="text-[12px] font-semibold text-[var(--text)]">{bot.label}</span>
-                        <span
-                          className="text-[9px] font-mono px-1.5 py-0.5 rounded-full uppercase"
-                          style={{
-                            background: isGlobal ? "rgba(255,184,48,0.12)" : "rgba(255,90,90,0.12)",
-                            color: isGlobal ? "var(--warning)" : "var(--danger)",
-                            border: `1px solid ${isGlobal ? "rgba(255,184,48,0.25)" : "rgba(255,90,90,0.25)"}`,
-                          }}
-                        >
-                          {isGlobal ? "wildcard block" : "explicit block"}
-                        </span>
-                      </div>
-
-                      {/* Actual robots.txt directive */}
-                      {bot.directive && (
-                        <div
-                          className="font-mono text-[10px] px-2.5 py-1.5 rounded-lg mb-2"
-                          style={{ background: "rgba(0,0,0,0.4)", color: "#ff9a9a" }}
-                        >
-                          {bot.directive}
-                        </div>
-                      )}
-
-                      {/* Fix hint */}
-                      <div className="flex items-start gap-1.5">
-                        <span className="text-[10px] font-mono shrink-0" style={{ color: "var(--accent)" }}>fix →</span>
-                        <span className="text-[10px] leading-snug" style={{ color: "var(--text-muted)" }}>{fixHint}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Stats bar ───────────────────────────────────────────────────── */}
-      <div
-        className="flex gap-8 flex-wrap items-center rounded-2xl border px-6 py-5 mb-6"
-        style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
-      >
-        <div className="text-center">
-          <div
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: "var(--success)" }}
-          >
-            {result.stats?.checks_passed ?? 0}
-          </div>
-          <div
-            className="text-[11px] font-mono mt-0.5 tracking-wide"
-            style={{ color: "var(--text-muted)" }}
-          >
-            PASSED
-          </div>
-        </div>
-        <div className="text-center">
-          <div
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: "var(--warning)" }}
-          >
-            {result.stats?.checks_warned ?? 0}
-          </div>
-          <div
-            className="text-[11px] font-mono mt-0.5 tracking-wide"
-            style={{ color: "var(--text-muted)" }}
-          >
-            WARNINGS
-          </div>
-        </div>
-        <div className="text-center">
-          <div
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: "var(--danger)" }}
-          >
-            {result.stats?.checks_failed ?? 0}
-          </div>
-          <div
-            className="text-[11px] font-mono mt-0.5 tracking-wide"
-            style={{ color: "var(--text-muted)" }}
-          >
-            FAILED
-          </div>
-        </div>
-        <div className="text-center">
-          <div
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: "var(--accent)" }}
-          >
-            {totalChecks}
-          </div>
-          <div
-            className="text-[11px] font-mono mt-0.5 tracking-wide"
-            style={{ color: "var(--text-muted)" }}
-          >
-            TOTAL CHECKS
-          </div>
-        </div>
-        <div className="ml-auto">
-          <button
-            onClick={onReset}
-            className="text-sm px-5 py-2.5 rounded-xl border transition-all hover:border-[var(--accent)] hover:text-[var(--accent)]"
-            style={{
-              borderColor: "rgba(var(--overlay-rgb),0.13)",
-              color: "var(--text)",
-              background: "transparent",
-            }}
-          >
-            ← Scan another site
-          </button>
-        </div>
-      </div>
+      {/* ── AI Platform Coverage ─────────────────────────────────────────── */}
+      <BotCoverageTable accessible={botAccessible} blocked={botBlocked} />
 
       {/* ── Categories ──────────────────────────────────────────────────── */}
       <div

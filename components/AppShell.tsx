@@ -14,7 +14,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // (those render their own MarketingNav directly, or no header at all).
   const PUBLIC_PATHS = ["/", "/login", "/signup", "/admin/login", "/privacy", "/terms"];
   const showShell = !pathname.startsWith("/docs") && !PUBLIC_PATHS.includes(pathname);
-  const PAGES_WITH_OWN_NAV = ["/", "/privacy", "/terms"];
+  const PAGES_WITH_OWN_NAV = ["/", "/privacy", "/terms", "/login", "/signup"];
   const showFloatingToggle = !showShell && !PAGES_WITH_OWN_NAV.includes(pathname) && !pathname.startsWith("/docs");
 
   if (showShell) {

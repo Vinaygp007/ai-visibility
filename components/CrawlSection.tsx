@@ -19,6 +19,15 @@ const BUCKET_COLORS: Record<string, { color: string; bg: string; border: string 
   "error": { color: "var(--text-muted)", bg: "rgba(139,141,158,0.08)", border: "rgba(139,141,158,0.2)" },
 };
 
+const TIER_STYLES = {
+  success: { color: "var(--success)", iconBg: "rgba(0,232,122,0.1)", pillBg: "rgba(0,232,122,0.08)" },
+  warning: { color: "var(--warning)", iconBg: "rgba(255,184,48,0.12)", pillBg: "rgba(255,184,48,0.1)" },
+  danger: { color: "var(--danger)", iconBg: "rgba(255,90,90,0.1)", pillBg: "rgba(255,90,90,0.08)" },
+  accent: { color: "var(--accent)", iconBg: "rgba(0,229,255,0.1)", pillBg: "rgba(0,229,255,0.08)" },
+} as const;
+
+type Tier = keyof typeof TIER_STYLES;
+
 const ISSUE_COLORS: Record<string, string> = {
   "broken link":         "var(--danger)",
   "server error":        "#ff2222",
@@ -189,24 +198,48 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
         <div className="px-5 pb-6">
 
           {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 py-5">
-            {[
-              { label: "Pages Crawled",   value: result.pagesCrawled,   color: "var(--accent)" },
-              { label: "Broken Pages",    value: result.pagesBroken,    color: result.pagesBroken > 0 ? "var(--danger)" : "var(--success)" },
-              { label: "Avg Response",    value: fmt(result.avgResponseTimeMs), color: result.avgResponseTimeMs > 800 ? "var(--danger)" : result.avgResponseTimeMs > 400 ? "var(--warning)" : "var(--success)" },
-              { label: "Orphan Pages",    value: result.orphanPages.length, color: result.orphanPages.length > 0 ? "var(--warning)" : "var(--success)" },
-              { label: "Total Issues",    value: result.totalIssues,    color: result.totalIssues > 0 ? "var(--warning)" : "var(--success)" },
-              { label: "Avg Link Depth",  value: result.avgLinkDepth,   color: result.avgLinkDepth > 3 ? "var(--warning)" : "var(--success)" },
-            ].map(({ label, value, color }) => (
-              <div
-                key={label}
-                className="rounded-xl border px-4 py-3 text-center"
-                style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
-              >
-                <div className="text-xl font-bold font-mono" style={{ color }}>{value}</div>
-                <div className="text-[10px] font-mono uppercase tracking-wider mt-0.5" style={{ color: "var(--text-muted)" }}>{label}</div>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 py-5">
+            {([
+              { label: "Pages Crawled", value: result.pagesCrawled, icon: "▤", tier: "accent", hint: "of up to 20" },
+              { label: "Broken Pages", value: result.pagesBroken, icon: "✕", tier: result.pagesBroken > 0 ? "danger" : "success", hint: result.pagesBroken > 0 ? "needs fixing" : "none found" },
+              { label: "Avg Response", value: fmt(result.avgResponseTimeMs), icon: "⏱", tier: result.avgResponseTimeMs > 800 ? "danger" : result.avgResponseTimeMs > 400 ? "warning" : "success", hint: result.avgResponseTimeMs > 800 ? "slow" : result.avgResponseTimeMs > 400 ? "ok" : "fast" },
+              { label: "Orphan Pages", value: result.orphanPages.length, icon: "⚠", tier: result.orphanPages.length > 0 ? "warning" : "success", hint: result.orphanPages.length > 0 ? "no inbound links" : "fully linked" },
+              { label: "Total Issues", value: result.totalIssues, icon: "⚠", tier: result.totalIssues > 0 ? "warning" : "success", hint: result.totalIssues > 0 ? "across pages" : "none found" },
+              { label: "Avg Link Depth", value: result.avgLinkDepth, icon: "◈", tier: result.avgLinkDepth > 3 ? "warning" : "success", hint: result.avgLinkDepth > 3 ? "deep nesting" : "shallow" },
+            ] as { label: string; value: number | string; icon: string; tier: Tier; hint: string }[]).map((c) => {
+              const style = TIER_STYLES[c.tier];
+              return (
+                <div
+                  key={c.label}
+                  className="rounded-2xl border p-5"
+                  style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
+                >
+                  <div className="flex items-center justify-between mb-3.5">
+                    <span
+                      className="text-[11px] font-mono uppercase tracking-widest"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {c.label}
+                    </span>
+                    <span
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[13px] flex-shrink-0"
+                      style={{ background: style.iconBg, color: style.color }}
+                    >
+                      {c.icon}
+                    </span>
+                  </div>
+                  <div className="text-3xl font-bold tracking-tight" style={{ color: style.color }}>
+                    {c.value}
+                  </div>
+                  <div
+                    className="inline-block mt-2.5 text-[11px] font-mono px-2 py-0.5 rounded-full"
+                    style={{ color: style.color, background: style.pillBg }}
+                  >
+                    {c.hint}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* robots.txt + sitemap status */}

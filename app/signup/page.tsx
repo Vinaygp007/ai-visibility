@@ -3,11 +3,14 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import AuthLayout from "@/components/AuthLayout";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 function SignupForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -59,111 +62,149 @@ function SignupForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
-      <div
-        className="w-full max-w-sm rounded-2xl border p-8"
-        style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
-      >
-        <div className="flex flex-col items-center mb-6">
+    <AuthLayout
+      image={{
+        src: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=80",
+      }}
+    >
+      {done ? (
+        <div className="text-center">
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-base mb-3"
-            style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
+            className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+            style={{ background: "rgba(0,229,255,0.1)" }}
           >
-            🔭
+            <Mail size={22} style={{ color: "var(--accent)" }} />
           </div>
-          <div className="text-lg font-semibold text-[var(--text)]">Create your account</div>
+          <h1 className="text-xl font-bold tracking-tight text-[var(--text)] mb-2">Check your email</h1>
+          <p className="text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            We sent a confirmation link to <span style={{ color: "var(--text)" }}>{email}</span>. Click it to activate your account.
+          </p>
         </div>
-
-        {done ? (
-          <div className="text-[13px] rounded-lg px-3 py-3 border text-center" style={{ color: "var(--accent)", background: "rgba(0,229,255,0.08)", borderColor: "rgba(0,229,255,0.25)" }}>
-            Check your email to confirm your account.
+      ) : (
+        <>
+          <div className="mb-7">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--text)] mb-1.5">Create your account</h1>
+            <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
+              Start auditing your AI visibility in minutes
+            </p>
           </div>
-        ) : (
-          <>
-            <div className="space-y-2 mb-5">
-              <button
-                type="button"
-                onClick={handleGoogle}
-                className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-[var(--text)] border"
-                style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.12)" }}
-              >
-                <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.9-2.26 5.36-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-                </svg>
-                Continue with Google
-              </button>
-            </div>
 
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-px flex-1" style={{ background: "rgba(var(--overlay-rgb),0.1)" }} />
-              <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>or</span>
-              <div className="h-px flex-1" style={{ background: "rgba(var(--overlay-rgb),0.1)" }} />
-            </div>
+          <button
+            type="button"
+            onClick={handleGoogle}
+            className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-[var(--text)] border transition-colors hover:bg-[rgba(var(--overlay-rgb),0.05)]"
+            style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.12)" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.9-2.26 5.36-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+            </svg>
+            Continue with Google
+          </button>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[12px] font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Full name</label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2.5 text-sm text-[var(--text)] outline-none border"
-                  style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
+          <div className="flex items-center gap-3 my-6">
+            <div className="h-px flex-1" style={{ background: "rgba(var(--overlay-rgb),0.1)" }} />
+            <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>or sign up with email</span>
+            <div className="h-px flex-1" style={{ background: "rgba(var(--overlay-rgb),0.1)" }} />
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[12px] font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
+                Full name
+              </label>
+              <input
+                type="text"
+                placeholder="Jane Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="auth-input w-full rounded-xl px-3 py-2.5 text-sm text-[var(--text)] border"
+                style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.12)" }}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
+                Email
+              </label>
+              <div className="relative">
+                <Mail
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ color: "var(--text-dim)" }}
+                  aria-hidden="true"
                 />
-              </div>
-              <div>
-                <label className="block text-[12px] font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Email</label>
                 <input
                   type="email"
                   required
+                  placeholder="you@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2.5 text-sm text-[var(--text)] outline-none border"
-                  style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
+                  className="auth-input w-full rounded-xl pl-9 pr-3 py-2.5 text-sm text-[var(--text)] border"
+                  style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.12)" }}
                 />
               </div>
-              <div>
-                <label className="block text-[12px] font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Password</label>
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
+                Password
+              </label>
+              <div className="relative">
+                <Lock
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ color: "var(--text-dim)" }}
+                  aria-hidden="true"
+                />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   minLength={8}
+                  placeholder="At least 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2.5 text-sm text-[var(--text)] outline-none border"
-                  style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
+                  className="auth-input w-full rounded-xl pl-9 pr-10 py-2.5 text-sm text-[var(--text)] border"
+                  style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.12)" }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center"
+                  style={{ color: "var(--text-dim)" }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
               </div>
+            </div>
 
-              {error && (
-                <div className="text-[12px] rounded-lg px-3 py-2 border" style={{ color: "var(--danger)", background: "rgba(255,107,107,0.08)", borderColor: "rgba(255,107,107,0.25)" }}>
-                  {error}
-                </div>
-              )}
+            {error && (
+              <div className="text-[12px] rounded-lg px-3 py-2 border" style={{ color: "var(--danger)", background: "rgba(255,107,107,0.08)", borderColor: "rgba(255,107,107,0.25)" }}>
+                {error}
+              </div>
+            )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-lg py-2.5 text-sm font-semibold text-[var(--on-accent)] disabled:opacity-60"
-                style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
-              >
-                {loading ? "Creating account…" : "Create account"}
-              </button>
-            </form>
-          </>
-        )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl py-2.5 text-sm font-semibold text-[var(--on-accent)] disabled:opacity-60 transition-transform active:scale-[0.98]"
+              style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
+            >
+              {loading ? "Creating account…" : "Create account"}
+            </button>
+          </form>
+        </>
+      )}
 
-        <div className="text-center text-[12px] mt-5" style={{ color: "var(--text-dim)" }}>
-          Already have an account?{" "}
-          <a href="/login" className="underline" style={{ color: "var(--text-muted)" }}>
-            Sign in
-          </a>
-        </div>
+      <div className="text-center text-[13px] mt-7" style={{ color: "var(--text-dim)" }}>
+        Already have an account?{" "}
+        <a href="/login" className="font-medium underline" style={{ color: "var(--accent)" }}>
+          Sign in
+        </a>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
 
