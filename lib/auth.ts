@@ -11,6 +11,8 @@ export interface CurrentUser {
   referralCode: string;
   creditBalance: number;
   plan: UserPlan;
+  subscriptionStatus: string | null;
+  currentPeriodEnd: string | null;
 }
 
 /**
@@ -30,7 +32,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role, status, referral_code, plan")
+    .select("full_name, role, status, referral_code, plan, subscription_status, current_period_end")
     .eq("id", user.id)
     .single();
 
@@ -51,5 +53,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     referralCode: profile.referral_code,
     creditBalance: balanceRow?.balance ?? 0,
     plan: profile.plan,
+    subscriptionStatus: profile.subscription_status,
+    currentPeriodEnd: profile.current_period_end,
   };
 }

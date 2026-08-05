@@ -1,12 +1,16 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { UserPlan } from "@/types";
 
 interface CurrentUserClient {
   role: "user" | "admin";
   fullName: string | null;
   email: string;
   creditBalance: number;
+  plan: UserPlan;
+  subscriptionStatus: string | null;
+  currentPeriodEnd: string | null;
 }
 
 const CurrentUserContext = createContext<{ user: CurrentUserClient | null } | undefined>(undefined);

@@ -15,6 +15,7 @@ export const ACCOUNT_LINKS = [
   { href: "/reports", label: "Previous Reports" },
   { href: "/credits", label: "Credit History" },
   { href: "/referrals", label: "Referrals" },
+  { href: "/billing", label: "Billing" },
 ];
 
 export const ADMIN_LINK = { href: "/admin/providers", label: "Settings" };

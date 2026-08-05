@@ -16,7 +16,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const showShell = !pathname.startsWith("/docs") && !PUBLIC_PATHS.includes(pathname);
   const PAGES_WITH_OWN_NAV = ["/", "/privacy", "/terms", "/login", "/signup"];
   const showFloatingToggle = !showShell && !PAGES_WITH_OWN_NAV.includes(pathname) && !pathname.startsWith("/docs");
-  const PAGES_WITHOUT_FOOTER = ["/scan", "/bulk", "/bulk-prompt", "/reports", "/credits", "/referrals"];
+  const PAGES_WITHOUT_FOOTER = [
+    "/scan",
+    "/bulk",
+    "/bulk-prompt",
+    "/reports",
+    "/credits",
+    "/referrals",
+    "/billing",
+    "/billing/success",
+    "/billing/canceled",
+  ];
 
   if (showShell) {
     return (

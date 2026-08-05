@@ -169,7 +169,7 @@ export default function AdminUsersPage() {
                     style={{ borderColor: "rgba(var(--overlay-rgb),0.12)", color: "var(--text)", background: "rgba(var(--overlay-rgb),0.03)" }}
                   >
                     {PLANS.map((p) => (
-                      <option key={p} value={p}>{p}</option>
+                      <option key={p} value={p} style={{ background: "var(--surface)", color: "var(--text)" }}>{p}</option>
                     ))}
                   </select>
                   <button

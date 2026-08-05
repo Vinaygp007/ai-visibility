@@ -60,7 +60,7 @@ export default function BugReportWidget() {
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-5 right-5 z-40 w-11 h-11 rounded-full flex items-center justify-center text-lg shadow-lg"
-        style={{ background: "#1a1b23", border: "1px solid rgba(var(--overlay-rgb),0.12)", color: "var(--text-muted)" }}
+        style={{ background: "var(--surface)", border: "1px solid rgba(var(--overlay-rgb),0.12)", color: "var(--text-muted)" }}
         aria-label="Report a bug"
         title="Report a bug"
       >
@@ -71,7 +71,7 @@ export default function BugReportWidget() {
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.6)" }}>
           <div
             className="w-full max-w-md rounded-2xl border p-6"
-            style={{ background: "#0f1017", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
+            style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-[var(--text)]">Report a bug</h3>
@@ -107,10 +107,10 @@ export default function BugReportWidget() {
                   className="w-full px-3 py-2.5 rounded-lg border text-sm"
                   style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 >
-                  <option value="low">Low: minor annoyance</option>
-                  <option value="medium">Medium: got in the way</option>
-                  <option value="high">High: blocked me</option>
-                  <option value="critical">Critical: lost data / broken</option>
+                  <option value="low" style={{ background: "var(--surface)", color: "var(--text)" }}>Low: minor annoyance</option>
+                  <option value="medium" style={{ background: "var(--surface)", color: "var(--text)" }}>Medium: got in the way</option>
+                  <option value="high" style={{ background: "var(--surface)", color: "var(--text)" }}>High: blocked me</option>
+                  <option value="critical" style={{ background: "var(--surface)", color: "var(--text)" }}>Critical: lost data / broken</option>
                 </select>
 
                 {error && (

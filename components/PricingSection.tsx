@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 const PLANS = [
   {
     name: "Free",
+    slug: null,
     monthly: 0,
     annual: 0,
     desc: "Try it out, no card required.",
@@ -16,6 +17,7 @@ const PLANS = [
   },
   {
     name: "Starter",
+    slug: "starter",
     monthly: 19,
     annual: 190,
     desc: "For freelancers and solo operators.",
@@ -24,6 +26,7 @@ const PLANS = [
   },
   {
     name: "Growth",
+    slug: "growth",
     monthly: 49,
     annual: 490,
     desc: "For growing teams and regular audits.",
@@ -32,6 +35,7 @@ const PLANS = [
   },
   {
     name: "Agency",
+    slug: "agency",
     monthly: 99,
     annual: 990,
     desc: "For agencies running client reports.",
@@ -40,6 +44,7 @@ const PLANS = [
   },
   {
     name: "Scale",
+    slug: "scale",
     monthly: 249,
     annual: 2490,
     desc: "For heavy bulk usage and full provider access.",
@@ -50,9 +55,24 @@ const PLANS = [
 
 export default function PricingSection() {
   const [yearly, setYearly] = useState(false);
-  // No billing/upgrade flow exists yet, so an already-signed-in visitor
-  // gets sent back into the app instead of signup for every plan.
+  const [checkingOut, setCheckingOut] = useState<string | null>(null);
   const { authed } = useCurrentUser();
+
+  async function handleSubscribe(slug: string) {
+    setCheckingOut(slug);
+    try {
+      const res = await fetch("/api/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: slug, interval: yearly ? "yearly" : "monthly" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error?.message || "Checkout failed");
+      window.location.href = data.url;
+    } catch {
+      setCheckingOut(null);
+    }
+  }
 
   return (
     <section id="pricing" className="max-w-6xl mx-auto px-6 py-20">
@@ -156,17 +176,33 @@ export default function PricingSection() {
                   ))}
                 </ul>
 
-                <Link
-                  href={authed ? "/scan" : "/signup"}
-                  className="text-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all hover:opacity-85 active:scale-95"
-                  style={
-                    plan.highlight
-                      ? { background: "var(--accent)", color: "var(--on-accent)" }
-                      : { background: "transparent", color: "var(--text)", border: "1px solid rgba(var(--overlay-rgb),0.13)" }
-                  }
-                >
-                  {authed ? "Go to Scan" : "Sign Up"}
-                </Link>
+                {authed && plan.slug ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSubscribe(plan.slug!)}
+                    disabled={checkingOut !== null}
+                    className="text-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all hover:opacity-85 active:scale-95 disabled:opacity-60"
+                    style={
+                      plan.highlight
+                        ? { background: "var(--accent)", color: "var(--on-accent)" }
+                        : { background: "transparent", color: "var(--text)", border: "1px solid rgba(var(--overlay-rgb),0.13)" }
+                    }
+                  >
+                    {checkingOut === plan.slug ? "Redirecting…" : "Subscribe"}
+                  </button>
+                ) : (
+                  <Link
+                    href={authed ? "/scan" : "/signup"}
+                    className="text-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all hover:opacity-85 active:scale-95"
+                    style={
+                      plan.highlight
+                        ? { background: "var(--accent)", color: "var(--on-accent)" }
+                        : { background: "transparent", color: "var(--text)", border: "1px solid rgba(var(--overlay-rgb),0.13)" }
+                    }
+                  >
+                    {authed ? "Go to Scan" : "Sign Up"}
+                  </Link>
+                )}
               </div>
             </Reveal>
           );

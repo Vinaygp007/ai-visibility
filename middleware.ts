@@ -3,7 +3,9 @@ import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 
 const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/callback", "/admin/login", "/privacy", "/terms"];
-const PUBLIC_API_PREFIXES: string[] = [];
+// Stripe calls this with no session cookie at all — signature verification
+// inside the route itself is what authenticates the caller, not a session.
+const PUBLIC_API_PREFIXES: string[] = ["/api/webhooks/stripe"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
