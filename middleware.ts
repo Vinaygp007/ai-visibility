@@ -6,6 +6,31 @@ const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/callback", "/admin/login"
 // Stripe calls this with no session cookie at all — signature verification
 // inside the route itself is what authenticates the caller, not a session.
 const PUBLIC_API_PREFIXES: string[] = ["/api/webhooks/stripe"];
+// Top-level segments that map to a real page route. Anything outside this
+// list (and outside /api) can't resolve to anything but not-found.tsx, so an
+// unauthenticated visitor should see that 404 instead of being bounced to
+// /login for a page that was never going to exist anyway. Keep in sync with
+// KNOWN_ROUTE_PREFIXES in components/AppShell.tsx.
+const KNOWN_ROUTE_PREFIXES = [
+  "/",
+  "/admin",
+  "/auth",
+  "/billing",
+  "/bulk",
+  "/bulk-prompt",
+  "/credits",
+  "/docs",
+  "/login",
+  "/login2",
+  "/privacy",
+  "/referrals",
+  "/reports",
+  "/scan",
+  "/settings",
+  "/signup",
+  "/signup2",
+  "/terms",
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -18,9 +43,14 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
+  const isKnownRoute = KNOWN_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+
   if (!user) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: { code: "unauthenticated", message: "No active session." } }, { status: 401 });
+    }
+    if (!isKnownRoute) {
+      return response;
     }
     const loginUrl = new URL(pathname.startsWith("/admin") ? "/admin/login" : "/login", req.url);
     loginUrl.searchParams.set("from", pathname);
