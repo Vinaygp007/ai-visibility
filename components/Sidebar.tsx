@@ -4,32 +4,45 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { Search, Layers, Terminal, FileText, History, Users, CreditCard, Settings, LogOut } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-export const PRIMARY_LINKS = [
-  { href: "/scan", label: "Scan" },
-  { href: "/bulk", label: "Bulk Scanner" },
-  { href: "/bulk-prompt", label: "Prompt Runner" },
+export const PRIMARY_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/scan", label: "Scan", icon: Search },
+  { href: "/bulk", label: "Bulk Scanner", icon: Layers },
+  { href: "/bulk-prompt", label: "Prompt Runner", icon: Terminal },
 ];
 
-export const ACCOUNT_LINKS = [
-  { href: "/reports", label: "Previous Reports" },
-  { href: "/credits", label: "Credit History" },
-  { href: "/referrals", label: "Referrals" },
-  { href: "/billing", label: "Billing" },
+export const ACCOUNT_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/reports", label: "Previous Reports", icon: FileText },
+  { href: "/credits", label: "Credit History", icon: History },
+  { href: "/referrals", label: "Referrals", icon: Users },
+  { href: "/billing", label: "Billing", icon: CreditCard },
 ];
 
-export const ADMIN_LINK = { href: "/admin/providers", label: "Settings" };
+export const ADMIN_LINK = { href: "/admin/providers", label: "Settings", icon: Settings };
 
-function NavLink({ href, label, active, small }: { href: string; label: string; active: boolean; small?: boolean }) {
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+}) {
   return (
     <Link
       href={href}
-      className={`px-3 py-2 rounded-lg font-medium transition-colors ${small ? "text-[13.5px]" : "text-[14px]"}`}
+      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-colors"
       style={{
         color: active ? "var(--accent)" : "var(--text-muted)",
-        background: active ? "rgba(0,229,255,0.08)" : "transparent",
+        background: active ? "rgba(0,229,255,0.1)" : "transparent",
       }}
     >
+      <Icon size={17} className="shrink-0" strokeWidth={2} />
       {label}
     </Link>
   );
@@ -40,7 +53,6 @@ export default function Sidebar() {
   const router = useRouter();
   const { user } = useCurrentUser();
   const role = user?.role ?? null;
-  const accountLinks = role === "admin" ? [...ACCOUNT_LINKS, ADMIN_LINK] : ACCOUNT_LINKS;
 
   async function handleLogout() {
     const supabase = createClient();
@@ -48,6 +60,8 @@ export default function Sidebar() {
     router.push("/");
     router.refresh();
   }
+
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   return (
     <aside
@@ -69,16 +83,22 @@ export default function Sidebar() {
         <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
       </Link>
 
-      <nav className="flex flex-col gap-1 mb-6">
+      <nav className="flex flex-col gap-1">
         {PRIMARY_LINKS.map((link) => (
-          <NavLink
-            key={link.href}
-            href={link.href}
-            label={link.label}
-            active={pathname === link.href || pathname.startsWith(link.href + "/")}
-          />
+          <NavLink key={link.href} {...link} active={isActive(link.href)} />
         ))}
       </nav>
+
+      {user && (
+        <>
+          <div className="h-px my-4 mx-1" style={{ background: "rgba(var(--overlay-rgb),0.08)" }} />
+          <nav className="flex flex-col gap-1">
+            {ACCOUNT_LINKS.map((link) => (
+              <NavLink key={link.href} {...link} active={isActive(link.href)} />
+            ))}
+          </nav>
+        </>
+      )}
 
       <div className="flex-1" />
 
@@ -86,20 +106,13 @@ export default function Sidebar() {
         <>
           <div className="h-px my-3 mx-1" style={{ background: "rgba(var(--overlay-rgb),0.08)" }} />
           <nav className="flex flex-col gap-1">
-            {accountLinks.map((link) => (
-              <NavLink
-                key={link.href}
-                href={link.href}
-                label={link.label}
-                small
-                active={pathname === link.href || pathname.startsWith(link.href + "/")}
-              />
-            ))}
+            {role === "admin" && <NavLink {...ADMIN_LINK} active={isActive(ADMIN_LINK.href)} />}
             <button
               onClick={handleLogout}
-              className="px-3 py-2 rounded-lg font-medium text-[13.5px] text-left transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[14px] font-medium text-left transition-colors"
               style={{ color: "var(--text-muted)" }}
             >
+              <LogOut size={17} className="shrink-0" strokeWidth={2} />
               Log out
             </button>
           </nav>
