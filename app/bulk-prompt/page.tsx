@@ -66,6 +66,10 @@ const PROVIDER_CONFIG: Record<string, { color: string; bg: string; border: strin
 
 const DEFAULT_PROVIDER_CFG = { color: "var(--text-muted)", bg: "rgba(var(--overlay-rgb),0.05)", border: "rgba(var(--overlay-rgb),0.12)", icon: "◎" };
 
+// Subtle elevation so panels read as distinct cards against the page
+// background, on top of their existing border.
+const CARD_SHADOW = "0 1px 3px rgba(0,0,0,0.05)";
+
 const PROMPT_PRESETS = [
   "Best 5 CRM platforms for startups: rank them with pros, cons, and pricing URL.",
   "Top 5 AI writing tools in 2025: who are they best for? Include website URLs.",
@@ -142,6 +146,7 @@ function PromptCard({
         background: "var(--surface)",
         border: `1px solid ${isRunning ? "rgba(255,184,48,0.25)" : isDone ? "rgba(0,232,122,0.18)" : isError ? "rgba(255,90,90,0.18)" : "rgba(var(--overlay-rgb),0.08)"}`,
         borderRadius: 16,
+        boxShadow: CARD_SHADOW,
         overflow: "hidden",
         transition: "border-color 0.3s",
         display: "flex",
@@ -152,7 +157,7 @@ function PromptCard({
       <div style={{
         padding: "10px 14px",
         borderBottom: "1px solid rgba(var(--overlay-rgb),0.06)",
-        background: "rgba(0,0,0,0.2)",
+        background: "rgba(var(--overlay-rgb),0.04)",
         display: "flex",
         alignItems: "center",
         gap: 10,
@@ -228,7 +233,7 @@ function PromptCard({
           disabled={isRunning}
           placeholder="URL (optional), e.g. https://example.com"
           style={{
-            width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
+            width: "100%", background: "rgba(var(--overlay-rgb),0.04)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
             borderRadius: 8, padding: "6px 12px", fontSize: 11, fontFamily: "monospace",
             color: "var(--text)", outline: "none",
             caretColor: "var(--accent)",
@@ -247,7 +252,7 @@ function PromptCard({
           disabled={isRunning}
           placeholder="Enter your prompt here…"
           style={{
-            width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
+            width: "100%", background: "rgba(var(--overlay-rgb),0.04)", border: "1px solid rgba(var(--overlay-rgb),0.07)",
             borderRadius: 10, padding: "8px 12px", fontSize: 12, fontFamily: "monospace",
             color: "var(--text)", resize: "vertical", outline: "none",
             caretColor: "var(--accent)", lineHeight: 1.5,
@@ -327,7 +332,7 @@ function PromptCard({
                     style={{
                       borderRadius: 10,
                       border: `1px solid ${isOpen ? pCfg.border : "rgba(var(--overlay-rgb),0.07)"}`,
-                      background: isOpen ? pCfg.bg : "rgba(0,0,0,0.15)",
+                      background: isOpen ? pCfg.bg : "rgba(var(--overlay-rgb),0.03)",
                       overflow: "hidden",
                       transition: "border-color 0.2s, background 0.2s",
                     }}
@@ -388,13 +393,13 @@ function PromptCard({
                                 onClick={() => navigator.clipboard.writeText(r.response)}
                                 style={{
                                   fontSize: 9, fontFamily: "monospace", padding: "2px 8px", borderRadius: 5,
-                                  color: pCfg.color, background: "rgba(0,0,0,0.3)", border: `1px solid ${pCfg.border}`,
+                                  color: pCfg.color, background: "rgba(var(--overlay-rgb),0.06)", border: `1px solid ${pCfg.border}`,
                                   cursor: "pointer",
                                 }}
                               >Copy</button>
                             </div>
                             <div style={{
-                              background: "rgba(0,0,0,0.22)", border: `1px solid ${pCfg.border}`,
+                              background: "rgba(var(--overlay-rgb),0.03)", border: `1px solid ${pCfg.border}`,
                               borderRadius: 10, padding: "10px 12px", maxHeight: 260, overflowY: "auto",
                             }}>
                               {renderMarkdown(r.response)}
@@ -421,7 +426,7 @@ function PromptCard({
                     style={{
                       borderRadius: 10,
                       border: `1px solid ${isOpen ? pCfg.border : "rgba(var(--overlay-rgb),0.07)"}`,
-                      background: isOpen ? pCfg.bg : "rgba(0,0,0,0.15)",
+                      background: isOpen ? pCfg.bg : "rgba(var(--overlay-rgb),0.03)",
                       overflow: "hidden",
                       transition: "border-color 0.2s, background 0.2s",
                     }}
@@ -477,7 +482,7 @@ function PromptCard({
 
                         {/* Raw answer */}
                         <div style={{
-                          background: "rgba(0,0,0,0.22)", border: `1px solid ${pCfg.border}`,
+                          background: "rgba(var(--overlay-rgb),0.03)", border: `1px solid ${pCfg.border}`,
                           borderRadius: 10, padding: "10px 12px", maxHeight: 220, overflowY: "auto", marginBottom: 8,
                         }}>
                           {renderMarkdown(c.rawAnswer)}
@@ -490,7 +495,7 @@ function PromptCard({
                               <a key={i} href={url} target="_blank" rel="noreferrer"
                                 style={{
                                   display: "block", padding: "4px 10px", borderRadius: 6, fontSize: 10,
-                                  fontFamily: "monospace", color: pCfg.color, background: "rgba(0,0,0,0.2)",
+                                  fontFamily: "monospace", color: pCfg.color, background: "rgba(var(--overlay-rgb),0.04)",
                                   border: `1px solid ${pCfg.border}`, textDecoration: "none",
                                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                                 }}
@@ -1075,7 +1080,7 @@ export default function MultiPromptPage() {
 
             <div style={{
               background: "var(--surface)", border: "1px solid rgba(var(--overlay-rgb),0.08)",
-              borderRadius: 14, padding: "14px 16px",
+              borderRadius: 14, padding: "14px 16px", boxShadow: CARD_SHADOW,
               display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -1110,7 +1115,7 @@ export default function MultiPromptPage() {
           {/* Global controls bar */}
           <div style={{
             background: "var(--surface)", border: "1px solid rgba(var(--overlay-rgb),0.08)",
-            borderRadius: 14, padding: "12px 14px", marginBottom: 24,
+            borderRadius: 14, padding: "12px 14px", marginBottom: 24, boxShadow: CARD_SHADOW,
             display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
           }}>
 
@@ -1359,7 +1364,7 @@ export default function MultiPromptPage() {
           <div
             style={{
               background: "var(--surface)", border: "1px solid rgba(var(--overlay-rgb),0.1)",
-              borderRadius: 16, padding: 20, width: "min(640px, 92vw)",
+              borderRadius: 16, padding: 20, width: "min(640px, 92vw)", boxShadow: "0 12px 32px rgba(0,0,0,0.18)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1376,7 +1381,7 @@ export default function MultiPromptPage() {
               rows={10}
               placeholder='[{"url": "https://example.com", "prompt": "..."}]'
               style={{
-                width: "100%", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(var(--overlay-rgb),0.08)",
+                width: "100%", background: "rgba(var(--overlay-rgb),0.04)", border: "1px solid rgba(var(--overlay-rgb),0.08)",
                 borderRadius: 10, padding: "10px 12px", fontSize: 12, fontFamily: "monospace",
                 color: "var(--text)", resize: "vertical", outline: "none", caretColor: "var(--accent)",
               }}

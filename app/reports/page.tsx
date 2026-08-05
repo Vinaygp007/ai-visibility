@@ -6,6 +6,10 @@ import ReportModal from "@/components/ReportModal";
 import { AnalysisResult, UserPlan } from "@/types";
 import { toPlainText, extractProviderText } from "@/lib/plainText";
 
+// Subtle elevation so list rows/panels read as distinct cards against the
+// page background, on top of their existing border.
+const CARD_SHADOW = "0 1px 3px rgba(0,0,0,0.05)";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type ScanType = "homepage" | "bulk" | "bulk_prompt";
@@ -1189,7 +1193,7 @@ export default function PreviousReportsPage() {
           <HamburgerMenu activeTab={activeTab} onTabChange={setActiveTab} counts={counts} />
           <div
             className="flex items-center rounded-xl border p-1 gap-1"
-            style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
+            style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.08)", boxShadow: CARD_SHADOW }}
           >
             {([
               { key: "homepage" as ScanType, label: "Homepage", icon: "🔍" },
@@ -1217,7 +1221,7 @@ export default function PreviousReportsPage() {
         <div className="mb-6">
           <div
             className="flex items-center gap-2 rounded-xl border px-4 py-3"
-            style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
+            style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", boxShadow: CARD_SHADOW }}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
               <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4" />
@@ -1343,7 +1347,7 @@ function HomepageRow({ report, onClick }: { report: ReportSummary; onClick: () =
   return (
     <div
       className="flex items-center gap-4 px-5 py-4 rounded-xl border transition-all hover:border-[var(--accent)]/30 cursor-pointer"
-      style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
+      style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
       onClick={onClick}
     >
       <div
@@ -1437,7 +1441,7 @@ function BulkResultRow({
 
       {/* ── Expanded detail panel ── */}
       {expanded && (
-        <div className="px-5 pb-4 pt-1 space-y-3" style={{ background: "rgba(0,0,0,0.15)" }}>
+        <div className="px-5 pb-4 pt-1 space-y-3" style={{ background: "rgba(var(--overlay-rgb),0.03)" }}>
 
           {/* Full URL */}
           <div>
@@ -1944,7 +1948,7 @@ function BulkPromptCard({ batch, plan }: { batch: BulkPromptBatch; plan: UserPla
   return (
     <div
       className="rounded-xl border overflow-hidden transition-all"
-      style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "rgba(var(--overlay-rgb),0.07)" }}
+      style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
     >
       <div
         className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[rgba(var(--overlay-rgb),0.01)] transition-all"

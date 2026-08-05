@@ -56,7 +56,7 @@ export default function BillingPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl border p-6" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+        <div className="rounded-2xl border p-6" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
           <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
             <div>
               <div className="text-xs font-mono mb-1.5" style={{ color: "var(--text-dim)" }}>CURRENT PLAN</div>

@@ -54,7 +54,7 @@ export default function CreditsPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl border p-6" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+        <div className="rounded-2xl border p-6" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
           {loading ? (
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading...</p>
           ) : !data?.entries || data.entries.length === 0 ? (

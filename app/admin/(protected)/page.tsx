@@ -3,12 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 async function getStats() {
   const supabase = await createClient();
 
-  const [{ count: userCount }, { count: activeCount }, { count: scanCount }, { data: ledgerRows }] =
+  const [{ count: userCount }, { count: activeCount }, { count: scanCount }, { data: ledgerRows }, { count: subscriberCount }] =
     await Promise.all([
       supabase.from("profiles").select("*", { count: "exact", head: true }),
       supabase.from("profiles").select("*", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("scans").select("*", { count: "exact", head: true }),
       supabase.from("credit_ledger").select("amount"),
+      supabase.from("profiles").select("*", { count: "exact", head: true }).in("subscription_status", ["active", "trialing"]),
     ]);
 
   const granted = (ledgerRows ?? []).filter((r) => r.amount > 0).reduce((sum, r) => sum + r.amount, 0);
@@ -20,6 +21,7 @@ async function getStats() {
     scanCount: scanCount ?? 0,
     granted,
     spent,
+    subscriberCount: subscriberCount ?? 0,
   };
 }
 
@@ -29,6 +31,7 @@ export default async function AdminDashboardPage() {
   const tiles = [
     { label: "Total accounts", value: stats.userCount },
     { label: "Active accounts", value: stats.activeCount },
+    { label: "Active subscribers", value: stats.subscriberCount },
     { label: "Total scans", value: stats.scanCount },
     { label: "Credits granted", value: stats.granted },
     { label: "Credits spent", value: stats.spent },

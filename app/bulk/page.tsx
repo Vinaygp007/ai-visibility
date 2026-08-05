@@ -511,6 +511,25 @@ function parseUrls(raw: string): string[] {
 }
 
 // ── Mini progress ring ─────────────────────────────────────────────────────
+// Subtle elevation so result panels read as distinct cards against the page
+// background, on top of their existing border — matches the card treatment
+// used across the rest of the bulk-scan results UI.
+const CARD_SHADOW = "0 1px 3px rgba(0,0,0,0.05)";
+
+function StatTile({ label, value, color }: { label: string; value: number | string; color: string }) {
+  return (
+    <div
+      className="rounded-2xl border p-4"
+      style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
+    >
+      <div className="text-[11px] font-mono uppercase tracking-wide mb-1.5" style={{ color: "var(--text-dim)" }}>
+        {label}
+      </div>
+      <div className="text-2xl font-bold" style={{ color }}>{value}</div>
+    </div>
+  );
+}
+
 function Ring({ pct, color, size = 44 }: { pct: number; color: string; size?: number }) {
   const r = (size - 6) / 2;
   const circ = 2 * Math.PI * r;
@@ -571,7 +590,7 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
   return (
     <div
       className="px-6 pb-8 pt-2"
-      style={{ background: "rgba(0,0,0,0.25)", borderTop: "1px solid rgba(var(--overlay-rgb),0.05)" }}
+      style={{ background: "rgba(var(--overlay-rgb),0.03)", borderTop: "1px solid rgba(var(--overlay-rgb),0.05)" }}
     >
       {/* ── Score gauges ── */}
       <div className="flex gap-3 flex-wrap pt-6 pb-6">
@@ -996,7 +1015,7 @@ export default function BulkPage() {
 
           <div
             className="rounded-2xl border mb-4 overflow-hidden"
-            style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
+            style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)", boxShadow: CARD_SHADOW }}
           >
             <div
               className="flex items-center justify-between px-5 py-3 border-b"
@@ -1118,89 +1137,36 @@ export default function BulkPage() {
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <div className="max-w-[1100px] mx-auto px-6 pt-10 pb-20">
 
-        {/* Top stats bar */}
-        <div
-          className="rounded-2xl border p-5 mb-6 flex flex-wrap items-center gap-6"
-          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
-        >
-          <div className="flex items-center gap-4">
-            <div className="relative flex items-center justify-center" style={{ width: 44, height: 44 }}>
-              <Ring pct={pct} color={phase === "done" ? "var(--success)" : "var(--accent)"} />
-              <span
-                className="absolute text-[10px] font-mono font-bold"
-                style={{ color: phase === "done" ? "var(--success)" : "var(--accent)" }}
-              >
-                {pct}%
-              </span>
-            </div>
-            <div>
-              <div className="text-lg font-bold" style={{ color: phase === "done" ? "var(--success)" : "var(--text)" }}>
-                {phase === "done" ? "Scan Complete" : "Scanning…"}
+        {/* Stat tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          <div
+            className="rounded-2xl border p-4"
+            style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 40, height: 40 }}>
+                <Ring pct={pct} color={phase === "done" ? "var(--success)" : "var(--accent)"} size={40} />
+                <span
+                  className="absolute text-[9px] font-mono font-bold"
+                  style={{ color: phase === "done" ? "var(--success)" : "var(--accent)" }}
+                >
+                  {pct}%
+                </span>
               </div>
-              <div className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
-                {completed} / {total} processed
+              <div className="min-w-0">
+                <div className="text-[11px] font-mono uppercase tracking-wide truncate" style={{ color: "var(--text-dim)" }}>
+                  {phase === "done" ? "Complete" : "Scanning…"}
+                </div>
+                <div className="text-sm font-bold truncate" style={{ color: "var(--text)" }}>
+                  {completed} / {total}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-6 ml-2">
-            <div className="text-center">
-              <div className="text-xl font-bold" style={{ color: "var(--success)" }}>{passed}</div>
-              <div className="text-[10px] font-mono tracking-wide" style={{ color: "var(--text-muted)" }}>PASSED</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold" style={{ color: "var(--danger)" }}>{failed}</div>
-              <div className="text-[10px] font-mono tracking-wide" style={{ color: "var(--text-muted)" }}>FAILED</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold" style={{ color: "var(--text-muted)" }}>{total - completed}</div>
-              <div className="text-[10px] font-mono tracking-wide" style={{ color: "var(--text-muted)" }}>QUEUED</div>
-            </div>
-          </div>
-
-          {jobId && (
-            <div className="ml-2">
-              <div className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>JOB</div>
-              <div className="text-[11px] font-mono" style={{ color: "var(--text-dim)" }}>{jobId}</div>
-            </div>
-          )}
-
-          <div className="ml-auto flex gap-3">
-            {phase === "running" && (
-              <button
-                onClick={handleStop}
-                className="px-4 py-2 rounded-xl border text-sm transition-all"
-                style={{ borderColor: "rgba(255,90,90,0.3)", color: "var(--danger)", background: "rgba(255,90,90,0.05)" }}
-              >
-                ■ Stop
-              </button>
-            )}
-            {phase === "done" && (
-              <>
-                <button
-                  onClick={() => exportPdf(rows, plan)}
-                  className="px-4 py-2 rounded-xl border text-sm transition-all hover:opacity-80"
-                  style={{ borderColor: "rgba(0,232,122,0.3)", color: "var(--success)", background: "rgba(0,232,122,0.05)" }}
-                >
-                  ↓ Export PDF
-                </button>
-                <button
-                  onClick={() => exportCsv(rows)}
-                  className="px-4 py-2 rounded-xl border text-sm transition-all hover:opacity-80"
-                  style={{ borderColor: "rgba(0,232,122,0.3)", color: "var(--success)", background: "rgba(0,232,122,0.05)" }}
-                >
-                  ↓ Export CSV
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="px-4 py-2 rounded-xl text-sm font-medium transition-all hover:opacity-85"
-                  style={{ background: "var(--accent)", color: "var(--on-accent)" }}
-                >
-                  + New Scan
-                </button>
-              </>
-            )}
-          </div>
+          <StatTile label="Passed" value={passed} color="var(--success)" />
+          <StatTile label="Failed" value={failed} color="var(--danger)" />
+          <StatTile label="Queued" value={total - completed} color="var(--text-muted)" />
         </div>
 
         {/* Progress bar */}
@@ -1253,32 +1219,69 @@ export default function BulkPage() {
               </button>
             ))}
           </div>
-
-          {phase === "done" && (
-            <button
-              onClick={() => exportPdf(rows, plan)}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
-              style={{ color: "var(--success)", background: "rgba(0,232,122,0.06)", border: "1px solid rgba(0,232,122,0.2)" }}
-            >
-              ↓ PDF
-            </button>
-          )}
-          {phase === "done" && (
-            <button
-              onClick={() => exportCsv(rows)}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
-              style={{ color: "var(--success)", background: "rgba(0,232,122,0.06)", border: "1px solid rgba(0,232,122,0.2)" }}
-            >
-              ↓ CSV
-            </button>
-          )}
         </div>
 
         {/* Results table */}
         <div
           className="rounded-2xl border overflow-hidden"
-          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
+          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
         >
+          {/* Card header */}
+          <div
+            className="flex items-center justify-between flex-wrap gap-3 px-5 py-4 border-b"
+            style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}
+          >
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="text-[15px] font-semibold" style={{ color: "var(--text)" }}>Scan Results</span>
+              <span
+                className="text-[11px] font-mono px-2 py-0.5 rounded-full"
+                style={{ color: "var(--text-muted)", background: "rgba(var(--overlay-rgb),0.05)" }}
+              >
+                {rows.length} URL{rows.length !== 1 ? "s" : ""}
+              </span>
+              {jobId && (
+                <span className="text-[10px] font-mono" style={{ color: "var(--text-dim)" }}>· job {jobId}</span>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              {phase === "running" && (
+                <button
+                  onClick={handleStop}
+                  className="px-3.5 py-1.5 rounded-lg border text-[12px] transition-all"
+                  style={{ borderColor: "rgba(255,90,90,0.3)", color: "var(--danger)", background: "rgba(255,90,90,0.05)" }}
+                >
+                  ■ Stop
+                </button>
+              )}
+              {phase === "done" && (
+                <>
+                  <button
+                    onClick={() => exportPdf(rows, plan)}
+                    className="px-3.5 py-1.5 rounded-lg border text-[12px] transition-all hover:opacity-80"
+                    style={{ borderColor: "rgba(0,232,122,0.3)", color: "var(--success)", background: "rgba(0,232,122,0.05)" }}
+                  >
+                    ↓ PDF
+                  </button>
+                  <button
+                    onClick={() => exportCsv(rows)}
+                    className="px-3.5 py-1.5 rounded-lg border text-[12px] transition-all hover:opacity-80"
+                    style={{ borderColor: "rgba(0,232,122,0.3)", color: "var(--success)", background: "rgba(0,232,122,0.05)" }}
+                  >
+                    ↓ CSV
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="px-3.5 py-1.5 rounded-lg text-[12px] font-medium transition-all hover:opacity-85"
+                    style={{ background: "var(--accent)", color: "var(--on-accent)" }}
+                  >
+                    + New Scan
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
           {/* Table header */}
           <div

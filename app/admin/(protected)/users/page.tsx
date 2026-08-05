@@ -15,7 +15,17 @@ interface AdminUser {
   plan: Plan;
   createdAt: string;
   balance: number;
+  subscriptionStatus: string | null;
+  currentPeriodEnd: string | null;
+  hasStripeCustomer: boolean;
 }
+
+const SUB_STATUS_STYLE: Record<string, { label: string; color: string }> = {
+  active: { label: "Active", color: "var(--success)" },
+  trialing: { label: "Trialing", color: "var(--accent)" },
+  past_due: { label: "Payment failed", color: "var(--danger)" },
+  canceled: { label: "Canceled", color: "var(--text-dim)" },
+};
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -24,6 +34,7 @@ export default function AdminUsersPage() {
   const [grantAmount, setGrantAmount] = useState<Record<string, string>>({});
   const [grantReason, setGrantReason] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
+  const [subscribersOnly, setSubscribersOnly] = useState(false);
 
   const loadUsers = async (q = "") => {
     setLoading(true);
@@ -148,17 +159,47 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
+      <label className="mb-6 flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--text-muted)" }}>
+        <input
+          type="checkbox"
+          checked={subscribersOnly}
+          onChange={(e) => setSubscribersOnly(e.target.checked)}
+        />
+        Subscribers only ({users.filter((u) => u.subscriptionStatus === "active" || u.subscriptionStatus === "trialing").length})
+      </label>
+
       {loading ? (
         <div className="text-[var(--text)]">Loading...</div>
       ) : (
         <div className="space-y-3">
-          {users.map((u) => (
+          {users
+            .filter((u) => !subscribersOnly || u.subscriptionStatus === "active" || u.subscriptionStatus === "trialing")
+            .map((u) => {
+            const subStatus = u.subscriptionStatus ? SUB_STATUS_STYLE[u.subscriptionStatus] : null;
+            return (
             <div key={u.id} className="rounded-2xl border p-5" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
               <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
                 <div>
-                  <div className="text-sm font-semibold text-[var(--text)]">{u.email}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-[var(--text)]">{u.email}</span>
+                    {subStatus && (
+                      <span
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ color: subStatus.color, background: "rgba(var(--overlay-rgb),0.06)" }}
+                      >
+                        {subStatus.label}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs" style={{ color: "var(--text-muted)" }}>
                     {u.role} · {u.status} · balance: {u.balance} · joined {new Date(u.createdAt).toLocaleDateString()}
+                    {u.currentPeriodEnd && (
+                      <>
+                        {" · "}
+                        {u.subscriptionStatus === "canceled" ? "access ends" : "renews"}{" "}
+                        {new Date(u.currentPeriodEnd).toLocaleDateString()}
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2 items-center">
@@ -222,7 +263,8 @@ export default function AdminUsersPage() {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

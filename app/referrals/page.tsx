@@ -54,7 +54,7 @@ export default function ReferralsPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl border p-6 mb-6" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+        <div className="rounded-2xl border p-6 mb-6" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
           <label className="block text-xs font-medium text-[var(--text)] mb-2">Your referral link</label>
           <div className="flex gap-2">
             <input
@@ -79,14 +79,14 @@ export default function ReferralsPage() {
             { label: "Pending", value: data?.totals.pendingCount ?? 0 },
             { label: "Credits earned", value: data?.totals.creditsEarned ?? 0 },
           ].map((stat) => (
-            <div key={stat.label} className="rounded-2xl border p-5 text-center" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+            <div key={stat.label} className="rounded-2xl border p-5 text-center" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
               <div className="text-2xl font-bold text-[var(--text)]">{stat.value}</div>
               <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{stat.label}</div>
             </div>
           ))}
         </div>
 
-        <div className="rounded-2xl border p-6" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+        <div className="rounded-2xl border p-6" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
           <h3 className="text-lg font-semibold text-[var(--text)] mb-4">Your referrals</h3>
           {(!data?.referrals || data.referrals.length === 0) ? (
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>No referrals yet. Share your link above.</p>

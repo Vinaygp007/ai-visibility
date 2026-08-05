@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   let query = admin
     .from("profiles")
-    .select("id, email, full_name, role, status, referral_code, plan, created_at")
+    .select("id, email, full_name, role, status, referral_code, plan, created_at, subscription_status, current_period_end, stripe_customer_id")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -48,6 +48,9 @@ export async function GET(req: NextRequest) {
     plan: p.plan,
     createdAt: p.created_at,
     balance: balanceByUser.get(p.id) ?? 0,
+    subscriptionStatus: p.subscription_status,
+    currentPeriodEnd: p.current_period_end,
+    hasStripeCustomer: !!p.stripe_customer_id,
   }));
 
   return NextResponse.json({ users }, { headers: CORS_HEADERS });
