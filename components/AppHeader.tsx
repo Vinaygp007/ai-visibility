@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
@@ -8,7 +8,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 import { PRIMARY_LINKS, ACCOUNT_LINKS, ADMIN_LINK } from "./Sidebar";
 import UserMenu from "./UserMenu";
 import ThemeToggle from "./ThemeToggle";
-import { Search, Info } from "lucide-react";
+import { Info } from "lucide-react";
 
 const TODAY_LABEL = new Date().toLocaleDateString("en-US", {
   weekday: "long",
@@ -21,8 +21,6 @@ export default function AppHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
   const { user, checked: authChecked } = useCurrentUser();
   const balance = user?.creditBalance ?? null;
   const fullName = user?.fullName ?? null;
@@ -30,19 +28,6 @@ export default function AppHeader() {
   const role = user?.role ?? null;
   const displayName = fullName || email?.split("@")[0] || "Account";
   const accountLinks = role === "admin" ? [...ACCOUNT_LINKS, ADMIN_LINK] : ACCOUNT_LINKS;
-  const allLinks = useMemo(() => [...PRIMARY_LINKS, ...accountLinks], [accountLinks]);
-
-  const matches = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.trim().toLowerCase();
-    return allLinks.filter((l) => l.label.toLowerCase().includes(q)).slice(0, 6);
-  }, [query, allLinks]);
-
-  function goToMatch(href: string) {
-    setQuery("");
-    setSearchFocused(false);
-    router.push(href);
-  }
 
   async function handleLogout() {
     const supabase = createClient();
@@ -85,45 +70,6 @@ export default function AppHeader() {
         </div>
 
         <div className="flex-1" />
-
-        <div className="hidden sm:block relative w-full max-w-[220px] mr-1">
-          <Search
-            size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "var(--text-dim)" }}
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setTimeout(() => setSearchFocused(false), 120)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && matches[0]) goToMatch(matches[0].href);
-              if (e.key === "Escape") setQuery("");
-            }}
-            placeholder="Search…"
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg text-[13px] border"
-            style={{ background: "rgba(var(--overlay-rgb),0.04)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
-          />
-          {searchFocused && matches.length > 0 && (
-            <div
-              className="absolute top-full left-0 right-0 mt-1.5 rounded-lg border overflow-hidden shadow-lg"
-              style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)" }}
-            >
-              {matches.map((m) => (
-                <button
-                  key={m.href}
-                  onMouseDown={() => goToMatch(m.href)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[rgba(var(--overlay-rgb),0.05)]"
-                  style={{ color: "var(--text)" }}
-                >
-                  <m.icon size={14} style={{ color: "var(--text-dim)" }} />
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
         <div className="flex items-center gap-3 transition-opacity duration-200" style={{ opacity: authChecked ? 1 : 0 }}>
           {balance !== null && (

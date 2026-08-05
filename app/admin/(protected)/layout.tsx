@@ -28,7 +28,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 key={link.href}
                 href={link.href}
                 className="px-4 py-2 rounded-lg text-sm font-medium border"
-                style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
+                style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
               >
                 {link.label}
               </Link>
