@@ -64,7 +64,7 @@ function SignupForm() {
   return (
     <AuthLayout
       image={{
-        src: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=80",
+        src: "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?auto=format&fit=crop&w=1400&q=80",
       }}
     >
       {done ? (

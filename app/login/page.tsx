@@ -72,7 +72,7 @@ function LoginForm() {
   return (
     <AuthLayout
       image={{
-        src: "https://images.pexels.com/photos/8566467/pexels-photo-8566467.jpeg",
+        src: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=80",
       }}
     >
       <div className="mb-7">
