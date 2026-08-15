@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft } from "lucide-react";
 import { AnalysisResult, BotDetail } from "@/types";
 import CategoryCard from "./CategoryCard";
 import Recommendations from "./Recommendations";
@@ -110,14 +111,14 @@ export default function ResultsSection({
         </div>
         <button
           onClick={onReset}
-          className="text-sm px-5 py-2.5 rounded-xl border transition-all hover:border-[var(--accent)] hover:text-[var(--accent)] flex-shrink-0"
+          className="flex items-center gap-1.5 text-sm px-5 py-2.5 rounded-xl border transition-all hover:border-[var(--accent)] hover:text-[var(--accent)] flex-shrink-0"
           style={{
             borderColor: "rgba(var(--overlay-rgb),0.13)",
             color: "var(--text)",
             background: "transparent",
           }}
         >
-          ← Scan another site
+          <ArrowLeft size={14} /> Scan another site
         </button>
       </div>
 

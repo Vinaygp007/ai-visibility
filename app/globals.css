@@ -217,4 +217,31 @@ h3 {
   .fade-up-4 { animation-delay: 0.35s; opacity: 0; }
   .fade-up-5 { animation-delay: 0.45s; opacity: 0; }
   .fade-up-6 { animation-delay: 0.55s; opacity: 0; }
+
+  /* ── Dashboard shell (referrals / reports / billing / credits) ──────────
+     Shared card, row and table primitives so those pages read as one
+     consistent system instead of four bespoke layouts. */
+  .dash-stat-card { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+  .dash-stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.06); border-color: rgba(0,229,255,0.22); }
+
+  .dash-card { transition: box-shadow 0.18s ease, border-color 0.18s ease; }
+
+  .dash-row { transition: background 0.15s ease; }
+  .dash-row:hover { background: rgba(var(--overlay-rgb),0.03); }
+
+  .dash-btn-primary { transition: filter 0.15s ease, transform 0.15s ease; }
+  .dash-btn-primary:not(:disabled):hover { filter: brightness(1.06); transform: translateY(-1px); }
+
+  .dash-btn { transition: all 0.15s ease; }
+  .dash-btn:not(:disabled):hover { border-color: rgba(0,229,255,0.3) !important; color: var(--accent) !important; }
+
+  @keyframes dashShimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+  }
+  .dash-skeleton {
+    background: linear-gradient(90deg, rgba(var(--overlay-rgb),0.05) 25%, rgba(var(--overlay-rgb),0.11) 37%, rgba(var(--overlay-rgb),0.05) 63%);
+    background-size: 400% 100%;
+    animation: dashShimmer 1.4s ease infinite;
+  }
 }

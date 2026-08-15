@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import ReportModal from "@/components/ReportModal";
+import StatCard from "@/components/StatCard";
 import { AnalysisResult, UserPlan } from "@/types";
 import { toPlainText, extractProviderText } from "@/lib/plainText";
+import {
+  Menu, Search, Zap, MessageSquare, ChevronDown, Download,
+  FileSpreadsheet, FileText, AlertCircle, X, ArrowRight, CheckCircle2, XCircle,
+  Loader2, Telescope, ExternalLink, Gauge, type LucideIcon,
+} from "lucide-react";
 
 // Subtle elevation so list rows/panels read as distinct cards against the
 // page background, on top of their existing border.
@@ -762,15 +768,15 @@ async function exportBulkPromptPDF(batches: BulkPromptBatch[], plan: UserPlan) {
 function SkeletonRow() {
   return (
     <div
-      className="flex items-center gap-4 px-5 py-4 rounded-xl animate-pulse"
+      className="rp-skeleton-row flex items-center gap-4 px-5 py-4 rounded-xl"
       style={{ background: "rgba(var(--overlay-rgb),0.03)" }}
     >
-      <div className="w-12 h-12 rounded-xl flex-shrink-0" style={{ background: "rgba(var(--overlay-rgb),0.06)" }} />
+      <div className="rp-skeleton w-12 h-12 rounded-xl flex-shrink-0" />
       <div className="flex-1 min-w-0 space-y-2">
-        <div className="h-3.5 w-1/3 rounded" style={{ background: "rgba(var(--overlay-rgb),0.08)" }} />
-        <div className="h-2.5 w-2/3 rounded" style={{ background: "rgba(var(--overlay-rgb),0.05)" }} />
+        <div className="rp-skeleton h-3.5 w-1/3 rounded" />
+        <div className="rp-skeleton h-2.5 w-2/3 rounded" />
       </div>
-      <div className="w-16 h-8 rounded-lg" style={{ background: "rgba(var(--overlay-rgb),0.05)" }} />
+      <div className="rp-skeleton w-16 h-8 rounded-lg" />
     </div>
   );
 }
@@ -778,9 +784,9 @@ function SkeletonRow() {
 // ── Empty State ───────────────────────────────────────────────────────────────
 
 function EmptyState({
-  icon, title, desc, action,
+  icon: Icon, title, desc, action,
 }: {
-  icon: string; title: string; desc: string;
+  icon: LucideIcon; title: string; desc: string;
   action?: { label: string; onClick: () => void };
 }) {
   return (
@@ -789,18 +795,18 @@ function EmptyState({
       style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
     >
       <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4"
-        style={{ background: "rgba(0,229,255,0.07)", border: "1px solid rgba(0,229,255,0.15)" }}
+        className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+        style={{ background: "linear-gradient(135deg, rgba(0,229,255,0.14), rgba(124,111,255,0.14))", border: "1px solid rgba(0,229,255,0.2)" }}
       >
-        {icon}
+        <Icon size={26} style={{ color: "var(--accent)" }} />
       </div>
       <p className="text-sm font-medium text-[var(--text)] mb-1">{title}</p>
       <p className="text-[12px] mb-4" style={{ color: "var(--text-muted)" }}>{desc}</p>
       {action && (
         <button
           onClick={action.onClick}
-          className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-          style={{ background: "var(--accent)", color: "var(--on-accent)" }}
+          className="rp-btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold"
+          style={{ background: "linear-gradient(135deg, var(--accent), var(--accent2))", color: "var(--on-accent)" }}
         >
           {action.label}
         </button>
@@ -832,33 +838,30 @@ function HamburgerMenu({
   }, [open]);
 
   const tabs = [
-    { key: "homepage" as ScanType, label: "Homepage Scans", icon: "🔍", desc: "Individual URL analyses" },
-    { key: "bulk" as ScanType, label: "Bulk Scans", icon: "⚡", desc: "Multi-URL batch jobs" },
-    { key: "bulk_prompt" as ScanType, label: "Bulk Prompts", icon: "💬", desc: "Custom prompt runs" },
+    { key: "homepage" as ScanType, label: "Homepage Scans", Icon: Search, desc: "Individual URL analyses" },
+    { key: "bulk" as ScanType, label: "Bulk Scans", Icon: Zap, desc: "Multi-URL batch jobs" },
+    { key: "bulk_prompt" as ScanType, label: "Bulk Prompts", Icon: MessageSquare, desc: "Custom prompt runs" },
   ];
 
   return (
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all"
+        aria-label="Switch report view"
+        className="rp-icon-btn flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium"
         style={{
           background: open ? "rgba(0,229,255,0.07)" : "rgba(var(--overlay-rgb),0.03)",
           borderColor: open ? "rgba(0,229,255,0.3)" : "rgba(var(--overlay-rgb),0.1)",
           color: "var(--text)",
         }}
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <rect x="2" y="4" width="12" height="1.5" rx="0.75" fill="currentColor" />
-          <rect x="2" y="7.25" width="12" height="1.5" rx="0.75" fill="currentColor" />
-          <rect x="2" y="10.5" width="12" height="1.5" rx="0.75" fill="currentColor" />
-        </svg>
+        <Menu size={16} />
       </button>
 
       {open && (
         <div
-          className="absolute left-0 top-full mt-2 rounded-xl border overflow-hidden z-50 min-w-[240px]"
-          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}
+          className="rp-menu-pop absolute left-0 top-full mt-2 rounded-xl border overflow-hidden z-50 min-w-[240px]"
+          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)", boxShadow: "0 16px 48px rgba(0,0,0,0.3)" }}
         >
           <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(var(--overlay-rgb),0.06)" }}>
             <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>View type</p>
@@ -869,17 +872,18 @@ function HamburgerMenu({
               <button
                 key={tab.key}
                 onClick={() => { onTabChange(tab.key); setOpen(false); }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-all hover:bg-[rgba(var(--overlay-rgb),0.04)] text-left"
+                className="rp-menu-item w-full flex items-center gap-3 px-4 py-3 text-sm text-left"
                 style={{ background: isActive ? "rgba(0,229,255,0.05)" : "transparent" }}
               >
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{
                     background: isActive ? "rgba(0,229,255,0.12)" : "rgba(var(--overlay-rgb),0.04)",
                     border: isActive ? "1px solid rgba(0,229,255,0.25)" : "1px solid rgba(var(--overlay-rgb),0.07)",
+                    color: isActive ? "var(--accent)" : "var(--text-muted)",
                   }}
                 >
-                  {tab.icon}
+                  <tab.Icon size={15} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold" style={{ color: isActive ? "var(--accent)" : "var(--text)" }}>{tab.label}</div>
@@ -950,7 +954,7 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches, p
       <button
         onClick={() => setOpen((o) => !o)}
         disabled={!!exporting}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[var(--accent)]/40 disabled:opacity-50"
+        className="rp-icon-btn flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium disabled:opacity-50"
         style={{
           background: "rgba(var(--overlay-rgb),0.03)",
           borderColor: open ? "rgba(0,229,255,0.3)" : "rgba(var(--overlay-rgb),0.1)",
@@ -959,44 +963,43 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches, p
       >
         {exporting ? (
           <>
-            <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
-            Exporting…
+            <Loader2 size={14} className="rp-spin" /> Exporting…
           </>
         ) : (
           <>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1v8M4 6.5L7 10l3-3.5M1.5 12.5h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Export
-            <span style={{ color: "var(--text-muted)", fontSize: 10 }}>▾</span>
+            <Download size={14} /> Export
+            <ChevronDown size={12} style={{ color: "var(--text-muted)" }} />
           </>
         )}
       </button>
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 rounded-xl border overflow-hidden z-50 min-w-[160px]"
-          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}
+          className="rp-menu-pop absolute right-0 top-full mt-2 rounded-xl border overflow-hidden z-50 min-w-[170px]"
+          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)", boxShadow: "0 16px 48px rgba(0,0,0,0.3)" }}
         >
           <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(var(--overlay-rgb),0.06)" }}>
             <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>Export as</p>
           </div>
-          {(["csv", "pdf"] as const).map((fmt) => (
-            <button
-              key={fmt}
-              onClick={() => handleExport(fmt)}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-all hover:bg-[rgba(var(--overlay-rgb),0.04)] text-left"
-              style={{ color: "var(--text)" }}
-            >
-              <span className="text-base">{fmt === "csv" ? "📊" : "📄"}</span>
-              <div>
-                <div className="font-medium">.{fmt.toUpperCase()}</div>
-                <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                  {fmt === "csv" ? "Spreadsheet data" : "Formatted document"}
+          {(["csv", "pdf"] as const).map((fmt) => {
+            const FmtIcon = fmt === "csv" ? FileSpreadsheet : FileText;
+            return (
+              <button
+                key={fmt}
+                onClick={() => handleExport(fmt)}
+                className="rp-menu-item w-full flex items-center gap-3 px-4 py-3 text-sm text-left"
+                style={{ color: "var(--text)" }}
+              >
+                <FmtIcon size={16} style={{ color: "var(--accent)", flexShrink: 0 }} />
+                <div>
+                  <div className="font-medium">.{fmt.toUpperCase()}</div>
+                  <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                    {fmt === "csv" ? "Spreadsheet data" : "Formatted document"}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1155,6 +1158,22 @@ export default function PreviousReportsPage() {
     bulk_prompt: bulkPromptBatches.length,
   };
 
+  const homepageStats = useMemo(() => {
+    const avg = reports.length ? Math.round(reports.reduce((s, r) => s + r.overall_score, 0) / reports.length) : 0;
+    const cached = reports.filter((r) => r._cached).length;
+    return { avg, cached };
+  }, [reports]);
+
+  const bulkStats = useMemo(() => ({
+    passed: bulkJobs.reduce((s, j) => s + j.passed, 0),
+    failed: bulkJobs.reduce((s, j) => s + j.failed, 0),
+  }), [bulkJobs]);
+
+  const promptStats = useMemo(() => ({
+    passed: bulkPromptBatches.reduce((s, b) => s + b.passedRuns, 0),
+    failed: bulkPromptBatches.reduce((s, b) => s + b.failedRuns, 0),
+  }), [bulkPromptBatches]);
+
   const isLoading =
     (activeTab === "homepage" && loadingReports) ||
     (activeTab === "bulk" && loadingBulk) ||
@@ -1166,16 +1185,41 @@ export default function PreviousReportsPage() {
     promptError;
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      <div className="max-w-5xl mx-auto px-8 py-12">
+    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-10 pb-12">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-3xl font-bold text-[var(--text)] mb-2">Previous Reports</h1>
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-              View and manage all your AI visibility scan results
-            </p>
+        <div className="relative mb-8 flex items-start justify-between gap-4 flex-wrap">
+          {/* Ambient glow */}
+          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true" style={{ height: 180 }}>
+            <div className="aurora-blob aurora-blob-1" style={{ width: 260, height: 260, top: -150, left: "0%", background: "var(--accent)", opacity: 0.08 }} />
+            <div className="aurora-blob aurora-blob-2" style={{ width: 220, height: 220, top: -120, left: "20%", background: "var(--accent2)", opacity: 0.07 }} />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div style={{
+              width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "linear-gradient(135deg, var(--accent), var(--accent2))",
+              boxShadow: "0 6px 18px rgba(0,229,255,0.25)",
+            }}>
+              <FileText size={19} color="var(--on-accent)" />
+            </div>
+            <div>
+              <h1
+                className="heading-shimmer text-3xl font-bold mb-0.5"
+                style={{
+                  background: "linear-gradient(110deg, var(--text) 20%, var(--accent) 50%, var(--text) 80%)",
+                  backgroundSize: "200% auto",
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+                }}
+              >
+                Previous Reports
+              </h1>
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                View and manage all your AI visibility scan results
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0 pt-1">
             <ExportMenu
@@ -1188,6 +1232,31 @@ export default function PreviousReportsPage() {
           </div>
         </div>
 
+        {/* ── Stats ──────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          {activeTab === "homepage" && (
+            <>
+              <StatCard icon={FileText} label="Total reports" value={reports.length} tone="accent" caption="homepage scans" />
+              <StatCard icon={Gauge} label="Average score" value={homepageStats.avg} tone="warning" caption="out of 100" />
+              <StatCard icon={CheckCircle2} label="Cached" value={homepageStats.cached} tone="success" caption="served instantly" />
+            </>
+          )}
+          {activeTab === "bulk" && (
+            <>
+              <StatCard icon={Zap} label="Total jobs" value={bulkJobs.length} tone="accent" caption="bulk scan runs" />
+              <StatCard icon={CheckCircle2} label="Passed" value={bulkStats.passed} tone="success" caption="URLs across all jobs" />
+              <StatCard icon={XCircle} label="Failed" value={bulkStats.failed} tone="danger" caption="URLs across all jobs" />
+            </>
+          )}
+          {activeTab === "bulk_prompt" && (
+            <>
+              <StatCard icon={MessageSquare} label="Total batches" value={bulkPromptBatches.length} tone="accent" caption="prompt runs" />
+              <StatCard icon={CheckCircle2} label="Passed" value={promptStats.passed} tone="success" caption="runs across all batches" />
+              <StatCard icon={XCircle} label="Failed" value={promptStats.failed} tone="danger" caption="runs across all batches" />
+            </>
+          )}
+        </div>
+
         {/* ── Tab switcher ─────────────────────────────────────────────────── */}
         <div className="mb-6 flex items-center gap-4 flex-wrap">
           <HamburgerMenu activeTab={activeTab} onTabChange={setActiveTab} counts={counts} />
@@ -1196,21 +1265,21 @@ export default function PreviousReportsPage() {
             style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.08)", boxShadow: CARD_SHADOW }}
           >
             {([
-              { key: "homepage" as ScanType, label: "Homepage", icon: "🔍" },
-              { key: "bulk" as ScanType, label: "Bulk Scan", icon: "⚡" },
-              { key: "bulk_prompt" as ScanType, label: "Bulk Prompt", icon: "💬" },
+              { key: "homepage" as ScanType, label: "Homepage", Icon: Search },
+              { key: "bulk" as ScanType, label: "Bulk Scan", Icon: Zap },
+              { key: "bulk_prompt" as ScanType, label: "Bulk Prompt", Icon: MessageSquare },
             ] as const).map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+                className="rp-tab-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium"
                 style={{
                   background: activeTab === tab.key ? "rgba(0,229,255,0.12)" : "transparent",
                   color: activeTab === tab.key ? "var(--accent)" : "var(--text-muted)",
                   border: activeTab === tab.key ? "1px solid rgba(0,229,255,0.25)" : "1px solid transparent",
                 }}
               >
-                <span className="mr-1.5">{tab.icon}</span>
+                <tab.Icon size={12} />
                 {tab.label}
               </button>
             ))}
@@ -1220,13 +1289,10 @@ export default function PreviousReportsPage() {
         {/* ── Search ──────────────────────────────────────────────────────── */}
         <div className="mb-6">
           <div
-            className="flex items-center gap-2 rounded-xl border px-4 py-3"
+            className="rp-search flex items-center gap-2 rounded-xl border px-4 py-3"
             style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", boxShadow: CARD_SHADOW }}
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
-              <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4" />
-              <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
+            <Search size={15} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
             <input
               type="text"
               placeholder={
@@ -1240,7 +1306,9 @@ export default function PreviousReportsPage() {
               style={{ color: "var(--text)", caretColor: "var(--accent)" }}
             />
             {search && (
-              <button onClick={() => setSearch("")} style={{ color: "var(--text-muted)", fontSize: 11 }}>✕</button>
+              <button onClick={() => setSearch("")} className="rp-icon-btn flex items-center justify-center" style={{ width: 22, height: 22, borderRadius: 6, color: "var(--text-muted)" }}>
+                <X size={13} />
+              </button>
             )}
           </div>
         </div>
@@ -1251,7 +1319,7 @@ export default function PreviousReportsPage() {
             className="rounded-xl border p-5 mb-6 flex items-center gap-3"
             style={{ background: "rgba(255,90,90,0.04)", borderColor: "rgba(255,90,90,0.18)" }}
           >
-            <span>⚠️</span>
+            <AlertCircle size={16} style={{ color: "var(--danger)", flexShrink: 0 }} />
             <p className="text-sm flex-1" style={{ color: "var(--danger)" }}>{currentError}</p>
             <button
               onClick={() =>
@@ -1259,7 +1327,7 @@ export default function PreviousReportsPage() {
                 activeTab === "bulk" ? fetchBulkJobs() :
                 fetchBulkPromptBatches()
               }
-              className="text-[11px] font-mono px-3 py-1.5 rounded-lg border"
+              className="rp-icon-btn text-[11px] font-mono px-3 py-1.5 rounded-lg border"
               style={{ borderColor: "rgba(255,90,90,0.3)", color: "var(--danger)" }}
             >
               Retry
@@ -1279,23 +1347,42 @@ export default function PreviousReportsPage() {
           <>
             {filteredReports.length === 0 && !reportsError ? (
               <EmptyState
-                icon="🔭" title="No homepage scans found"
+                icon={Telescope} title="No homepage scans found"
                 desc={search ? "Try a different search term" : "Scan your first website to see results here"}
                 action={!search ? { label: "Scan a website", onClick: () => router.push("/scan") } : undefined}
               />
             ) : (
               <div className="space-y-3">
-                {filteredReports.map((report) => (
-                  <HomepageRow key={report.id} report={report} onClick={() => handleReportClick(report)} />
-                ))}
+                <div
+                  className="dash-card rounded-2xl border overflow-hidden"
+                  style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
+                >
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr>
+                          <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Report</th>
+                          <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Grade</th>
+                          <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Status</th>
+                          <th className="text-right px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Scanned</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredReports.map((report, i) => (
+                          <HomepageRow key={report.id} report={report} onClick={() => handleReportClick(report)} delay={Math.min(i * 0.03, 0.24)} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
                 {hasMoreReports && (
                   <button
                     onClick={() => fetchReports(nextCursor ?? undefined)}
                     disabled={loadingMoreReports}
-                    className="w-full px-5 py-3 rounded-xl border text-sm font-medium transition-all hover:border-[var(--accent)]/30"
+                    className="rp-icon-btn flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl border text-sm font-medium"
                     style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                   >
-                    {loadingMoreReports ? "Loading…" : "Load more"}
+                    {loadingMoreReports ? <><Loader2 size={14} className="rp-spin" /> Loading…</> : "Load more"}
                   </button>
                 )}
               </div>
@@ -1308,7 +1395,7 @@ export default function PreviousReportsPage() {
           <>
             {filteredBulk.length === 0 && !bulkError ? (
               <EmptyState
-                icon="⚡" title="No bulk scans found"
+                icon={Zap} title="No bulk scans found"
                 desc={search ? "Try a different search term" : "Run your first bulk scan to see results here"}
               />
             ) : (
@@ -1324,7 +1411,7 @@ export default function PreviousReportsPage() {
           <>
             {filteredPrompt.length === 0 && !promptError ? (
               <EmptyState
-                icon="💬" title="No bulk prompt runs found"
+                icon={MessageSquare} title="No bulk prompt runs found"
                 desc={search ? "Try a different search term" : "Run your first bulk prompt to see results here"}
               />
             ) : (
@@ -1337,45 +1424,100 @@ export default function PreviousReportsPage() {
       </div>
 
       <ReportModal isOpen={isModalOpen} onClose={handleCloseModal} report={selectedReport} />
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .rp-spin { animation: spin 0.8s linear infinite; }
+
+        @keyframes rpShimmer {
+          0% { background-position: 100% 50%; }
+          100% { background-position: 0 50%; }
+        }
+        .rp-skeleton {
+          background: linear-gradient(90deg, rgba(var(--overlay-rgb),0.05) 25%, rgba(var(--overlay-rgb),0.11) 37%, rgba(var(--overlay-rgb),0.05) 63%);
+          background-size: 400% 100%;
+          animation: rpShimmer 1.4s ease infinite;
+        }
+        .rp-skeleton-row { border: 1px solid rgba(var(--overlay-rgb),0.05); }
+
+        @keyframes rpMenuPop { from { opacity: 0; transform: scale(0.97) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .rp-menu-pop { animation: rpMenuPop 0.14s ease both; }
+        .rp-menu-item { transition: background 0.12s ease; }
+        .rp-menu-item:hover { background: rgba(var(--overlay-rgb),0.05) !important; }
+
+        .rp-icon-btn { transition: all 0.15s ease; }
+        .rp-icon-btn:not(:disabled):hover { filter: brightness(1.08); border-color: rgba(0,229,255,0.35) !important; }
+
+        .rp-tab-btn { transition: all 0.15s ease; }
+        .rp-tab-btn:hover { color: var(--text) !important; }
+
+        .rp-search { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+        .rp-search:focus-within { border-color: var(--accent) !important; box-shadow: 0 0 0 3px rgba(0,229,255,0.08); }
+
+        .rp-card { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+        .rp-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(0,0,0,0.07); border-color: rgba(0,229,255,0.25) !important; }
+        .rp-row-arrow { transition: transform 0.18s ease; }
+        .rp-row:hover .rp-row-arrow { transform: translateX(3px); color: var(--accent) !important; }
+
+        .rp-card-header:hover { background: rgba(var(--overlay-rgb),0.02); }
+
+        .rp-btn-primary { transition: filter 0.15s ease, transform 0.15s ease; }
+        .rp-btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+      `}</style>
     </div>
   );
 }
 
 // ── HomepageRow ───────────────────────────────────────────────────────────────
 
-function HomepageRow({ report, onClick }: { report: ReportSummary; onClick: () => void }) {
+function HomepageRow({ report, onClick, delay }: { report: ReportSummary; onClick: () => void; delay?: number }) {
   return (
-    <div
-      className="flex items-center gap-4 px-5 py-4 rounded-xl border transition-all hover:border-[var(--accent)]/30 cursor-pointer"
-      style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
+    <tr
+      className="dash-row rp-row animate-fade-up cursor-pointer"
+      style={{ borderTop: "1px solid rgba(var(--overlay-rgb),0.06)", animationDelay: delay != null ? `${delay}s` : undefined }}
       onClick={onClick}
     >
-      <div
-        className="w-14 h-14 rounded-xl flex-shrink-0 flex flex-col items-center justify-center"
-        style={{ background: getScoreBg(report.overall_score), border: `1px solid ${getScoreColor(report.overall_score)}33` }}
-      >
-        <div className="text-lg font-bold leading-none" style={{ color: getScoreColor(report.overall_score) }}>
-          {report.overall_score}
+      <td className="px-6 py-3.5">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center"
+            style={{ background: getScoreBg(report.overall_score), border: `1px solid ${getScoreColor(report.overall_score)}33` }}
+          >
+            <div className="text-sm font-bold leading-none" style={{ color: getScoreColor(report.overall_score) }}>
+              {report.overall_score}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-[var(--text)] truncate">{report.site_name}</div>
+            <div className="text-xs font-mono truncate" style={{ color: "var(--text-muted)" }}>{domainFromUrl(report.url)}</div>
+          </div>
         </div>
-        <div className="text-[9px] font-mono mt-0.5" style={{ color: getScoreColor(report.overall_score) }}>
+      </td>
+      <td className="px-6 py-3.5">
+        <span
+          className="text-xs font-mono font-bold px-2 py-0.5 rounded-lg"
+          style={{ color: getScoreColor(report.overall_score), background: getScoreBg(report.overall_score) }}
+        >
           {report.grade}
-        </div>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-[var(--text)] truncate mb-1">{report.site_name}</div>
-        <div className="text-xs font-mono truncate" style={{ color: "var(--text-muted)" }}>{domainFromUrl(report.url)}</div>
-      </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
-        {report._cached && (
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full"
-            style={{ background: "rgba(66,133,244,0.1)", color: "#4285f4", border: "1px solid rgba(66,133,244,0.2)" }}>
-            cached
+        </span>
+      </td>
+      <td className="px-6 py-3.5">
+        {report._cached ? (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: "rgba(66,133,244,0.1)", color: "#4285f4" }}>
+            <CheckCircle2 size={11} /> Cached
           </span>
+        ) : (
+          <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>—</span>
         )}
-        <div className="text-xs font-mono" style={{ color: "var(--text-dim)" }}>{timeAgo(report.createdAt)}</div>
-        <div className="text-sm" style={{ color: "var(--text-muted)" }}>→</div>
-      </div>
-    </div>
+      </td>
+      <td className="px-6 py-3.5">
+        <div className="flex items-center justify-end gap-2">
+          <span className="text-xs font-mono" style={{ color: "var(--text-dim)" }}>{timeAgo(report.createdAt)}</span>
+          <ArrowRight size={15} className="rp-row-arrow" style={{ color: "var(--text-muted)" }} />
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -1399,12 +1541,14 @@ function BulkResultRow({
     <div className="border-b last:border-b-0" style={{ borderColor: "rgba(var(--overlay-rgb),0.04)" }}>
       {/* ── Summary row ── */}
       <div
-        className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-[rgba(var(--overlay-rgb),0.01)] transition-all"
+        className="rp-card-header flex items-center gap-3 px-5 py-3 cursor-pointer"
         onClick={() => setExpanded((v) => !v)}
       >
-        <span style={{ color: r.status === "success" ? "var(--success)" : "var(--danger)", fontSize: 13, flexShrink: 0 }}>
-          {r.status === "success" ? "✓" : "✗"}
-        </span>
+        {r.status === "success" ? (
+          <CheckCircle2 size={14} style={{ color: "var(--success)", flexShrink: 0 }} />
+        ) : (
+          <XCircle size={14} style={{ color: "var(--danger)", flexShrink: 0 }} />
+        )}
         <div className="flex-1 min-w-0">
           <div className="text-xs text-[var(--text)] truncate font-mono">{domainFromUrl(r.url)}</div>
           {r.site_name && r.site_name !== r.url && (
@@ -1429,13 +1573,13 @@ function BulkResultRow({
           {r.fullData && (
             <button
               onClick={(e) => { e.stopPropagation(); onViewReport(r.fullData as AnalysisResult); }}
-              className="text-[10px] font-mono px-2 py-1 rounded transition-all"
+              className="rp-icon-btn flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded"
               style={{ background: "rgba(0,229,255,0.08)", color: "var(--accent)", border: "1px solid rgba(0,229,255,0.2)" }}
             >
-              Full Report →
+              Full Report <ExternalLink size={10} />
             </button>
           )}
-          <span className="text-[10px]" style={{ color: "var(--text-dim)" }}>{expanded ? "▲" : "▼"}</span>
+          <ChevronDown size={13} style={{ color: "var(--text-dim)", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }} />
         </div>
       </div>
 
@@ -1512,8 +1656,8 @@ function BulkResultRow({
                       <div className="mt-2 space-y-1">
                         {cat.checks.slice(0, 4).map((check: any, ci: number) => (
                           <div key={ci} className="flex items-start gap-2 text-[10px] leading-relaxed">
-                            <span style={{ color: check.status === "pass" ? "var(--success)" : check.status === "warn" ? "var(--warning)" : "var(--danger)" }}>
-                              {check.status === "pass" ? "✓" : check.status === "warn" ? "!" : "✗"}
+                            <span className="flex-shrink-0 mt-0.5" style={{ color: check.status === "pass" ? "var(--success)" : check.status === "warn" ? "var(--warning)" : "var(--danger)" }}>
+                              {check.status === "pass" ? <CheckCircle2 size={10} /> : check.status === "warn" ? <AlertCircle size={10} /> : <XCircle size={10} />}
                             </span>
                             <span style={{ color: "var(--text-muted)" }}>
                               {check.label}
@@ -1543,13 +1687,13 @@ function BulkResultRow({
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(fd.ai_platform_coverage).map(([platform, present]: [string, any]) => (
                   <span key={platform}
-                    className="text-[10px] font-mono px-2 py-0.5 rounded-full"
+                    className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full"
                     style={{
                       background: present ? "rgba(0,232,122,0.08)" : "rgba(255,90,90,0.08)",
                       color: present ? "var(--success)" : "var(--danger)",
                       border: `1px solid ${present ? "rgba(0,232,122,0.2)" : "rgba(255,90,90,0.2)"}`,
                     }}>
-                    {present ? "✓" : "✗"} {platform}
+                    {present ? <CheckCircle2 size={9} /> : <XCircle size={9} />} {platform}
                   </span>
                 ))}
               </div>
@@ -1658,10 +1802,10 @@ function BulkResultRow({
           {fd && r.fullData && (
             <button
               onClick={(e) => { e.stopPropagation(); onViewReport(fd); }}
-              className="w-full py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-85 mt-1"
+              className="rp-icon-btn flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-xs font-semibold mt-1"
               style={{ background: "rgba(0,229,255,0.1)", color: "var(--accent)", border: "1px solid rgba(0,229,255,0.25)" }}
             >
-              View Full Report →
+              View Full Report <ArrowRight size={12} />
             </button>
           )}
         </div>
@@ -1696,11 +1840,11 @@ function BulkJobCard({ job, plan }: { job: BulkJob; plan: UserPlan }) {
   return (
     <>
       <div
-        className="rounded-xl border overflow-hidden transition-all"
-        style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "rgba(var(--overlay-rgb),0.07)" }}
+        className="rp-card rounded-xl border overflow-hidden"
+        style={{ background: "var(--surface)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "rgba(var(--overlay-rgb),0.07)" }}
       >
         <div
-          className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[rgba(var(--overlay-rgb),0.01)] transition-all"
+          className="flex items-center gap-4 px-5 py-4 cursor-pointer rp-card-header"
           onClick={() => setExpanded((e) => !e)}
         >
           <div
@@ -1728,8 +1872,8 @@ function BulkJobCard({ job, plan }: { job: BulkJob; plan: UserPlan }) {
               )}
             </div>
             <div className="flex items-center gap-3 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-              <span style={{ color: "var(--success)" }}>{job.passed}✓</span>
-              <span style={{ color: "var(--danger)" }}>{job.failed}✗</span>
+              <span className="flex items-center gap-1" style={{ color: "var(--success)" }}><CheckCircle2 size={11} /> {job.passed}</span>
+              <span className="flex items-center gap-1" style={{ color: "var(--danger)" }}><XCircle size={11} /> {job.failed}</span>
               <span>·</span>
               <span>{timeAgo(job.createdAt)}</span>
             </div>
@@ -1738,25 +1882,24 @@ function BulkJobCard({ job, plan }: { job: BulkJob; plan: UserPlan }) {
               <button
                 onClick={(e) => { e.stopPropagation(); void handleExport("csv"); }}
                 disabled={!!exporting}
-                className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
+                className="rp-icon-btn flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded disabled:opacity-50"
                 style={{ background: "rgba(var(--overlay-rgb),0.04)", color: "var(--text)", border: "1px solid rgba(var(--overlay-rgb),0.08)" }}
               >
-                {exporting === "csv" ? "Exporting…" : "CSV"}
+                {exporting === "csv" ? <Loader2 size={11} className="rp-spin" /> : <FileSpreadsheet size={11} />} {exporting === "csv" ? "Exporting…" : "CSV"}
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); void handleExport("pdf"); }}
                 disabled={!!exporting}
-                className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
+                className="rp-icon-btn flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded disabled:opacity-50"
                 style={{ background: "rgba(0,229,255,0.08)", color: "var(--accent)", border: "1px solid rgba(0,229,255,0.18)" }}
               >
-                {exporting === "pdf" ? "Exporting…" : "PDF"}
+                {exporting === "pdf" ? <Loader2 size={11} className="rp-spin" /> : <FileText size={11} />} {exporting === "pdf" ? "Exporting…" : "PDF"}
               </button>
-              <div
-                className="text-sm transition-transform duration-200 flex-shrink-0"
-                style={{ color: "var(--text-muted)", transform: expanded ? "rotate(180deg)" : "none" }}
-              >
-                ▼
-              </div>
+              <ChevronDown
+                size={16}
+                className="flex-shrink-0"
+                style={{ color: "var(--text-muted)", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}
+              />
             </div>
         </div>
 
@@ -1846,10 +1989,11 @@ function BulkPromptRunDetail({ run }: { run: BulkPromptRun }) {
       {/* Toggle full details */}
       <button
         onClick={() => setShowDetail((v) => !v)}
-        className="text-[10px] font-mono mt-1 px-2 py-1 rounded transition-all"
+        className="rp-icon-btn flex items-center gap-1 text-[10px] font-mono mt-1 px-2 py-1 rounded"
         style={{ background: showDetail ? "rgba(0,229,255,0.08)" : "rgba(var(--overlay-rgb),0.04)", color: showDetail ? "var(--accent)" : "var(--text-muted)", border: `1px solid ${showDetail ? "rgba(0,229,255,0.2)" : "rgba(var(--overlay-rgb),0.07)"}` }}
       >
-        {showDetail ? "▲ Hide details" : "▼ Show full details"}
+        <ChevronDown size={11} style={{ transition: "transform 0.2s", transform: showDetail ? "rotate(180deg)" : "none" }} />
+        {showDetail ? "Hide details" : "Show full details"}
       </button>
 
       {showDetail && (
@@ -1947,18 +2091,18 @@ function BulkPromptCard({ batch, plan }: { batch: BulkPromptBatch; plan: UserPla
 
   return (
     <div
-      className="rounded-xl border overflow-hidden transition-all"
-      style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
+      className="rp-card rounded-xl border overflow-hidden"
+      style={{ background: "var(--surface)", borderColor: expanded ? "rgba(0,229,255,0.2)" : "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
     >
       <div
-        className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[rgba(var(--overlay-rgb),0.01)] transition-all"
+        className="flex items-center gap-4 px-5 py-4 cursor-pointer rp-card-header"
         onClick={() => setExpanded((e) => !e)}
       >
         <div
-          className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl"
+          className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center"
           style={{ background: "rgba(0,229,255,0.07)", border: "1px solid rgba(0,229,255,0.15)" }}
         >
-          💬
+          <MessageSquare size={22} style={{ color: "var(--accent)" }} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -1968,10 +2112,10 @@ function BulkPromptCard({ batch, plan }: { batch: BulkPromptBatch; plan: UserPla
               {batch.status}
             </span>
             {batch.passedRuns > 0 && (
-              <span className="text-[10px] font-mono" style={{ color: "var(--success)" }}>{batch.passedRuns}✓</span>
+              <span className="flex items-center gap-1 text-[10px] font-mono" style={{ color: "var(--success)" }}><CheckCircle2 size={10} /> {batch.passedRuns}</span>
             )}
             {batch.failedRuns > 0 && (
-              <span className="text-[10px] font-mono" style={{ color: "var(--danger)" }}>{batch.failedRuns}✗</span>
+              <span className="flex items-center gap-1 text-[10px] font-mono" style={{ color: "var(--danger)" }}><XCircle size={10} /> {batch.failedRuns}</span>
             )}
           </div>
           <div className="text-xs font-mono truncate" style={{ color: "var(--text-muted)" }}>
@@ -1984,25 +2128,24 @@ function BulkPromptCard({ batch, plan }: { batch: BulkPromptBatch; plan: UserPla
           <button
             onClick={(e) => { e.stopPropagation(); void handleExport("csv"); }}
             disabled={!!exporting}
-            className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
+            className="rp-icon-btn flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded disabled:opacity-50"
             style={{ background: "rgba(var(--overlay-rgb),0.04)", color: "var(--text)", border: "1px solid rgba(var(--overlay-rgb),0.08)" }}
           >
-            {exporting === "csv" ? "Exporting…" : "CSV"}
+            {exporting === "csv" ? <Loader2 size={11} className="rp-spin" /> : <FileSpreadsheet size={11} />} {exporting === "csv" ? "Exporting…" : "CSV"}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); void handleExport("pdf"); }}
             disabled={!!exporting}
-            className="text-[10px] font-mono px-2.5 py-1 rounded transition-all disabled:opacity-50"
+            className="rp-icon-btn flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded disabled:opacity-50"
             style={{ background: "rgba(0,229,255,0.08)", color: "var(--accent)", border: "1px solid rgba(0,229,255,0.18)" }}
           >
-            {exporting === "pdf" ? "Exporting…" : "PDF"}
+            {exporting === "pdf" ? <Loader2 size={11} className="rp-spin" /> : <FileText size={11} />} {exporting === "pdf" ? "Exporting…" : "PDF"}
           </button>
-          <div
-            className="text-sm transition-transform duration-200 flex-shrink-0"
-            style={{ color: "var(--text-muted)", transform: expanded ? "rotate(180deg)" : "none" }}
-          >
-            ▼
-          </div>
+          <ChevronDown
+            size={16}
+            className="flex-shrink-0"
+            style={{ color: "var(--text-muted)", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}
+          />
         </div>
       </div>
 

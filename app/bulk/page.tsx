@@ -9,6 +9,10 @@ import ScoreGauge from "@/components/ScoreGauge";
 import PromptResponsePanel from "@/components/PromptResponsePanel";
 import CitationsPanel from "@/components/CitationsPanel";
 import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "@/components/ProviderIcons";
+import {
+  Layers, Check, Circle, Upload, AlertTriangle, Play, Square, Download, Plus,
+  ChevronRight, CheckCircle2, XCircle, Loader2, X, ArrowLeft, Bot,
+} from "lucide-react";
 
 const PROVIDERS = [
   { name: "Gemini 2.0", Icon: GeminiIcon, color: "#4285f4" },
@@ -510,7 +514,6 @@ function parseUrls(raw: string): string[] {
     .slice(0, 500);
 }
 
-// ── Mini progress ring ─────────────────────────────────────────────────────
 // Subtle elevation so result panels read as distinct cards against the page
 // background, on top of their existing border — matches the card treatment
 // used across the rest of the bulk-scan results UI.
@@ -519,7 +522,7 @@ const CARD_SHADOW = "0 1px 3px rgba(0,0,0,0.05)";
 function StatTile({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
     <div
-      className="rounded-2xl border p-4"
+      className="bk-stat-tile rounded-2xl border p-4"
       style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
     >
       <div className="text-[11px] font-mono uppercase tracking-wide mb-1.5" style={{ color: "var(--text-dim)" }}>
@@ -548,11 +551,14 @@ function Ring({ pct, color, size = 44 }: { pct: number; color: string; size?: nu
   );
 }
 
-// ── AI Platform Coverage (inline, no extra import needed) ──────────────────
-const PLATFORM_ICONS: Record<string, string> = {
-  chatgpt: "⬡", claude: "◈", perplexity: "◎", gemini: "✦",
-  meta_ai: "⬟", you_com: "◉", duckduckgo: "⊙", apple: "◆",
-};
+// ── AI Platform Coverage brandmarks (falls back to a generic bot glyph) ────
+function PlatformBrandIcon({ platform, size = 13 }: { platform: string; size?: number }) {
+  const p = platform.toLowerCase();
+  if (p.includes("gemini")) return <GeminiIcon size={size} />;
+  if (p.includes("chatgpt") || p.includes("gpt")) return <ChatGPTIcon size={size} />;
+  if (p.includes("perplexity")) return <PerplexityIcon size={size} />;
+  return <Bot size={size} />;
+}
 
 const PROVIDER_COLORS: Record<string, { color: string; bg: string; border: string }> = {
   "Gemini 2.0 Flash":      { color: "#4285f4", bg: "rgba(66,133,244,0.08)",  border: "rgba(66,133,244,0.25)" },
@@ -589,7 +595,7 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
 
   return (
     <div
-      className="px-6 pb-8 pt-2"
+      className="animate-fade-up px-6 pb-8 pt-2"
       style={{ background: "rgba(var(--overlay-rgb),0.03)", borderTop: "1px solid rgba(var(--overlay-rgb),0.05)" }}
     >
       {/* ── Score gauges ── */}
@@ -615,7 +621,7 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
           ].map(({ val, label, color }) => (
             <div
               key={label}
-              className="rounded-xl border px-4 py-3 text-center min-w-[80px]"
+              className="bk-stat-tile rounded-xl border px-4 py-3 text-center min-w-[80px]"
               style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
             >
               <div className="text-xl font-bold" style={{ color }}>{val}</div>
@@ -678,14 +684,15 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
               return (
                 <div
                   key={p.name}
-                  className="rounded-xl border p-4"
+                  className="bk-stat-tile rounded-xl border p-4"
                   style={{
                     background: isOk ? cfg.bg : "rgba(255,90,90,0.04)",
                     borderColor: isOk ? cfg.border : "rgba(255,90,90,0.2)",
                   }}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[12px] font-medium" style={{ color: isOk ? cfg.color : "var(--danger)" }}>
+                    <span className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: isOk ? cfg.color : "var(--danger)" }}>
+                      <PlatformBrandIcon platform={p.name} size={12} />
                       {p.name}
                     </span>
                     <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>{p.durationMs}ms</span>
@@ -733,14 +740,14 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
               return (
                 <div
                   key={platform}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 border"
+                  className="bk-stat-tile flex items-center gap-2 rounded-xl px-3 py-2.5 border"
                   style={{
                     background: isIndexed ? "rgba(0,232,122,0.06)" : "rgba(255,90,90,0.06)",
                     borderColor: isIndexed ? "rgba(0,232,122,0.2)" : "rgba(255,90,90,0.2)",
                   }}
                 >
-                  <span style={{ fontSize: 12, color: isIndexed ? "var(--success)" : "var(--danger)" }}>
-                    {PLATFORM_ICONS[platform] ?? "◎"}
+                  <span style={{ display: "flex", color: isIndexed ? "var(--success)" : "var(--danger)" }}>
+                    <PlatformBrandIcon platform={platform} size={13} />
                   </span>
                   <div>
                     <div className="text-[11px] font-medium text-[var(--text)]">{label}</div>
@@ -792,6 +799,7 @@ export default function BulkPage() {
   const [sortBy, setSortBy] = useState<"url" | "score" | "status">("status");
   const [expandedUrl, setExpandedUrl] = useState<string | null>(null);
   const [plan, setPlan] = useState<UserPlan>("free");
+  const [showCitationsInfo, setShowCitationsInfo] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -963,20 +971,37 @@ export default function BulkPage() {
   // ── IDLE / INPUT PHASE ─────────────────────────────────────────────────
   if (phase === "idle") {
     return (
-      <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
         <div className="max-w-3xl mx-auto px-6 pt-16 pb-20">
 
-          <div className="mb-10">
-            <div
-              className="inline-block text-xs font-mono px-4 py-1.5 rounded-full border mb-5 tracking-widest"
-              style={{ color: "var(--accent)", background: "rgba(0,229,255,0.07)", borderColor: "rgba(0,229,255,0.2)" }}
-            >
-              // BULK AI VISIBILITY SCANNER
+          <div className="relative mb-10">
+            {/* Ambient glow */}
+            <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true" style={{ height: 220 }}>
+              <div className="aurora-blob aurora-blob-1" style={{ width: 320, height: 320, top: -170, left: "0%", background: "var(--accent)", opacity: 0.09 }} />
+              <div className="aurora-blob aurora-blob-2" style={{ width: 280, height: 280, top: -140, left: "26%", background: "var(--accent2)", opacity: 0.08 }} />
+            </div>
+
+            <div className="flex items-center gap-3 mb-3">
+              <div style={{
+                width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "linear-gradient(135deg, var(--accent), var(--accent2))",
+                boxShadow: "0 6px 18px rgba(0,229,255,0.25)",
+              }}>
+                <Layers size={19} color="var(--on-accent)" />
+              </div>
+              <div
+                className="inline-block text-xs font-mono px-4 py-1.5 rounded-full border tracking-widest"
+                style={{ color: "var(--accent)", background: "rgba(0,229,255,0.07)", borderColor: "rgba(0,229,255,0.2)" }}
+              >
+                BULK AI VISIBILITY SCANNER
+              </div>
             </div>
             <h1
-              className="text-4xl font-bold tracking-tight mb-3"
+              className="heading-shimmer text-4xl font-bold tracking-tight mb-3"
               style={{
-                background: "linear-gradient(135deg, var(--text) 30%, rgba(var(--overlay-rgb),0.45))",
+                background: "linear-gradient(110deg, var(--text) 20%, var(--accent) 50%, var(--text) 80%)",
+                backgroundSize: "200% auto",
                 WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
               }}
             >
@@ -992,7 +1017,7 @@ export default function BulkPage() {
               {PROVIDERS.map((p) => (
                 <span
                   key={p.name}
-                  className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl border"
+                  className="bk-provider-badge flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl border"
                   style={{ color: p.color, background: `${p.color}12`, borderColor: `${p.color}35` }}
                 >
                   <p.Icon size={18} className="shrink-0" />{p.name}
@@ -1005,8 +1030,14 @@ export default function BulkPage() {
 
             <div className="flex flex-wrap gap-4">
               {FEATURE_CHIPS.map((feat) => (
-                <div key={feat} className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "var(--success)" }} />
+                <div key={feat} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span style={{
+                    width: 15, height: 15, borderRadius: "50%", flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: "rgba(0,232,122,0.15)", color: "var(--success)",
+                  }}>
+                    <Check size={9} strokeWidth={3} />
+                  </span>
                   {feat}
                 </div>
               ))}
@@ -1032,24 +1063,24 @@ export default function BulkPage() {
               value={rawInput}
               onChange={(e) => setRawInput(e.target.value)}
               placeholder={"https://example.com\nhttps://another-site.io\nhttps://third.co"}
-              className="w-full bg-transparent border-none outline-none text-[13px] font-mono text-[var(--text)] resize-none p-5"
+              className="bk-field w-full bg-transparent border-none outline-none text-[13px] font-mono text-[var(--text)] resize-none p-5"
               rows={12}
               style={{ caretColor: "var(--accent)" }}
             />
           </div>
 
           <label
-            className="flex items-center gap-3 px-5 py-3 rounded-xl border mb-6 cursor-pointer transition-colors"
+            className="bk-upload-label flex items-center gap-3 px-5 py-3 rounded-xl border mb-6 cursor-pointer transition-colors"
             style={{ borderColor: "rgba(var(--overlay-rgb),0.1)", background: "rgba(var(--overlay-rgb),0.02)" }}
           >
-            <span style={{ color: "var(--text-muted)", fontSize: 18 }}>📂</span>
+            <Upload size={17} style={{ color: "var(--text-muted)" }} />
             <span className="text-sm" style={{ color: "var(--text-muted)" }}>
               Upload <span style={{ color: "var(--accent)" }}>.txt</span> or <span style={{ color: "var(--accent)" }}>.csv</span> file
             </span>
             <input type="file" accept=".txt,.csv" className="hidden" onChange={handleFileUpload} />
           </label>
 
-          <div className="flex flex-wrap gap-3 mb-8">
+          <div className="flex flex-wrap items-center gap-3 mb-8">
             <button
               onClick={() => setRunCitations(!runCitations)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm border transition-all"
@@ -1059,7 +1090,7 @@ export default function BulkPage() {
                 color: runCitations ? "var(--accent)" : "var(--text-muted)",
               }}
             >
-              <span>{runCitations ? "✓" : "○"}</span>
+              {runCitations ? <Check size={13} strokeWidth={3} /> : <Circle size={11} />}
               AI Citations
               <span
                 className="text-[10px] font-mono px-1.5 py-0.5 rounded"
@@ -1070,6 +1101,19 @@ export default function BulkPage() {
               >
                 {runCitations ? "ON" : "OFF"}
               </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCitationsInfo(true)}
+              aria-label="What does AI Citations include?"
+              title="What does AI Citations include?"
+              className="flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-semibold shrink-0 transition-colors self-center"
+              style={{
+                color: "var(--text-muted)",
+                border: "1px solid rgba(var(--overlay-rgb),0.25)",
+              }}
+            >
+              i
             </button>
 
             <div
@@ -1101,7 +1145,7 @@ export default function BulkPage() {
               className="flex items-start gap-3 rounded-xl px-4 py-3 mb-6 text-[12px]"
               style={{ background: "rgba(255,184,48,0.07)", border: "1px solid rgba(255,184,48,0.2)" }}
             >
-              <span>⚠️</span>
+              <AlertTriangle size={15} style={{ color: "var(--warning)", flexShrink: 0, marginTop: 1 }} />
               <span style={{ color: "var(--warning)" }}>
                 High concurrency may hit API rate limits. Start with 3 for reliability.
               </span>
@@ -1111,36 +1155,113 @@ export default function BulkPage() {
           <button
             onClick={handleStart}
             disabled={parsedUrls.length === 0}
-            className="w-full py-4 rounded-2xl text-base font-semibold tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-85 active:scale-[0.99]"
-            style={{ background: "linear-gradient(135deg, var(--accent), #4285f4)", color: "var(--on-accent)" }}
+            className="bk-btn-primary w-full py-4 rounded-2xl text-base font-semibold tracking-wide flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.99]"
+            style={{
+              background: "linear-gradient(135deg, var(--accent), var(--accent2))", color: "var(--on-accent)",
+              boxShadow: parsedUrls.length === 0 ? "none" : "0 6px 20px rgba(0,229,255,0.25)",
+            }}
           >
-            {parsedUrls.length === 0
-              ? "Paste URLs to begin"
-              : `▶ Start Bulk Scan: ${parsedUrls.length} site${parsedUrls.length > 1 ? "s" : ""}`}
+            {parsedUrls.length === 0 ? (
+              "Paste URLs to begin"
+            ) : (
+              <>
+                <Play size={15} fill="currentColor" />
+                Start Bulk Scan: {parsedUrls.length} site{parsedUrls.length > 1 ? "s" : ""}
+              </>
+            )}
           </button>
 
           <div className="flex flex-wrap gap-4 justify-center mt-6">
             {["Real-time streaming results", "Up to 500 URLs", "CSV export", "Saved to Reports"].map((f) => (
-              <div key={f} className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--success)" }} />
+              <div key={f} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                <span style={{
+                  width: 15, height: 15, borderRadius: "50%", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "rgba(0,232,122,0.15)", color: "var(--success)",
+                }}>
+                  <Check size={9} strokeWidth={3} />
+                </span>
                 {f}
               </div>
             ))}
           </div>
         </div>
+
+        {showCitationsInfo && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center px-4"
+            style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+            onClick={() => setShowCitationsInfo(false)}
+          >
+            <div
+              className="bk-modal-pop w-full max-w-md rounded-2xl border p-6 text-left"
+              style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)", boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold" style={{ color: "var(--text)" }}>AI Citations</h3>
+                <button
+                  onClick={() => setShowCitationsInfo(false)}
+                  className="bk-icon-btn"
+                  style={{
+                    width: 26, height: 26, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "var(--text-muted)", background: "transparent", border: "1px solid transparent",
+                  }}
+                  aria-label="Close"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <p className="text-[13px] leading-relaxed mb-4" style={{ color: "var(--text-muted)" }}>
+                When this is on, we send real prompts to Gemini, ChatGPT and Perplexity for each URL to see whether — and how often — they cite that site, plus which competitors show up instead.
+              </p>
+
+              <ul className="text-[13px] leading-relaxed mb-4 space-y-1.5 list-disc pl-4" style={{ color: "var(--text-muted)" }}>
+                <li>Full GEO (Generative Engine Optimization) analysis</li>
+                <li>Citation counts across all 3 AI providers</li>
+                <li>Competitive analysis: see who&apos;s winning your AI visibility</li>
+              </ul>
+
+              <p className="text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                Turning it off runs a faster, basic scan across all URLs that only checks crawler access and structured data — no live AI citation research.
+              </p>
+
+              <button
+                onClick={() => setShowCitationsInfo(false)}
+                className="bk-btn-primary w-full mt-5 rounded-lg py-2.5 text-sm font-semibold text-[var(--on-accent)]"
+                style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          .bk-field { transition: box-shadow 0.15s ease; }
+          .bk-upload-label:hover { background: rgba(var(--overlay-rgb),0.05) !important; border-color: rgba(0,229,255,0.25) !important; }
+          .bk-provider-badge { transition: transform 0.15s ease; }
+          .bk-provider-badge:hover { transform: translateY(-2px); }
+          .bk-btn-primary:not(:disabled):hover { filter: brightness(1.05); transform: translateY(-1px); }
+          .bk-btn-primary:not(:disabled):active { transform: translateY(0); }
+          .bk-icon-btn:hover { background: rgba(var(--overlay-rgb),0.07); color: var(--text); }
+          @keyframes bkModalPop { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+          .bk-modal-pop { animation: bkModalPop 0.18s cubic-bezier(0.16,1,0.3,1) both; }
+        `}</style>
       </div>
     );
   }
 
   // ── RUNNING / DONE PHASE ───────────────────────────────────────────────
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
       <div className="max-w-[1100px] mx-auto px-6 pt-10 pb-20">
 
         {/* Stat tiles */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <div
-            className="rounded-2xl border p-4"
+            className="bk-stat-tile rounded-2xl border p-4"
             style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: CARD_SHADOW }}
           >
             <div className="flex items-center gap-3">
@@ -1170,16 +1291,18 @@ export default function BulkPage() {
         </div>
 
         {/* Progress bar */}
-        <div className="w-full h-1.5 rounded-full mb-6 overflow-hidden" style={{ background: "rgba(var(--overlay-rgb),0.06)" }}>
+        <div className="w-full rounded-full mb-6 overflow-hidden" style={{ background: "rgba(var(--overlay-rgb),0.06)", height: 6 }}>
           <div
-            className="h-full rounded-full transition-all duration-500"
+            className="h-full rounded-full transition-all duration-500 relative overflow-hidden"
             style={{
               width: `${pct}%`,
               background: phase === "done"
                 ? "linear-gradient(90deg, var(--success), var(--accent))"
-                : "linear-gradient(90deg, var(--accent), #4285f4)",
+                : "linear-gradient(90deg, var(--accent), var(--accent2))",
             }}
-          />
+          >
+            {phase === "running" && <div className="bk-progress-shimmer" />}
+          </div>
         </div>
 
         {/* Filter + sort bar */}
@@ -1191,7 +1314,7 @@ export default function BulkPage() {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className="px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
+                  className="bk-chip-btn px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
                   style={{
                     background: filter === f ? "rgba(0,229,255,0.12)" : "rgba(var(--overlay-rgb),0.04)",
                     color: filter === f ? "var(--accent)" : "var(--text-muted)",
@@ -1209,7 +1332,7 @@ export default function BulkPage() {
               <button
                 key={s}
                 onClick={() => setSortBy(s)}
-                className="px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
+                className="bk-chip-btn px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
                 style={{
                   background: sortBy === s ? "rgba(var(--overlay-rgb),0.07)" : "transparent",
                   color: sortBy === s ? "var(--text)" : "var(--text-muted)",
@@ -1248,34 +1371,34 @@ export default function BulkPage() {
               {phase === "running" && (
                 <button
                   onClick={handleStop}
-                  className="px-3.5 py-1.5 rounded-lg border text-[12px] transition-all"
+                  className="bk-danger-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-[12px] transition-all"
                   style={{ borderColor: "rgba(255,90,90,0.3)", color: "var(--danger)", background: "rgba(255,90,90,0.05)" }}
                 >
-                  ■ Stop
+                  <Square size={11} fill="currentColor" /> Stop
                 </button>
               )}
               {phase === "done" && (
                 <>
                   <button
                     onClick={() => exportPdf(rows, plan)}
-                    className="px-3.5 py-1.5 rounded-lg border text-[12px] transition-all hover:opacity-80"
+                    className="bk-export-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-[12px] transition-all"
                     style={{ borderColor: "rgba(0,232,122,0.3)", color: "var(--success)", background: "rgba(0,232,122,0.05)" }}
                   >
-                    ↓ PDF
+                    <Download size={11} /> PDF
                   </button>
                   <button
                     onClick={() => exportCsv(rows)}
-                    className="px-3.5 py-1.5 rounded-lg border text-[12px] transition-all hover:opacity-80"
+                    className="bk-export-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-[12px] transition-all"
                     style={{ borderColor: "rgba(0,232,122,0.3)", color: "var(--success)", background: "rgba(0,232,122,0.05)" }}
                   >
-                    ↓ CSV
+                    <Download size={11} /> CSV
                   </button>
                   <button
                     onClick={handleReset}
-                    className="px-3.5 py-1.5 rounded-lg text-[12px] font-medium transition-all hover:opacity-85"
+                    className="bk-btn-primary flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium transition-all"
                     style={{ background: "var(--accent)", color: "var(--on-accent)" }}
                   >
-                    + New Scan
+                    <Plus size={11} /> New Scan
                   </button>
                 </>
               )}
@@ -1325,7 +1448,7 @@ export default function BulkPage() {
                   >
                     {/* Summary row — clickable if success */}
                     <div
-                      className="grid items-center px-5 py-3.5 transition-colors"
+                      className="bk-row grid items-center px-5 py-3.5 transition-colors"
                       style={{
                         gridTemplateColumns: "2fr 90px 60px 60px 1fr 110px",
                         minWidth: 600,
@@ -1342,22 +1465,17 @@ export default function BulkPage() {
                       <div className="min-w-0 pr-4">
                         <div className="flex items-center gap-2">
                           {isRunning && (
-                            <span
-                              className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse"
-                              style={{ background: "var(--accent)" }}
-                            />
+                            <Loader2 size={11} className="bk-spin" style={{ color: "var(--accent)", flexShrink: 0 }} />
                           )}
                           {canExpand && (
-                            <span
-                              className="text-[10px] font-mono flex-shrink-0 transition-transform"
+                            <ChevronRight
+                              size={12}
                               style={{
-                                color: "var(--text-muted)",
+                                color: "var(--text-muted)", flexShrink: 0,
                                 transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                                display: "inline-block",
+                                transition: "transform 0.2s",
                               }}
-                            >
-                              ▶
-                            </span>
+                            />
                           )}
                           <span
                             className="text-[12px] font-mono truncate"
@@ -1376,20 +1494,28 @@ export default function BulkPage() {
                       {/* Status */}
                       <div>
                         {row.status === "success" && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md"
-                            style={{ color: "var(--success)", background: "rgba(0,232,122,0.1)" }}>✓ done</span>
+                          <span className="flex items-center gap-1 w-fit text-[10px] font-mono px-2 py-0.5 rounded-md"
+                            style={{ color: "var(--success)", background: "rgba(0,232,122,0.1)" }}>
+                            <CheckCircle2 size={10} /> done
+                          </span>
                         )}
                         {row.status === "failed" && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md"
-                            style={{ color: "var(--danger)", background: "rgba(255,90,90,0.1)" }}>✕ failed</span>
+                          <span className="flex items-center gap-1 w-fit text-[10px] font-mono px-2 py-0.5 rounded-md"
+                            style={{ color: "var(--danger)", background: "rgba(255,90,90,0.1)" }}>
+                            <XCircle size={10} /> failed
+                          </span>
                         )}
                         {row.status === "running" && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md"
-                            style={{ color: "var(--accent)", background: "rgba(0,229,255,0.1)" }}>⟳ scanning</span>
+                          <span className="flex items-center gap-1 w-fit text-[10px] font-mono px-2 py-0.5 rounded-md"
+                            style={{ color: "var(--accent)", background: "rgba(0,229,255,0.1)" }}>
+                            <Loader2 size={10} className="bk-spin" /> scanning
+                          </span>
                         )}
                         {row.status === "queued" && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md"
-                            style={{ color: "var(--text-dim)", background: "rgba(var(--overlay-rgb),0.04)" }}>· queued</span>
+                          <span className="flex items-center gap-1 w-fit text-[10px] font-mono px-2 py-0.5 rounded-md"
+                            style={{ color: "var(--text-dim)", background: "rgba(var(--overlay-rgb),0.04)" }}>
+                            <Circle size={7} fill="currentColor" /> queued
+                          </span>
                         )}
                       </div>
 
@@ -1446,7 +1572,7 @@ export default function BulkPage() {
         {/* Tip */}
         {phase === "done" && rows.some((r) => r.fullData) && (
           <p className="text-center text-[12px] mt-4" style={{ color: "var(--text-dim)" }}>
-            Click any ✓ done row to expand the full analysis report
+            Click any done row to expand the full analysis report
           </p>
         )}
 
@@ -1460,14 +1586,37 @@ export default function BulkPage() {
             <p className="text-[12px] mb-4" style={{ color: "var(--text-muted)" }}>{fatalError}</p>
             <button
               onClick={handleReset}
-              className="px-5 py-2.5 rounded-xl text-sm font-medium"
+              className="bk-btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-medium"
               style={{ background: "var(--danger)", color: "var(--on-accent)" }}
             >
-              ← Try Again
+              <ArrowLeft size={13} /> Try Again
             </button>
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .bk-spin { animation: spin 0.8s linear infinite; }
+
+        @keyframes bkShimmerSlide { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+        .bk-progress-shimmer {
+          position: absolute; inset: 0;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+          animation: bkShimmerSlide 1.2s linear infinite;
+        }
+
+        .bk-stat-tile { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .bk-stat-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+
+        .bk-row:hover { background: rgba(var(--overlay-rgb),0.025) !important; }
+
+        .bk-chip-btn:hover { filter: brightness(1.1); }
+        .bk-danger-btn:hover { filter: brightness(1.1); }
+        .bk-export-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .bk-btn-primary:not(:disabled):hover { filter: brightness(1.05); transform: translateY(-1px); }
+        .bk-btn-primary:not(:disabled):active { transform: translateY(0); }
+      `}</style>
     </div>
   );
 }

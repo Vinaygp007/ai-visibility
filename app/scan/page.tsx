@@ -5,54 +5,55 @@ import HeroSection from "@/components/HeroSection";
 import LoadingSection from "@/components/LoadingSection";
 import ResultsSection from "@/components/ResultsSection";
 import { AnalysisResult } from "@/types";
+import { Clock, KeyRound, CreditCard, Gauge, WifiOff, AlertTriangle, Zap, RotateCcw, ArrowLeft, type LucideIcon } from "lucide-react";
 
 type AppState = "idle" | "loading" | "results" | "error";
 
-const ERROR_HINTS: Record<string, { title: string; detail: string; icon: string; canAutoRetry: boolean }> = {
+const ERROR_HINTS: Record<string, { title: string; detail: string; icon: LucideIcon; canAutoRetry: boolean }> = {
   QUOTA_EXCEEDED: {
-    icon: "⏱️",
+    icon: Clock,
     title: "Rate limit hit",
     detail: "Gemini's free tier allows ~15 requests/minute. The server already retried 3 times. Wait 60 seconds and try again.",
     canAutoRetry: true,
   },
   INVALID_KEY: {
-    icon: "🔑",
+    icon: KeyRound,
     title: "Invalid API key",
     detail: "Your GEMINI_API_KEY is incorrect. Get a free key at aistudio.google.com/app/apikey and update .env.local.",
     canAutoRetry: false,
   },
   MISSING_KEY: {
-    icon: "🔑",
+    icon: KeyRound,
     title: "API key missing",
     detail: "Add GEMINI_API_KEY to your .env.local file and restart the dev server.",
     canAutoRetry: false,
   },
   INSUFFICIENT_CREDITS: {
-    icon: "💳",
+    icon: CreditCard,
     title: "Not enough credits",
     detail: "This scan costs more credits than you have left. Refer a friend or wait for your next credit grant.",
     canAutoRetry: false,
   },
   RATE_LIMITED: {
-    icon: "🚦",
+    icon: Gauge,
     title: "Slow down",
     detail: "You're running scans faster than we allow. Wait a minute and try again.",
     canAutoRetry: true,
   },
   NETWORK_ERROR: {
-    icon: "📡",
+    icon: WifiOff,
     title: "Network error",
     detail: "Could not reach the Gemini API. Check your internet connection and try again.",
     canAutoRetry: true,
   },
   PARSE_ERROR: {
-    icon: "⚠️",
+    icon: AlertTriangle,
     title: "Unexpected response",
     detail: "Gemini returned a response we couldn't parse. Please try again.",
     canAutoRetry: true,
   },
   UNKNOWN: {
-    icon: "⚠️",
+    icon: AlertTriangle,
     title: "Analysis failed",
     detail: "An unexpected error occurred. Please try again.",
     canAutoRetry: true,
@@ -158,11 +159,16 @@ export default function ScanPage() {
 
         {state === "error" && (
           <div
-            className="rounded-2xl border p-8"
+            className="animate-fade-up rounded-2xl border p-8"
             style={{ background: "rgba(255,90,90,0.04)", borderColor: "rgba(255,90,90,0.18)" }}
           >
             <div className="text-center mb-6">
-              <div className="text-3xl mb-3">{hint.icon}</div>
+              <div
+                className="mx-auto mb-4 flex items-center justify-center rounded-2xl"
+                style={{ width: 52, height: 52, background: "rgba(255,90,90,0.1)", border: "1px solid rgba(255,90,90,0.2)" }}
+              >
+                <hint.icon size={24} style={{ color: "var(--danger)" }} />
+              </div>
               <h3 className="text-[17px] font-semibold mb-2" style={{ color: "var(--danger)" }}>{hint.title}</h3>
               <p className="text-sm max-w-sm mx-auto" style={{ color: "var(--text-muted)" }}>{hint.detail}</p>
             </div>
@@ -212,26 +218,26 @@ export default function ScanPage() {
                     if (countdownRef.current) clearInterval(countdownRef.current);
                     handleAnalyze(analyzingUrl, analyzingCitations);
                   }}
-                  className="px-5 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[#4285f4] hover:text-[#4285f4]"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[#4285f4] hover:text-[#4285f4]"
                   style={{ borderColor: "rgba(var(--overlay-rgb),0.13)", color: "var(--text)", background: "transparent" }}
                 >
-                  ⚡ Retry now (skip wait)
+                  <Zap size={14} fill="currentColor" /> Retry now (skip wait)
                 </button>
               ) : (
                 <button
                   onClick={() => handleAnalyze(analyzingUrl, analyzingCitations)}
-                  className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-95"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85 active:scale-95"
                   style={{ background: "var(--accent)", color: "var(--on-accent)" }}
                 >
-                  ↺ Try again
+                  <RotateCcw size={14} /> Try again
                 </button>
               )}
               <button
                 onClick={handleReset}
-                className="px-5 py-2.5 rounded-xl border text-sm"
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl border text-sm"
                 style={{ borderColor: "rgba(var(--overlay-rgb),0.13)", color: "var(--text-muted)", background: "transparent" }}
               >
-                ← New URL
+                <ArrowLeft size={14} /> New URL
               </button>
             </div>
 
