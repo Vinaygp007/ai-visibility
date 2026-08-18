@@ -4,14 +4,26 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { Search, Layers, Terminal, FileText, History, Users, CreditCard, Settings, LogOut } from "lucide-react";
+import { Search, Layers, Terminal, Vote, FileText, History, Users, CreditCard, Settings, LogOut } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import BetaBadge from "./BetaBadge";
 
-export const PRIMARY_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/scan", label: "Scan", icon: Search },
-  { href: "/bulk", label: "Bulk Scanner", icon: Layers },
-  { href: "/bulk-prompt", label: "Prompt Runner", icon: Terminal },
-];
+// Bulk Scanner / Prompt Runner stay admin-only until the v2 feature vote
+// picks a winner (see app/bulk and app/bulk-prompt layouts) — regular users
+// get a link to the vote instead of two links that would just redirect them.
+export function getPrimaryLinks(isAdmin: boolean): { href: string; label: string; icon: LucideIcon }[] {
+  if (isAdmin) {
+    return [
+      { href: "/scan", label: "Scan", icon: Search },
+      { href: "/bulk", label: "Bulk Scanner", icon: Layers },
+      { href: "/bulk-prompt", label: "Prompt Runner", icon: Terminal },
+    ];
+  }
+  return [
+    { href: "/scan", label: "Scan", icon: Search },
+    { href: "/vote", label: "Vote on v2", icon: Vote },
+  ];
+}
 
 export const ACCOUNT_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/reports", label: "Previous Reports", icon: FileText },
@@ -53,6 +65,7 @@ export default function Sidebar() {
   const router = useRouter();
   const { user } = useCurrentUser();
   const role = user?.role ?? null;
+  const primaryLinks = getPrimaryLinks(role === "admin");
 
   async function handleLogout() {
     const supabase = createClient();
@@ -73,13 +86,14 @@ export default function Sidebar() {
         willChange: "transform",
       }}
     >
-      <Link href="/" className="flex items-center gap-2.5 mb-8 px-2">
+      <Link href="/" className="flex items-center gap-2 mb-8 px-2">
         <img src="/logo-mark.webp" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
         <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
+        <BetaBadge />
       </Link>
 
       <nav className="flex flex-col gap-1">
-        {PRIMARY_LINKS.map((link) => (
+        {primaryLinks.map((link) => (
           <NavLink key={link.href} {...link} active={isActive(link.href)} />
         ))}
       </nav>

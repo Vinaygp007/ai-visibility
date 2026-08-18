@@ -5,9 +5,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { PRIMARY_LINKS, ACCOUNT_LINKS, ADMIN_LINK } from "./Sidebar";
+import { getPrimaryLinks, ACCOUNT_LINKS, ADMIN_LINK } from "./Sidebar";
 import UserMenu from "./UserMenu";
 import ThemeToggle from "./ThemeToggle";
+import BetaBadge from "./BetaBadge";
 import { Info } from "lucide-react";
 
 const TODAY_LABEL = new Date().toLocaleDateString("en-US", {
@@ -27,7 +28,9 @@ export default function AppHeader() {
   const email = user?.email ?? null;
   const role = user?.role ?? null;
   const displayName = fullName || email?.split("@")[0] || "Account";
-  const accountLinks = role === "admin" ? [...ACCOUNT_LINKS, ADMIN_LINK] : ACCOUNT_LINKS;
+  const isAdmin = role === "admin";
+  const accountLinks = isAdmin ? [...ACCOUNT_LINKS, ADMIN_LINK] : ACCOUNT_LINKS;
+  const primaryLinks = getPrimaryLinks(isAdmin);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -98,12 +101,13 @@ export default function AppHeader() {
             style={{ background: "var(--bg)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5 mb-6 px-2">
+            <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 mb-6 px-2">
               <img src="/logo-mark.webp" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
               <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
+              <BetaBadge />
             </Link>
 
-            {PRIMARY_LINKS.map((link) => (
+            {primaryLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

@@ -39,6 +39,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     "/signup",
     "/signup2",
     "/terms",
+    "/vote",
   ];
   const isKnownRoute = KNOWN_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 

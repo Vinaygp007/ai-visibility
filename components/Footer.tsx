@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "./ProviderIcons";
+import BetaBadge from "./BetaBadge";
 
 const PROVIDERS = [
   { name: "Gemini", Icon: GeminiIcon, color: "#4285f4" },
@@ -58,6 +59,7 @@ export default function Footer() {
               <img src="/logo-mark.webp" alt="AiScope" className="w-9 h-9 flex-shrink-0" />
               <div className="flex items-baseline gap-2">
                 <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
+                <BetaBadge />
                 <span className="text-[13px] font-bold" style={{ color: "var(--text-muted)" }}>By Marcstrat</span>
               </div>
             </Link>

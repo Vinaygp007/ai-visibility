@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import ThemeToggle from "./ThemeToggle";
+import BetaBadge from "./BetaBadge";
 
 const MARKETING_LINKS = [
   { href: "#features", label: "Features" },
@@ -141,6 +142,7 @@ export default function MarketingNav() {
         <img src="/logo-mark.webp" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
         <div className="flex items-baseline gap-2">
           <span className="text-[17px] font-semibold tracking-tight text-[var(--text)]">AiScope</span>
+          <BetaBadge />
           <span className="text-[15px] font-bold hidden sm:inline" style={{ color: "var(--text-muted)" }}>By Marcstrat</span>
         </div>
       </Link>

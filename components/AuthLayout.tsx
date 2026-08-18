@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import BetaBadge from "@/components/BetaBadge";
 
 export default function AuthLayout({
   children,
@@ -13,9 +14,10 @@ export default function AuthLayout({
       {/* Form column */}
       <div className="flex flex-col min-h-screen lg:min-h-0">
         <div className="flex items-center justify-between px-6 sm:px-10 py-6">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2">
             <img src="/logo-mark.webp" alt="AiScope" className="w-7 h-7 flex-shrink-0" />
             <span className="text-[15px] font-semibold tracking-tight text-[var(--text)]">AiScope</span>
+            <BetaBadge />
           </Link>
           <ThemeToggle />
         </div>

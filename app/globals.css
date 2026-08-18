@@ -132,6 +132,14 @@ h3 {
     color: var(--text-muted);
   }
 
+  /* Theme-swapped screenshot pairs (see FeatureVoteBoard) — CSS-driven off
+     the same [data-theme] attribute the color tokens above use, so there's
+     no JS timing/hydration window where the wrong variant can show. */
+  .theme-img-light { display: block; }
+  .theme-img-dark { display: none; }
+  :root[data-theme="dark"] .theme-img-light { display: none; }
+  :root[data-theme="dark"] .theme-img-dark { display: block; }
+
   /* Hero aurora background blobs */
   .aurora-blob {
     position: absolute;
@@ -246,4 +254,44 @@ h3 {
     background-size: 400% 100%;
     animation: dashShimmer 1.4s ease infinite;
   }
+
+  /* ── Feature vote board (components/FeatureVoteBoard) ──────────────── */
+  @keyframes voteLivePulse {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(0,232,122,0.5); }
+    50% { opacity: 0.6; transform: scale(0.8); box-shadow: 0 0 0 4px rgba(0,232,122,0); }
+  }
+  .vote-live-dot { animation: voteLivePulse 1.8s ease-in-out infinite; }
+
+  @keyframes voteGradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .vote-card-glow {
+    background: linear-gradient(120deg, var(--accent), var(--accent2), var(--success), var(--accent));
+    background-size: 300% 300%;
+    animation: voteGradientShift 5s ease infinite;
+  }
+
+  .vote-card { transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s ease; }
+  .vote-card:hover { transform: translateY(-6px); }
+
+  @keyframes voteConfettiPop {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0); opacity: 0; }
+  }
+  .vote-confetti-piece {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    animation: voteConfettiPop 0.75s cubic-bezier(0.2,0.8,0.2,1) forwards;
+  }
+
+  @keyframes voteCrownBob {
+    0%, 100% { transform: translateY(0) rotate(-8deg); }
+    50% { transform: translateY(-3px) rotate(-8deg); }
+  }
+  .vote-crown { animation: voteCrownBob 2.2s ease-in-out infinite; }
 }

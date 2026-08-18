@@ -30,6 +30,7 @@ const KNOWN_ROUTE_PREFIXES = [
   "/signup",
   "/signup2",
   "/terms",
+  "/vote",
 ];
 
 export async function middleware(req: NextRequest) {
