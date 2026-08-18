@@ -13,7 +13,7 @@ export default function HeroCTA() {
   return (
     <>
       <div
-        className="animate-fade-up fade-up-4 flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-4 transition-opacity duration-200"
+        className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-4 transition-opacity duration-200"
         style={{ opacity: checked ? 1 : 0 }}
       >
         <Link

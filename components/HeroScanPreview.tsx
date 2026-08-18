@@ -143,10 +143,21 @@ export default function HeroScanPreview() {
       }
     }
 
-    run();
+    // Defer the demo's start until the browser is idle. It drives frequent
+    // state updates (a 16ms-interval loop during scoring/merging), which
+    // otherwise compete with initial paint/hydration for main-thread time
+    // right when LCP and TBT are being decided.
+    let idleId: number | undefined;
+    if (typeof requestIdleCallback === "function") {
+      idleId = requestIdleCallback(() => run(), { timeout: 1500 });
+    } else {
+      timers.push(setTimeout(run, 500));
+    }
+
     return () => {
       cancelled.current = true;
       timers.forEach(clearTimeout);
+      if (idleId !== undefined && typeof cancelIdleCallback === "function") cancelIdleCallback(idleId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domainIndex]);
