@@ -19,7 +19,7 @@ interface AdminSettings {
 
 // Available models per provider (display only — API keys live in server env vars)
 const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
-  gemini: [{ label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" }],
+  gemini: [{ label: "Gemini 3.6 Flash", value: "gemini-3.6-flash" }],
   "ai-overview": [{ label: "Gemini 2.5 Flash", value: "gemini-2.5-flash" }],
   openai: [{ label: "GPT-4o Mini", value: "gpt-4o-mini" }],
   perplexity: [{ label: "Sonar", value: "sonar" }],

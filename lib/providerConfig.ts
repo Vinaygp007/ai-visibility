@@ -22,7 +22,7 @@ export const PROVIDER_ENV_KEYS: Record<string, string> = {
 // DEFAULT_SETTINGS — only `enabled` and `model` are admin-editable via
 // provider_config now; `apiKey` is injected from env at read time below.
 export const DEFAULT_PROVIDERS: Omit<AIProvider, "apiKey">[] = [
-  { id: "gemini", name: "Gemini 2.0 Flash", enabled: true, model: "gemini-2.0-flash" },
+  { id: "gemini", name: "Gemini 3.6 Flash", enabled: true, model: "gemini-3.6-flash" },
   { id: "ai-overview", name: "Google AI Overview", enabled: false, model: "gemini-2.5-pro" },
   { id: "openai", name: "ChatGPT (OpenAI)", enabled: true, model: "gpt-4o-mini" },
   { id: "perplexity", name: "Perplexity", enabled: true, model: "sonar" },
@@ -37,8 +37,12 @@ export const DEFAULT_PROVIDERS: Omit<AIProvider, "apiKey">[] = [
 // stored provider_config row never has to be hand-edited after a provider
 // deprecates a model version.
 const MODEL_MIGRATIONS: Record<string, string> = {
-  "gemini-2.0-flash-exp": "gemini-2.0-flash",
-  "gemini-2.0-flash-thinking-exp": "gemini-2.0-flash",
+  "gemini-2.0-flash-exp": "gemini-3.6-flash",
+  "gemini-2.0-flash-thinking-exp": "gemini-3.6-flash",
+  "gemini-2.0-flash": "gemini-3.6-flash",
+  "gemini-2.0-flash-lite": "gemini-3.6-flash",
+  "gemini-1.5-flash": "gemini-3.6-flash",
+  "gemini-1.5-flash-8b": "gemini-3.6-flash",
   "gemini-2.5-pro": "gemini-2.5-flash",
   "claude-3-5-sonnet-20241022": "claude-sonnet-4-6",
   "claude-3-5-haiku-20241022": "claude-haiku-4-5-20251001",

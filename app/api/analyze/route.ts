@@ -58,11 +58,13 @@ function getGeminiModelCandidates(): string[] {
       ? [process.env.GEMINI_MODEL]
       : [
           // Each model version has its own separate quota pool on Google's free tier,
-          // so falling back to older versions can recover from per-model quota exhaustion.
-          "gemini-2.0-flash",
-          "gemini-2.0-flash-lite",
-          "gemini-1.5-flash",
-          "gemini-1.5-flash-8b",
+          // so falling back to older generations can recover from per-model quota exhaustion.
+          // gemini-2.0-flash and the 1.5 generation were retired (404) as of Aug 2026 —
+          // verified against the live ListModels endpoint before picking these.
+          "gemini-3.6-flash",
+          "gemini-3.5-flash",
+          "gemini-2.5-flash",
+          "gemini-2.5-flash-lite",
         ]
   )
     .filter(Boolean)
@@ -688,11 +690,10 @@ async function callGemini(prompt: string, preferredModel?: string): Promise<obje
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: modelName });
         const res = await model.generateContent(prompt);
-        // gemini-2.0-flash was deprecated June 2026 — this is the only place
-        // that records which fallback candidate actually served a request,
-        // since a successful call previously returned with no trace of which
-        // model in the chain won. Check logs before pricing around Gemini's
-        // cost assuming 2.0 Flash is what's really running.
+        // This is the only place that records which fallback candidate actually
+        // served a request, since a successful call otherwise returns with no
+        // trace of which model in the chain won. Check logs before pricing
+        // around Gemini's cost assuming the preferred model is what's really running.
         if (modelName !== models[0]) {
           console.log(`[Gemini] serving via fallback model "${modelName}" (preferred "${models[0]}" unavailable)`);
         }

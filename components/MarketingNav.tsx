@@ -138,12 +138,7 @@ export default function MarketingNav() {
       <div className="max-w-6xl mx-auto flex items-center justify-between">
       <div className="flex items-center gap-10 lg:gap-14 min-w-0">
       <Link href="/" className="flex items-center gap-3 flex-shrink-0">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
-          style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
-        >
-          🔭
-        </div>
+        <img src="/logo-mark.png" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
         <div className="flex items-baseline gap-2">
           <span className="text-[17px] font-semibold tracking-tight text-[var(--text)]">AiScope</span>
           <span className="text-[15px] font-bold hidden sm:inline" style={{ color: "var(--text-muted)" }}>By Marcstrat</span>

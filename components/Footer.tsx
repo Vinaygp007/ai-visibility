@@ -55,12 +55,7 @@ export default function Footer() {
           {/* Brand column */}
           <div className="col-span-2 md:col-span-3 pr-6">
             <Link href="/" className="inline-flex items-center gap-3 mb-4">
-              <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
-              >
-                🔭
-              </div>
+              <img src="/logo-mark.png" alt="AiScope" className="w-9 h-9 flex-shrink-0" />
               <div className="flex items-baseline gap-2">
                 <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
                 <span className="text-[13px] font-bold" style={{ color: "var(--text-muted)" }}>By Marcstrat</span>

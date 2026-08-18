@@ -4,7 +4,7 @@ type MarkValue = "yes" | "no" | "partial";
 
 const ROWS: { label: string; traditional: MarkValue; aiscope: MarkValue }[] = [
   { label: "Googlebot crawlability", traditional: "yes", aiscope: "yes" },
-  { label: "Keyword rank tracking", traditional: "yes", aiscope: "no" },
+  { label: "Prioritized fixes for AI readability", traditional: "no", aiscope: "yes" },
   { label: "AI-bot crawlability (GPTBot, ClaudeBot, PerplexityBot, Google-Extended)", traditional: "no", aiscope: "yes" },
   { label: "llms.txt detection & guidance", traditional: "no", aiscope: "yes" },
   { label: "Structured data audit for AI parsing", traditional: "partial", aiscope: "yes" },

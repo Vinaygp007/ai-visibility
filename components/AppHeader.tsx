@@ -54,12 +54,7 @@ export default function AppHeader() {
         </button>
 
         <Link href="/" className="flex items-center gap-2 md:hidden">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
-            style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
-          >
-            🔭
-          </div>
+          <img src="/logo-mark.png" alt="AiScope" className="w-7 h-7 flex-shrink-0" />
         </Link>
 
         <div className="hidden md:block min-w-0">
@@ -104,12 +99,7 @@ export default function AppHeader() {
             onClick={(e) => e.stopPropagation()}
           >
             <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5 mb-6 px-2">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
-                style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
-              >
-                🔭
-              </div>
+              <img src="/logo-mark.png" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
               <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
             </Link>
 

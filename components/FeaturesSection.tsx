@@ -1,32 +1,12 @@
 import Reveal from "@/components/Reveal";
-import { Bot, FileText, Tag, Sparkles, MessageSquareQuote, ListChecks } from "lucide-react";
+import { Sparkles, ListChecks } from "lucide-react";
 import { ICON_GRADIENT, ICON_GRADIENT_FALLBACK } from "@/lib/iconGradient";
 
 const FEATURES = [
   {
-    Icon: Bot,
-    title: "14 AI Bots Checked",
-    desc: "See exactly which AI crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended and 10 more) can and can't reach your site.",
-  },
-  {
-    Icon: FileText,
-    title: "llms.txt Detection",
-    desc: "Find out if you've published an llms.txt file, and what to put in one if you haven't, so AI systems can understand your site faster.",
-  },
-  {
-    Icon: Tag,
-    title: "Structured Data Audit",
-    desc: "Check your schema.org markup so AI systems can correctly parse who you are, what you sell, and what to cite.",
-  },
-  {
     Icon: Sparkles,
     title: "3 AI Providers, One Score",
     desc: "Gemini, ChatGPT and Perplexity all run the same audit independently. Results are merged and averaged into a single visibility score.",
-  },
-  {
-    Icon: MessageSquareQuote,
-    title: "AI Citation Research",
-    desc: "See where AI answers already mention (or ignore) your brand versus competitors for the queries that matter to you.",
   },
   {
     Icon: ListChecks,
@@ -43,30 +23,30 @@ export default function FeaturesSection() {
           className="inline-block text-xs font-mono px-4 py-1.5 rounded-full border mb-5 tracking-widest"
           style={{ color: "var(--accent)", background: "rgba(0,229,255,0.07)", borderColor: "rgba(0,229,255,0.2)" }}
         >
-          // WHAT YOU GET
+          // THE OUTCOME
         </div>
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 text-[var(--text)]">
-          One scan, the full picture
+          Not just a score — a plan
         </h2>
         <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Traditional SEO tools don't check whether AI systems can even see your site. This does.
+          Every audit merges three AI providers into a single number, then turns it into a ranked list of exactly what to fix first.
         </p>
       </Reveal>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
         {FEATURES.map((f, i) => (
-          <Reveal key={f.title} delay={(i % 3) * 100}>
+          <Reveal key={f.title} delay={i * 100}>
             <div
-              className="rounded-2xl border p-6 h-full transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-lg"
+              className="rounded-2xl border p-8 h-full transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-lg"
               style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
             >
               <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
+                className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
                 style={{ background: "rgba(0,229,255,0.08)" }}
               >
-                <f.Icon size={22} color={ICON_GRADIENT} style={{ color: ICON_GRADIENT_FALLBACK }} />
+                <f.Icon size={24} color={ICON_GRADIENT} style={{ color: ICON_GRADIENT_FALLBACK }} />
               </div>
-              <h3 className="text-[16px] font-semibold mb-2 text-[var(--text)]">{f.title}</h3>
+              <h3 className="text-[17px] font-semibold mb-2.5 text-[var(--text)]">{f.title}</h3>
               <p className="text-[14px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 {f.desc}
               </p>

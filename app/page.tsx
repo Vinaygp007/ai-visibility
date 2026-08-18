@@ -4,7 +4,7 @@ import BotMarquee from "@/components/BotMarquee";
 import ProblemSection from "@/components/ProblemSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import FeaturesSection from "@/components/FeaturesSection";
-import BulkToolsSection from "@/components/BulkToolsSection";
+import ProductTourSection from "@/components/ProductTourSection";
 import ComparisonSection from "@/components/ComparisonSection";
 import AudienceSection from "@/components/AudienceSection";
 import PricingSection from "@/components/PricingSection";
@@ -126,7 +126,7 @@ export default function LandingPage() {
       <div className="border-t" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }} />
       <FeaturesSection />
       <div className="border-t" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }} />
-      <BulkToolsSection />
+      <ProductTourSection />
       <div className="border-t" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }} />
       <ComparisonSection />
       <div className="border-t" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }} />

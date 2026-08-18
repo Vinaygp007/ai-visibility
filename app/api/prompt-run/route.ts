@@ -144,19 +144,21 @@ async function callGeminiModel(apiKey: string, model: string, prompt: string, sy
 async function callGemini(apiKey: string, model: string, prompt: string, systemPrompt?: string): Promise<string> {
   // Each Gemini model version has its own separate quota pool, so exhausting one
   // doesn't necessarily mean the others are exhausted too.
+  // gemini-2.0-flash and the 1.5 generation were retired (404) as of Aug 2026 —
+  // verified against the live ListModels endpoint before picking these.
   const fallbackChain = [
     model,
-    model === "gemini-2.0-flash-lite" ? "gemini-2.0-flash" : "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
+    model === "gemini-3.6-flash" ? "gemini-3.5-flash" : "gemini-3.6-flash",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
   ].filter((m, i, arr) => arr.indexOf(m) === i); // de-dupe
 
   for (let i = 0; i < fallbackChain.length; i++) {
     const candidate = fallbackChain[i];
     try {
       const result = await callGeminiModel(apiKey, candidate, prompt, systemPrompt);
-      // gemini-2.0-flash was deprecated June 2026 — this is the only place
-      // that records which fallback candidate actually served a request.
+      // This is the only place that records which fallback candidate actually
+      // served a request.
       if (i > 0) {
         console.log(`[Gemini] serving via fallback model "${candidate}" (preferred "${fallbackChain[0]}" unavailable)`);
       }

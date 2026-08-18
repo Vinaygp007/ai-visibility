@@ -74,12 +74,7 @@ export default function Sidebar() {
       }}
     >
       <Link href="/" className="flex items-center gap-2.5 mb-8 px-2">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0"
-          style={{ background: "linear-gradient(135deg, var(--accent2), var(--accent))" }}
-        >
-          🔭
-        </div>
+        <img src="/logo-mark.png" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
         <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
       </Link>
 

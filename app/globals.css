@@ -5,6 +5,7 @@
 :root {
   /* Light theme (default) */
   --bg: #f7f8fb;
+  --bg-rgb: 247, 248, 251;
   --surface: #ffffff;
   --surface-2: #eef0f4;
   --overlay-rgb: 15, 18, 25;
@@ -24,6 +25,7 @@
 :root[data-theme="dark"] {
   /* Dark theme (original design) */
   --bg: #0a0b10;
+  --bg-rgb: 10, 11, 16;
   --surface: #111219;
   --surface-2: #181a25;
   --overlay-rgb: 255, 255, 255;
@@ -38,6 +40,17 @@
   --on-accent: #000000;
   --nav-bg: rgba(10, 11, 16, 0.92);
   color-scheme: dark;
+}
+
+/* Theme-swapped screenshots (ProductTourSection): light shown by default, dark under [data-theme="dark"] */
+.tour-img-dark {
+  display: none;
+}
+:root[data-theme="dark"] .tour-img-light {
+  display: none;
+}
+:root[data-theme="dark"] .tour-img-dark {
+  display: block;
 }
 
 * {
