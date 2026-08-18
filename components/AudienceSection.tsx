@@ -42,7 +42,7 @@ export default function AudienceSection() {
         playsInline
         aria-hidden="true"
       />
-      <div className="absolute inset-0" style={{ background: "rgba(10, 11, 16, 0.1)" }} aria-hidden="true" />
+      <div className="absolute inset-0" style={{ background: "rgba(10, 11, 16, 0.8" }} aria-hidden="true" />
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 py-20">
         <Reveal className="text-center max-w-2xl mx-auto mb-14">

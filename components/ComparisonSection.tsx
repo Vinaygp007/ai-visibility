@@ -10,6 +10,8 @@ const ROWS: { label: string; traditional: MarkValue; aiscope: MarkValue }[] = [
   { label: "Structured data audit for AI parsing", traditional: "partial", aiscope: "yes" },
   { label: "Tracks whether ChatGPT/Perplexity cite you", traditional: "no", aiscope: "yes" },
   { label: "Multi-AI-provider scoring (not single-engine)", traditional: "no", aiscope: "yes" },
+  { label: "Security header checks (HSTS, CSP, clickjacking protection)", traditional: "partial", aiscope: "yes" },
+  { label: "Content quality & E-E-A-T signals (author schema, about/contact, FAQ)", traditional: "partial", aiscope: "yes" },
 ];
 
 function Mark({ value }: { value: MarkValue }) {
