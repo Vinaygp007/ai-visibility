@@ -1759,6 +1759,28 @@ export async function POST(request: NextRequest) {
       const cached = await findCachedScan(user.id, cacheKey);
       if (cached) {
         console.log("[cache] serving cached result for", cacheKey);
+        if (bulkJobId) {
+          // Bulk history (app/api/bulk-history) rebuilds each job's result
+          // list from `scans` rows filtered by bulk_job_id — a cache hit
+          // must still get its own row here, or the item silently vanishes
+          // from the saved report even though it counted toward "passed".
+          try {
+            const cachedScanId = await createScan({
+              userId: user.id,
+              kind: "bulk_item",
+              bulkJobId,
+              url,
+              creditsCost: 0,
+              cacheKey,
+            });
+            await completeScan(cachedScanId, {
+              result: cached.result,
+              visibilityScore: (cached.result as { overall_score?: number })?.overall_score ?? null,
+            });
+          } catch (err) {
+            console.warn("[scans] failed to persist cache-hit bulk item:", err);
+          }
+        }
         return NextResponse.json({ ...cached.result, _cached: true }, { headers: CORS_HEADERS });
       }
     }

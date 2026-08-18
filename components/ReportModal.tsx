@@ -431,8 +431,8 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
             </div>
 
             {/* Prompts & Responses */}
-            {(providers.length > 0 || citations.length > 0) && (
-              <PromptResponsePanel providers={providers} citations={citations} />
+            {providers.length > 0 && (
+              <PromptResponsePanel providers={providers} />
             )}
 
             {/* Citations (reuse Results styling) */}
