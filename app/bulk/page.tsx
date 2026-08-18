@@ -1,19 +1,21 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { AnalysisResult, UserPlan } from "@/types";
+import { AnalysisResult, UserPlan, BotDetail } from "@/types";
 import { toPlainText, extractProviderText } from "@/lib/plainText";
 import CategoryCard from "@/components/CategoryCard";
 import Recommendations from "@/components/Recommendations";
-import ScoreGauge from "@/components/ScoreGauge";
 import PromptResponsePanel from "@/components/PromptResponsePanel";
 import CitationsPanel from "@/components/CitationsPanel";
 import SpeedSection from "@/components/SpeedSection";
 import CrawlSection from "@/components/CrawlSection";
+import StatCards from "@/components/StatCards";
+import ProviderScoreChart from "@/components/ProviderScoreChart";
+import BotCoverageTable from "@/components/BotCoverageTable";
 import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "@/components/ProviderIcons";
 import {
   Layers, Check, Circle, Upload, AlertTriangle, Play, Square, Download, Plus,
-  ChevronRight, CheckCircle2, XCircle, Loader2, X, ArrowLeft, Bot,
+  ChevronRight, CheckCircle2, XCircle, Loader2, X, ArrowLeft,
 } from "lucide-react";
 
 const PROVIDERS = [
@@ -47,13 +49,6 @@ interface BulkRow {
 }
 
 type JobPhase = "idle" | "running" | "done" | "error";
-
-function providerSortRank(name: string): number {
-  const n = name.toLowerCase();
-  if (n.includes("overview")) return 0;
-  if (n.includes("gemini")) return 2;
-  return 1;
-}
 
 function scoreColor(score?: number) {
   if (score == null) return "var(--text-muted)";
@@ -553,28 +548,33 @@ function Ring({ pct, color, size = 44 }: { pct: number; color: string; size?: nu
   );
 }
 
-// ── AI Platform Coverage brandmarks (falls back to a generic bot glyph) ────
-function PlatformBrandIcon({ platform, size = 13 }: { platform: string; size?: number }) {
-  const p = platform.toLowerCase();
-  if (p.includes("gemini")) return <GeminiIcon size={size} />;
-  if (p.includes("chatgpt") || p.includes("gpt")) return <ChatGPTIcon size={size} />;
-  if (p.includes("perplexity")) return <PerplexityIcon size={size} />;
-  return <Bot size={size} />;
-}
-
-const PROVIDER_COLORS: Record<string, { color: string; bg: string; border: string }> = {
-  "Gemini 2.0 Flash":      { color: "#4285f4", bg: "rgba(66,133,244,0.08)",  border: "rgba(66,133,244,0.25)" },
-  "ChatGPT (GPT-4o)":      { color: "#10a37f", bg: "rgba(16,163,127,0.08)", border: "rgba(16,163,127,0.25)" },
-  "ChatGPT (GPT-4o-mini)": { color: "#10a37f", bg: "rgba(16,163,127,0.08)", border: "rgba(16,163,127,0.25)" },
-  "Perplexity Sonar":      { color: "#20b2aa", bg: "rgba(32,178,170,0.08)",  border: "rgba(32,178,170,0.25)" },
-};
-
 // ── Full detail panel rendered beneath an expanded row ─────────────────────
+// Mirrors ResultsSection.tsx (the single-scan results view) section-for-section
+// and component-for-component, minus its page-level header, so an expanded
+// bulk row looks identical to a single scan's results.
 function BulkDetailPanel({ result }: { result: AnalysisResult }) {
-  const sc = scoreColor(result.overall_score);
+  const scoreColorValue = scoreColor(result.overall_score);
+  const totalChecks =
+    (result.stats?.checks_passed ?? 0) +
+    (result.stats?.checks_failed ?? 0) +
+    (result.stats?.checks_warned ?? 0);
 
+  const coverage = result.ai_platform_coverage ?? {};
+  const coverageEntries = Object.entries(coverage);
   const providers = result._providers ?? [];
-  const successfulProviders = providers.filter((p) => p.status === "success");
+
+  // Enhanced bot coverage — use rich _botResults when available, fall back to ai_platform_coverage
+  const rawBotResults = result._botResults ?? null;
+  const fallbackBots = (key: string, allowed: boolean): BotDetail => ({
+    key, label: key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
+    company: "", allowed, reason: "", directive: null, blockType: "not_mentioned",
+  });
+  const botAccessible: BotDetail[] = rawBotResults
+    ? rawBotResults.filter(b => b.allowed)
+    : coverageEntries.filter(([, v]) => v === "indexed").map(([k]) => fallbackBots(k, true));
+  const botBlocked: BotDetail[] = rawBotResults
+    ? rawBotResults.filter(b => !b.allowed)
+    : coverageEntries.filter(([, v]) => v === "blocked").map(([k]) => fallbackBots(k, false));
 
   const normName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   const enabledKeys = new Set(providers.map((p) => normName(p.name)));
@@ -591,49 +591,12 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
   const maxCitations = Math.max(...citations.map((c) => c.count), 1);
   const totalCitations = citations.reduce((sum, c) => sum + c.count, 0);
 
-  const coverage = result.ai_platform_coverage ?? {};
-  const coverageEntries = Object.entries(coverage);
-  const indexedCount = coverageEntries.filter(([, v]) => v === "indexed").length;
-
   return (
     <div
-      className="animate-fade-up px-6 pb-8 pt-2"
+      className="animate-fade-up px-6 pb-8 pt-6"
       style={{ background: "rgba(var(--overlay-rgb),0.03)", borderTop: "1px solid rgba(var(--overlay-rgb),0.05)" }}
     >
-      {/* ── Score gauges ── */}
-      <div className="flex gap-3 flex-wrap pt-6 pb-6">
-        <ScoreGauge
-          value={result.overall_score}
-          label="AI SCORE"
-          color={sc}
-          fillPercent={result.overall_score}
-        />
-        <ScoreGauge
-          value={result.grade}
-          label="GRADE"
-          color={gradeColor(result.grade)}
-          fillPercent={100}
-        />
-        {/* Quick stat pills */}
-        <div className="flex gap-3 items-center flex-wrap ml-2">
-          {[
-            { val: result.stats?.checks_passed ?? 0, label: "PASSED", color: "var(--success)" },
-            { val: result.stats?.checks_warned ?? 0, label: "WARNINGS", color: "var(--warning)" },
-            { val: result.stats?.checks_failed ?? 0, label: "FAILED",  color: "var(--danger)" },
-          ].map(({ val, label, color }) => (
-            <div
-              key={label}
-              className="bk-stat-tile rounded-xl border px-4 py-3 text-center min-w-[80px]"
-              style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
-            >
-              <div className="text-xl font-bold" style={{ color }}>{val}</div>
-              <div className="text-[10px] font-mono mt-0.5 tracking-wide" style={{ color: "var(--text-muted)" }}>{label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── AI Prompts & Responses ── */}
+      {/* ── Prompts & Responses ── */}
       {providers.length > 0 && <PromptResponsePanel providers={providers} />}
 
       {/* ── Citations panel ── */}
@@ -645,7 +608,7 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
         />
       ) : (
         <div
-          className="rounded-2xl border p-5 text-center mb-6"
+          className="rounded-2xl border p-6 text-center mb-6"
           style={{
             background: "rgba(0,229,255,0.03)",
             borderColor: "rgba(0,229,255,0.12)",
@@ -656,129 +619,41 @@ function BulkDetailPanel({ result }: { result: AnalysisResult }) {
             AI Citations not included
           </p>
           <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
-            Re-run with the <span style={{ color: "var(--accent)" }}>&ldquo;AI Citations&rdquo;</span> toggle on to see citation data.
+            Re-run with the <span style={{ color: "var(--accent)" }}>&ldquo;Include AI Citations&rdquo;</span> toggle on to see how many times each AI agent cites this site.
           </p>
         </div>
       )}
 
+      {/* ── Stats ── */}
+      <StatCards
+        score={result.overall_score}
+        grade={result.grade}
+        scoreColor={scoreColorValue}
+        passed={result.stats?.checks_passed ?? 0}
+        warned={result.stats?.checks_warned ?? 0}
+        failed={result.stats?.checks_failed ?? 0}
+        total={totalChecks}
+      />
+
       {/* ── AI Provider Results ── */}
-      {providers.length > 0 && (
-        <div
-          className="rounded-2xl border p-5 mb-6"
-          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-              AI Provider Results
-            </div>
-            <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
-              {successfulProviders.length}/{providers.length} succeeded · scores averaged
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[...providers].sort((a, b) => providerSortRank(a.name) - providerSortRank(b.name)).map((p) => {
-              const cfg = PROVIDER_COLORS[p.name] ?? {
-                color: "var(--text-muted)",
-                bg: "rgba(var(--overlay-rgb),0.03)",
-                border: "rgba(var(--overlay-rgb),0.1)",
-              };
-              const isOk = p.status === "success";
-              return (
-                <div
-                  key={p.name}
-                  className="bk-stat-tile rounded-xl border p-4"
-                  style={{
-                    background: isOk ? cfg.bg : "rgba(255,90,90,0.04)",
-                    borderColor: isOk ? cfg.border : "rgba(255,90,90,0.2)",
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: isOk ? cfg.color : "var(--danger)" }}>
-                      <PlatformBrandIcon platform={p.name} size={12} />
-                      {p.name}
-                    </span>
-                    <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>{p.durationMs}ms</span>
-                  </div>
-                  {isOk ? (
-                    <div>
-                      <div
-                        className="text-2xl font-bold tracking-tight"
-                        style={{ color: p.score != null ? scoreColor(p.score) : "var(--text-muted)" }}
-                      >
-                        {p.score ?? "-"}
-                      </div>
-                      <div className="text-[10px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>score / 100</div>
-                    </div>
-                  ) : (
-                    <div className="text-[11px]" style={{ color: "var(--danger)" }}>
-                      {p.error?.slice(0, 60) ?? "Failed"}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <ProviderScoreChart providers={providers} />
 
       {/* ── AI Platform Coverage ── */}
-      {coverageEntries.length > 0 && (
-        <div
-          className="rounded-2xl border p-5 mb-6"
-          style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-[13px] font-mono tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-              AI Platform Coverage
-            </div>
-            <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
-              {indexedCount}/{coverageEntries.length} indexed
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {coverageEntries.map(([platform, status]) => {
-              const isIndexed = status === "indexed";
-              const label = platform.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-              return (
-                <div
-                  key={platform}
-                  className="bk-stat-tile flex items-center gap-2 rounded-xl px-3 py-2.5 border"
-                  style={{
-                    background: isIndexed ? "rgba(0,232,122,0.06)" : "rgba(255,90,90,0.06)",
-                    borderColor: isIndexed ? "rgba(0,232,122,0.2)" : "rgba(255,90,90,0.2)",
-                  }}
-                >
-                  <span style={{ display: "flex", color: isIndexed ? "var(--success)" : "var(--danger)" }}>
-                    <PlatformBrandIcon platform={platform} size={13} />
-                  </span>
-                  <div>
-                    <div className="text-[11px] font-medium text-[var(--text)]">{label}</div>
-                    <div className="text-[10px] font-mono" style={{ color: isIndexed ? "var(--success)" : "var(--danger)" }}>
-                      {isIndexed ? "indexed" : "blocked"}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <BotCoverageTable accessible={botAccessible} blocked={botBlocked} />
 
       {/* ── Category Breakdown ── */}
-      {result.categories?.length > 0 && (
-        <div className="mb-6">
-          <div className="text-[13px] font-mono tracking-widest mb-3.5 uppercase" style={{ color: "var(--text-muted)" }}>
-            Category Breakdown
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {result.categories.map((cat) => (
-              <CategoryCard key={cat.name} category={cat} />
-            ))}
-          </div>
-        </div>
-      )}
+      <div
+        className="text-[13px] font-mono tracking-widest mb-3.5 uppercase"
+        style={{ color: "var(--text-muted)" }}
+      >
+        Category Breakdown
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {result.categories?.map((cat) => (
+          <CategoryCard key={cat.name} category={cat} />
+        ))}
+      </div>
 
-      {/* ── Recommendations ── */}
       <Recommendations recommendations={result.recommendations} />
 
       {/* ── Keyword Intelligence ── */}
