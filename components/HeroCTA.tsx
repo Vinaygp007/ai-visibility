@@ -18,6 +18,7 @@ export default function HeroCTA() {
       >
         <Link
           href={authed ? "/scan" : "/signup"}
+          prefetch={false}
           className="rounded-xl px-7 py-3 text-sm font-semibold text-[var(--on-accent)] transition-all hover:opacity-85 hover:scale-[1.03] active:scale-95"
           style={{ background: "var(--accent)", boxShadow: "0 8px 30px -8px rgba(0,229,255,0.5)" }}
         >
@@ -26,6 +27,7 @@ export default function HeroCTA() {
         {!authed && (
           <Link
             href="/login"
+            prefetch={false}
             className="rounded-xl px-7 py-3 text-sm font-medium border transition-all hover:border-[rgba(var(--overlay-rgb),0.3)]"
             style={{ borderColor: "rgba(var(--overlay-rgb),0.13)", color: "var(--text)" }}
           >

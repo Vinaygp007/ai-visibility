@@ -55,7 +55,7 @@ export default function Footer() {
           {/* Brand column */}
           <div className="col-span-2 md:col-span-3 pr-6">
             <Link href="/" className="inline-flex items-center gap-3 mb-4">
-              <img src="/logo-mark.png" alt="AiScope" className="w-9 h-9 flex-shrink-0" />
+              <img src="/logo-mark.webp" alt="AiScope" className="w-9 h-9 flex-shrink-0" />
               <div className="flex items-baseline gap-2">
                 <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
                 <span className="text-[13px] font-bold" style={{ color: "var(--text-muted)" }}>By Marcstrat</span>

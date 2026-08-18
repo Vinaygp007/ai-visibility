@@ -86,5 +86,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Public metadata/asset routes (robots.txt, sitemap.xml, icons, OG image)
+  // need no auth check — routing them through here means every crawler
+  // request pays a live supabase.auth.getUser() round-trip for a static file,
+  // which is slow enough to make Lighthouse/bots report the fetch as failed.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|icon.png|apple-icon.png|opengraph-image).*)"],
 };

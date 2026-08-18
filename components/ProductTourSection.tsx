@@ -7,7 +7,8 @@ import {
   ArrowRight, type LucideIcon,
 } from "lucide-react";
 import { ICON_GRADIENT, ICON_GRADIENT_FALLBACK } from "@/lib/iconGradient";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getCurrentTheme, type Theme } from "@/lib/theme";
 
 interface TourCategory {
   key: string;
@@ -29,7 +30,7 @@ const CATEGORIES: TourCategory[] = [
       { label: "Run a crawler check", href: "/scan" },
     ],
     path: "aiscope.app/scan · crawler access",
-    image: { light: "/real-data/crawler-light.png", dark: "/real-data/crawler-dark.png" },
+    image: { light: "/real-data/crawler-light.webp", dark: "/real-data/crawler-dark.webp" },
   },
   {
     key: "structured-data",
@@ -41,7 +42,7 @@ const CATEGORIES: TourCategory[] = [
       { label: "Read the docs", href: "/docs" },
     ],
     path: "aiscope.app/scan · structured data",
-    image: { light: "/real-data/structured-light.png", dark: "/real-data/structured-dark.png" },
+    image: { light: "/real-data/structured-light.webp", dark: "/real-data/structured-dark.webp" },
   },
   {
     key: "citations",
@@ -53,7 +54,7 @@ const CATEGORIES: TourCategory[] = [
       { label: "How scoring works", href: "/#features" },
     ],
     path: "aiscope.app/bulk-prompt · citations",
-    image: { light: "/real-data/citation-light.png", dark: "/real-data/citation-dark.png" },
+    image: { light: "/real-data/citation-light.webp", dark: "/real-data/citation-dark.webp" },
   },
   {
     key: "bulk-scanner",
@@ -65,7 +66,7 @@ const CATEGORIES: TourCategory[] = [
       { label: "See plans", href: "/#pricing" },
     ],
     path: "aiscope.app/bulk · up to 500 sites",
-    image: { light: "/real-data/bulk-light.png", dark: "/real-data/bulk-dark.png" },
+    image: { light: "/real-data/bulk-light.webp", dark: "/real-data/bulk-dark.webp" },
   },
   {
     key: "bulk-prompt",
@@ -77,7 +78,7 @@ const CATEGORIES: TourCategory[] = [
       { label: "See plans", href: "/#pricing" },
     ],
     path: "aiscope.app/bulk-prompt · up to 100 prompts",
-    image: { light: "/real-data/prompt-light.png", dark: "/real-data/prompt-dark.png" },
+    image: { light: "/real-data/prompt-light.webp", dark: "/real-data/prompt-dark.webp" },
   },
   {
     key: "reports",
@@ -89,7 +90,7 @@ const CATEGORIES: TourCategory[] = [
       { label: "See plans", href: "/#pricing" },
     ],
     path: "aiscope.app/reports",
-    image: { light: "/real-data/report-light.png", dark: "/real-data/report-dark.png" },
+    image: { light: "/real-data/report-light.webp", dark: "/real-data/report-dark.webp" },
   },
   {
     key: "agency",
@@ -101,13 +102,18 @@ const CATEGORIES: TourCategory[] = [
       { label: "Compare plans", href: "/#pricing" },
     ],
     path: "aiscope.app/referrals",
-    image: { light: "/real-data/referal-light.png", dark: "/real-data/referal-dark.png" },
+    image: { light: "/real-data/referal-light.webp", dark: "/real-data/referal-dark.webp" },
   },
 ];
 
 export default function ProductTourSection() {
   const [activeKey, setActiveKey] = useState(CATEGORIES[0].key);
   const active = CATEGORIES.find((c) => c.key === activeKey) ?? CATEGORIES[0];
+  const [theme, setTheme] = useState<Theme | null>(null);
+
+  useEffect(() => {
+    setTheme(getCurrentTheme());
+  }, []);
 
   return (
     <section className="max-w-6xl mx-auto px-6 py-20">
@@ -220,18 +226,14 @@ export default function ProductTourSection() {
               </div>
 
               <div className="p-3">
-                <img
-                  src={active.image.light}
-                  alt={`${active.label} — real scan data`}
-                  className="tour-img-light block rounded-lg"
-                  style={{ maxWidth: "100%", height: "auto" }}
-                />
-                <img
-                  src={active.image.dark}
-                  alt={`${active.label} — real scan data`}
-                  className="tour-img-dark block rounded-lg"
-                  style={{ maxWidth: "100%", height: "auto" }}
-                />
+                {theme && (
+                  <img
+                    src={active.image[theme]}
+                    alt={`${active.label} — real scan data`}
+                    className="block rounded-lg"
+                    style={{ maxWidth: "100%", height: "auto" }}
+                  />
+                )}
               </div>
             </div>
           </div>

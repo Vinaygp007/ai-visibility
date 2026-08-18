@@ -31,7 +31,7 @@
   --overlay-rgb: 255, 255, 255;
   --text: #f0f0f5;
   --text-muted: #8b8d9e;
-  --text-dim: #6f7280;
+  --text-dim: #878a98;
   --accent: #00e5ff;
   --accent2: #7c6fff;
   --success: #00e87a;
@@ -40,17 +40,6 @@
   --on-accent: #000000;
   --nav-bg: rgba(10, 11, 16, 0.92);
   color-scheme: dark;
-}
-
-/* Theme-swapped screenshots (ProductTourSection): light shown by default, dark under [data-theme="dark"] */
-.tour-img-dark {
-  display: none;
-}
-:root[data-theme="dark"] .tour-img-light {
-  display: none;
-}
-:root[data-theme="dark"] .tour-img-dark {
-  display: block;
 }
 
 * {

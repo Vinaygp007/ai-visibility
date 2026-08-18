@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/browser";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import ThemeToggle from "./ThemeToggle";
 
@@ -117,6 +116,7 @@ export default function MarketingNav() {
   }, []);
 
   async function handleLogout() {
+    const { createClient } = await import("@/lib/supabase/browser");
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/");
@@ -138,7 +138,7 @@ export default function MarketingNav() {
       <div className="max-w-6xl mx-auto flex items-center justify-between">
       <div className="flex items-center gap-10 lg:gap-14 min-w-0">
       <Link href="/" className="flex items-center gap-3 flex-shrink-0">
-        <img src="/logo-mark.png" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
+        <img src="/logo-mark.webp" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
         <div className="flex items-baseline gap-2">
           <span className="text-[17px] font-semibold tracking-tight text-[var(--text)]">AiScope</span>
           <span className="text-[15px] font-bold hidden sm:inline" style={{ color: "var(--text-muted)" }}>By Marcstrat</span>
@@ -186,6 +186,7 @@ export default function MarketingNav() {
           <>
             <Link
               href="/login"
+              prefetch={false}
               className="text-[14px] font-medium px-3 py-2 transition-colors hover:text-[var(--text)]"
               style={{ color: "var(--text-muted)" }}
             >
@@ -193,6 +194,7 @@ export default function MarketingNav() {
             </Link>
             <Link
               href="/signup"
+              prefetch={false}
               className="rounded-xl px-5 py-2.5 text-sm font-semibold text-[var(--on-accent)] transition-all hover:opacity-85 active:scale-95"
               style={{ background: "var(--accent)" }}
             >
@@ -284,11 +286,12 @@ export default function MarketingNav() {
                 );
               })}
               <div className="h-px" style={{ background: "rgba(var(--overlay-rgb),0.08)" }} />
-              <Link href="/login" onClick={() => setMobileOpen(false)} className="text-[15px] font-medium" style={{ color: "var(--text)" }}>
+              <Link href="/login" prefetch={false} onClick={() => setMobileOpen(false)} className="text-[15px] font-medium" style={{ color: "var(--text)" }}>
                 Log in
               </Link>
               <Link
                 href="/signup"
+                prefetch={false}
                 onClick={() => setMobileOpen(false)}
                 className="rounded-xl px-5 py-3 text-sm font-semibold text-[var(--on-accent)] text-center"
                 style={{ background: "var(--accent)" }}

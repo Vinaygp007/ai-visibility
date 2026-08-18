@@ -213,10 +213,13 @@ export default function HeroScanPreview() {
         })}
       </div>
 
-      {/* Per-provider dials — each engine scores independently, in parallel */}
+      {/* Per-provider dials — each engine scores independently, in parallel.
+          Inactive state is conveyed by the empty ring stroke and "-" readout,
+          not by dimming — a container-wide opacity here would drop the
+          provider name labels below WCAG AA contrast. */}
       <div
-        className="flex items-center justify-around pt-4 mb-1 border-t transition-opacity duration-300"
-        style={{ borderColor: "rgba(var(--overlay-rgb),0.08)", opacity: dialsActive ? 1 : 0.35 }}
+        className="flex items-center justify-around pt-4 mb-1 border-t"
+        style={{ borderColor: "rgba(var(--overlay-rgb),0.08)" }}
       >
         {PROVIDERS.map((p, i) => (
           <ProviderDial key={p.name} name={p.name} color={p.color} score={providerScores[i]} active={dialsActive} />

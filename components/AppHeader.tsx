@@ -54,7 +54,7 @@ export default function AppHeader() {
         </button>
 
         <Link href="/" className="flex items-center gap-2 md:hidden">
-          <img src="/logo-mark.png" alt="AiScope" className="w-7 h-7 flex-shrink-0" />
+          <img src="/logo-mark.webp" alt="AiScope" className="w-7 h-7 flex-shrink-0" />
         </Link>
 
         <div className="hidden md:block min-w-0">
@@ -99,7 +99,7 @@ export default function AppHeader() {
             onClick={(e) => e.stopPropagation()}
           >
             <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5 mb-6 px-2">
-              <img src="/logo-mark.png" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
+              <img src="/logo-mark.webp" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
               <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
             </Link>
 

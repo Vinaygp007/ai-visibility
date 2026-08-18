@@ -1,4 +1,5 @@
 import Reveal from "@/components/Reveal";
+import BackgroundVideo from "@/components/BackgroundVideo";
 import { Building2, Laptop, Rocket, TrendingUp, Code2 } from "lucide-react";
 import { ICON_GRADIENT, ICON_GRADIENT_FALLBACK } from "@/lib/iconGradient";
 
@@ -33,14 +34,9 @@ const AUDIENCES = [
 export default function AudienceSection() {
   return (
     <section className="relative overflow-hidden">
-      <video
-        className="absolute inset-0 w-full h-full object-cover"
+      <BackgroundVideo
+        className="absolute inset-0 w-full h-full"
         src="/videos/3252130-uhd_3840_2160_25fps.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        aria-hidden="true"
       />
       <div className="absolute inset-0" style={{ background: "rgba(10, 11, 16, 0.8" }} aria-hidden="true" />
 

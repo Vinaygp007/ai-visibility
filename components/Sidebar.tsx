@@ -74,7 +74,7 @@ export default function Sidebar() {
       }}
     >
       <Link href="/" className="flex items-center gap-2.5 mb-8 px-2">
-        <img src="/logo-mark.png" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
+        <img src="/logo-mark.webp" alt="AiScope" className="w-8 h-8 flex-shrink-0" />
         <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>AiScope</span>
       </Link>
 

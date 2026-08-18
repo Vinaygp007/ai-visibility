@@ -1,4 +1,5 @@
 import Reveal from "@/components/Reveal";
+import BackgroundVideo from "@/components/BackgroundVideo";
 import { Link2, ScanSearch, Sparkles, ClipboardCheck } from "lucide-react";
 
 const STEPS = [
@@ -27,14 +28,9 @@ const STEPS = [
 export default function HowItWorksSection() {
   return (
     <section className="relative overflow-hidden">
-      <video
-        className="absolute inset-0 w-full h-full object-cover"
+      <BackgroundVideo
+        className="absolute inset-0 w-full h-full"
         src="/videos/ahrefs-big-data-IUEYCYWZ.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        aria-hidden="true"
       />
       <div className="absolute inset-0" style={{ background: "rgba(10, 11, 16, 0.25)" }} aria-hidden="true" />
 

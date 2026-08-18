@@ -35,6 +35,7 @@ export default function LandingPage() {
       <ScrollProgressBar />
       <MarketingNav />
 
+      <main>
       <section className="relative overflow-hidden px-6 pt-20 pb-20 md:pt-24 md:pb-28">
         {/* Aurora background */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
@@ -137,6 +138,7 @@ export default function LandingPage() {
       <FAQSection />
 
       <BottomCTA />
+      </main>
 
       <Footer />
     </div>

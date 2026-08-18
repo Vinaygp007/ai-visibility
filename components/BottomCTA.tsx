@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
+import BackgroundVideo from "@/components/BackgroundVideo";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 
 export default function BottomCTA() {
@@ -9,14 +10,9 @@ export default function BottomCTA() {
 
   return (
     <section className="relative overflow-hidden">
-      <video
-        className="absolute inset-0 w-full h-full object-cover"
+      <BackgroundVideo
+        className="absolute inset-0 w-full h-full"
         src="/videos/12788190_1920_1080_30fps.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        aria-hidden="true"
       />
       <div className="absolute inset-0" style={{ background: "rgba(10, 11, 16, 0.55)" }} aria-hidden="true" />
 
@@ -36,6 +32,7 @@ export default function BottomCTA() {
             </p>
             <Link
               href={authed ? "/scan" : "/signup"}
+              prefetch={false}
               className="inline-block rounded-xl px-7 py-3 text-sm font-semibold text-black transition-all hover:opacity-85 hover:scale-[1.03] active:scale-95"
               style={{ background: "#00e5ff", boxShadow: "0 8px 30px -8px rgba(0,229,255,0.6)" }}
             >

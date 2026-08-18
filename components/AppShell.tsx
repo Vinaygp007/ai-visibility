@@ -1,11 +1,17 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Sidebar from "./Sidebar";
-import AppHeader from "./AppHeader";
+import dynamic from "next/dynamic";
 import Footer from "./Footer";
-import BugReportWidget from "./BugReportWidget";
 import ThemeToggle from "./ThemeToggle";
+
+// Only ever rendered on authenticated app routes (see `showShell` below), never
+// on the public marketing pages. Loaded on demand instead of statically so
+// their code — including the Supabase client each of them pulls in — doesn't
+// ship as part of every route's bundle just because AppShell wraps the app.
+const Sidebar = dynamic(() => import("./Sidebar"));
+const AppHeader = dynamic(() => import("./AppHeader"));
+const BugReportWidget = dynamic(() => import("./BugReportWidget"));
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
