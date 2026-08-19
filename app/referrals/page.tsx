@@ -110,7 +110,7 @@ export default function ReferralsPage() {
           <>
             {/* ── Referral link ──────────────────────────────────────────── */}
             <div
-              className="rf-link-card dash-card rounded-2xl border p-6 mb-6"
+              className="rf-link-card dash-card rounded-2xl border p-4 sm:p-6 mb-6"
               style={{
                 background: "linear-gradient(135deg, rgba(0,229,255,0.06), rgba(124,111,255,0.06))",
                 borderColor: "rgba(0,229,255,0.18)",
@@ -119,16 +119,16 @@ export default function ReferralsPage() {
               <label className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: "var(--text)" }}>
                 <Link2 size={12} /> Your referral link
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   readOnly
                   value={data?.referralLink ?? ""}
-                  className="flex-1 px-4 py-2.5 rounded-xl border text-sm font-mono"
+                  className="flex-1 min-w-0 w-full px-4 py-2.5 rounded-xl border text-sm font-mono truncate"
                   style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 />
                 <button
                   onClick={handleCopy}
-                  className="rf-copy-btn dash-btn-primary flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold active:scale-95"
+                  className="rf-copy-btn dash-btn-primary flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold active:scale-95 w-full sm:w-auto flex-shrink-0"
                   style={{
                     background: copied ? "var(--success)" : "linear-gradient(135deg, var(--accent), var(--accent2))",
                     color: "var(--on-accent)",
@@ -192,10 +192,10 @@ export default function ReferralsPage() {
                   <table className="w-full text-sm border-collapse">
                     <thead>
                       <tr>
-                        <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Referral</th>
-                        <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Date</th>
-                        <th className="text-right px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Reward</th>
-                        <th className="text-right px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Status</th>
+                        <th className="text-left px-3 sm:px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Referral</th>
+                        <th className="hidden sm:table-cell text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Date</th>
+                        <th className="hidden sm:table-cell text-right px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Reward</th>
+                        <th className="text-right px-3 sm:px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -207,25 +207,35 @@ export default function ReferralsPage() {
                             className="dash-row animate-fade-up"
                             style={{ borderTop: "1px solid rgba(var(--overlay-rgb),0.06)", animationDelay: `${Math.min(i * 0.03, 0.24)}s` }}
                           >
-                            <td className="px-6 py-3.5">
-                              <div className="flex items-center gap-3">
+                            <td className="px-3 sm:px-6 py-3.5">
+                              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                                 <div
-                                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center flex-shrink-0"
                                   style={{ background: meta.bg, color: meta.color }}
                                 >
-                                  <meta.icon size={15} />
+                                  <meta.icon size={14} />
                                 </div>
-                                <span className="font-medium" style={{ color: "var(--text)" }}>Referral #{i + 1}</span>
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate" style={{ color: "var(--text)" }}>Referral #{i + 1}</div>
+                                  <div className="sm:hidden text-[11px] font-mono truncate" style={{ color: "var(--text-dim)" }}>
+                                    {new Date(r.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                  </div>
+                                </div>
                               </div>
                             </td>
-                            <td className="px-6 py-3.5" style={{ color: "var(--text-muted)" }}>
+                            <td className="hidden sm:table-cell px-6 py-3.5 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                               {new Date(r.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                             </td>
-                            <td className="px-6 py-3.5 text-right font-mono" style={{ color: r.status === "rewarded" ? "var(--success)" : "var(--text-dim)" }}>
+                            <td className="hidden sm:table-cell px-6 py-3.5 text-right font-mono" style={{ color: r.status === "rewarded" ? "var(--success)" : "var(--text-dim)" }}>
                               {r.status === "rewarded" ? `+${r.reward}` : "—"}
                             </td>
-                            <td className="px-6 py-3.5 text-right">
-                              <StatusPill status={r.status} />
+                            <td className="px-3 sm:px-6 py-3.5 text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                {r.status === "rewarded" && (
+                                  <span className="sm:hidden text-[10px] font-mono" style={{ color: "var(--success)" }}>+{r.reward}</span>
+                                )}
+                                <StatusPill status={r.status} />
+                              </div>
                             </td>
                           </tr>
                         );

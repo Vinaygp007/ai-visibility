@@ -56,8 +56,10 @@ export default function AppHeader() {
           <span className="block w-5 h-0.5 bg-[var(--text)]" />
         </button>
 
-        <Link href="/" className="flex items-center gap-2 md:hidden">
+        <Link href="/" className="flex items-center gap-2 md:hidden min-w-0">
           <img src="/logo-mark.webp" alt="AiScope" className="w-7 h-7 flex-shrink-0" />
+          <span className="text-[15px] font-semibold tracking-tight truncate" style={{ color: "var(--text)" }}>AiScope</span>
+          <BetaBadge />
         </Link>
 
         <div className="hidden md:block min-w-0">

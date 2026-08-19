@@ -23,12 +23,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <h1 className="text-3xl font-bold text-[var(--text)] mb-1">Admin</h1>
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>Signed in as {user.email}</p>
           </div>
-          <nav className="flex gap-2">
+          <nav className="flex flex-wrap gap-2">
             {links.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-4 py-2 rounded-lg text-sm font-medium border"
+                className="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium border"
                 style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
               >
                 {link.label}

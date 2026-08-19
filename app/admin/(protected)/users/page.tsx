@@ -141,18 +141,18 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex flex-col sm:flex-row gap-2">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && loadUsers(search)}
           placeholder="Search by email..."
-          className="flex-1 px-4 py-2.5 rounded-xl border text-sm"
+          className="flex-1 min-w-0 w-full px-4 py-2.5 rounded-xl border text-sm"
           style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
         />
         <button
           onClick={() => loadUsers(search)}
-          className="px-5 py-2.5 rounded-xl text-sm font-semibold"
+          className="px-5 py-2.5 rounded-xl text-sm font-semibold w-full sm:w-auto flex-shrink-0"
           style={{ background: "var(--accent)", color: "var(--on-accent)" }}
         >
           Search
@@ -177,11 +177,11 @@ export default function AdminUsersPage() {
             .map((u) => {
             const subStatus = u.subscriptionStatus ? SUB_STATUS_STYLE[u.subscriptionStatus] : null;
             return (
-            <div key={u.id} className="rounded-2xl border p-5" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
-              <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-                <div>
+            <div key={u.id} className="rounded-2xl border p-4 sm:p-5" style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+              <div className="flex items-start justify-between flex-wrap gap-3 mb-3">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-[var(--text)]">{u.email}</span>
+                    <span className="text-sm font-semibold text-[var(--text)] break-all">{u.email}</span>
                     {subStatus && (
                       <span
                         className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
@@ -202,7 +202,7 @@ export default function AdminUsersPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2 items-center">
+                <div className="flex flex-wrap gap-2 items-center">
                   <select
                     value={u.plan}
                     onChange={(e) => handlePlanChange(u, e.target.value as Plan)}
@@ -237,13 +237,13 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2">
                 <input
                   type="number"
                   placeholder="±credits"
                   value={grantAmount[u.id] ?? ""}
                   onChange={(e) => setGrantAmount((prev) => ({ ...prev, [u.id]: e.target.value }))}
-                  className="w-28 px-3 py-2 rounded-lg border text-sm"
+                  className="w-full sm:w-28 px-3 py-2 rounded-lg border text-sm"
                   style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 />
                 <input
@@ -251,12 +251,12 @@ export default function AdminUsersPage() {
                   placeholder="Reason (required)"
                   value={grantReason[u.id] ?? ""}
                   onChange={(e) => setGrantReason((prev) => ({ ...prev, [u.id]: e.target.value }))}
-                  className="flex-1 px-3 py-2 rounded-lg border text-sm"
+                  className="flex-1 min-w-0 w-full px-3 py-2 rounded-lg border text-sm"
                   style={{ background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" }}
                 />
                 <button
                   onClick={() => handleGrant(u.id)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold w-full sm:w-auto flex-shrink-0"
                   style={{ background: "var(--accent)", color: "var(--on-accent)" }}
                 >
                   Apply

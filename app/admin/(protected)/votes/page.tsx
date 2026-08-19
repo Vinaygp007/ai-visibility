@@ -57,11 +57,11 @@ export default async function AdminVotesPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6">
         {tiles.map((tile) => (
           <div
             key={tile.label}
-            className="rounded-2xl border p-6"
+            className="rounded-2xl border p-4 sm:p-6"
             style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
           >
             <div className="text-2xl font-bold text-[var(--text)]">{tile.value.toLocaleString()}</div>
@@ -72,14 +72,14 @@ export default async function AdminVotesPage() {
 
       {total > 0 && (
         <div
-          className="rounded-2xl border p-5 mb-6"
+          className="rounded-2xl border p-4 sm:p-5 mb-6"
           style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
         >
           <div className="flex h-2.5 rounded-full overflow-hidden mb-3" style={{ background: "rgba(var(--overlay-rgb),0.08)" }}>
             <div style={{ width: `${bulkPct}%`, background: "var(--accent)" }} />
             <div style={{ width: `${promptPct}%`, background: "var(--accent2)" }} />
           </div>
-          <div className="flex items-center gap-5 text-xs" style={{ color: "var(--text-muted)" }}>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--accent)" }} />
               Bulk Scanner — {bulk} vote{bulk === 1 ? "" : "s"}
