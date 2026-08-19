@@ -67,7 +67,44 @@ export default function BotCoverageTable({
         />
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Mobile list */}
+      <div className="sm:hidden mt-3 divide-y" style={{ borderColor: "rgba(var(--overlay-rgb),0.06)" }}>
+        {rows.map((bot) => {
+          const dotColor = COMPANY_COLORS[bot.company] ?? "var(--text-dim)";
+          const isGlobal = bot.blockType === "global_block";
+          return (
+            <div key={bot.key} className="flex items-center gap-3 px-5 py-3">
+              <span
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                style={{ background: `${dotColor}22`, color: dotColor, border: `1px solid ${dotColor}44` }}
+              >
+                {bot.label[0]?.toUpperCase()}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[12.5px] font-medium truncate" style={{ color: "var(--text)" }}>
+                  {bot.label}
+                </div>
+                <div className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
+                  {bot.company || "—"}
+                </div>
+              </div>
+              <span
+                className="text-[10px] font-mono px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap"
+                style={
+                  bot.allowed
+                    ? { color: "var(--success)", background: "rgba(0,232,122,0.08)" }
+                    : { color: "var(--danger)", background: "rgba(255,90,90,0.08)" }
+                }
+              >
+                {bot.allowed ? "Accessible" : isGlobal ? "Blocked (wildcard)" : "Blocked"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full mt-3" style={{ borderCollapse: "collapse" }}>
           <thead>
             <tr

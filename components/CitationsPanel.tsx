@@ -174,11 +174,11 @@ export default function CitationsPanel({
     >
       {/* ── Header ── */}
       <div
-        className="px-5 py-3.5 border-b flex items-center justify-between"
+        className="px-4 sm:px-5 py-3.5 border-b flex flex-wrap items-center justify-between gap-3"
         style={{ borderColor: "rgba(var(--overlay-rgb),0.07)", background: "rgba(var(--overlay-rgb),0.05)" }}
       >
         {/* Left: title + stats */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span
             className="text-[13px] font-mono tracking-widest uppercase"
             style={{ color: "var(--text-muted)" }}
@@ -292,11 +292,11 @@ export default function CitationsPanel({
             </div>
           </div>
         ) : (
-          <div className="flex" style={{ minHeight: 320 }}>
+          <div className="flex flex-col lg:flex-row" style={{ minHeight: 320 }}>
             {/* ── Left: Response ── */}
             <div
-              className="flex-1 p-5 overflow-y-auto"
-              style={{ borderRight: "1px solid rgba(var(--overlay-rgb),0.07)", maxHeight: 560 }}
+              className="flex-1 p-4 sm:p-5 overflow-y-auto border-b lg:border-b-0 lg:border-r"
+              style={{ borderColor: "rgba(var(--overlay-rgb),0.07)", maxHeight: 560 }}
             >
               {/* Response header row */}
               <div className="flex items-center justify-between mb-3">
@@ -382,8 +382,8 @@ export default function CitationsPanel({
 
             {/* ── Right: Mentions + Cited Pages ── */}
             <div
-              className="flex flex-col"
-              style={{ width: 240, flexShrink: 0, background: "rgba(var(--overlay-rgb),0.03)" }}
+              className="flex flex-col w-full lg:w-[240px] lg:flex-shrink-0"
+              style={{ background: "rgba(var(--overlay-rgb),0.03)" }}
             >
               {/* Mentions */}
               <div
@@ -505,7 +505,7 @@ export default function CitationsPanel({
 
       {/* ── Legend Footer ── */}
       <div
-        className="px-5 py-3 border-t flex items-center gap-5 flex-wrap"
+        className="px-4 sm:px-5 py-3 border-t flex items-center gap-5 flex-wrap"
         style={{
           borderColor: "rgba(var(--overlay-rgb),0.07)",
           background: "rgba(0,229,255,0.02)",

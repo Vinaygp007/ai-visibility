@@ -300,16 +300,17 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-5xl mx-4 my-8"
+        className="relative w-full max-w-5xl mx-2 my-4 sm:mx-4 sm:my-8"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute -top-12 right-0 w-10 h-10 rounded-full flex items-center justify-center transition-all hover:bg-[rgba(var(--overlay-rgb),0.1)]"
+          aria-label="Close report"
+          className="absolute z-10 top-3 right-3 sm:-top-12 sm:right-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all bg-[rgba(var(--overlay-rgb),0.08)] sm:bg-transparent hover:bg-[rgba(var(--overlay-rgb),0.15)]"
           style={{ color: "var(--text)" }}
         >
-          <span className="text-2xl">×</span>
+          <span className="text-2xl leading-none">×</span>
         </button>
 
         <div
@@ -322,20 +323,20 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
         >
           {/* Header */}
           <div
-            className="px-8 py-6 border-b"
+            className="px-4 sm:px-8 py-5 sm:py-6 border-b"
             style={{
               background: "linear-gradient(135deg, rgba(66,133,244,0.08) 0%, rgba(0,229,255,0.08) 100%)",
               borderColor: "rgba(var(--overlay-rgb),0.07)",
             }}
           >
-            <div className="flex items-start justify-between gap-6">
-              <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold text-[var(--text)] mb-2">{report.site_name}</h2>
+            <div className="flex flex-col-reverse sm:flex-row items-start sm:justify-between gap-4 sm:gap-6">
+              <div className="flex-1 min-w-0 w-full">
+                <h2 className="text-xl sm:text-2xl font-bold text-[var(--text)] mb-2 break-words">{report.site_name}</h2>
                 <a
                   href={report.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm font-mono hover:underline"
+                  className="text-xs sm:text-sm font-mono hover:underline break-all"
                   style={{ color: "#4285f4" }}
                 >
                   {report.url}
@@ -344,7 +345,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                   {report.summary}
                 </p>
                 {report.createdAt && (
-                  <div className="flex items-center gap-3 mt-3">
+                  <div className="flex items-center gap-3 mt-3 flex-wrap">
                     <span
                       className="text-xs font-mono px-2 py-1 rounded-full"
                       style={{
@@ -371,7 +372,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
               </div>
 
               {/* Score */}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 self-center sm:self-auto">
                 <ScoreGauge
                   value={report.overall_score}
                   label={report.grade}
@@ -383,48 +384,48 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
           </div>
 
           {/* Content */}
-          <div className="px-8 py-6 space-y-8 max-h-[70vh] overflow-y-auto">
+          <div className="px-4 sm:px-8 py-5 sm:py-6 space-y-6 sm:space-y-8 max-h-[75vh] overflow-y-auto">
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
               <div
-                className="rounded-xl p-4 text-center"
+                className="rounded-xl p-2.5 sm:p-4 text-center"
                 style={{
                   background: "rgba(0,232,122,0.08)",
                   border: "1px solid rgba(0,232,122,0.2)",
                 }}
               >
-                <div className="text-2xl font-bold" style={{ color: "var(--success)" }}>
+                <div className="text-lg sm:text-2xl font-bold" style={{ color: "var(--success)" }}>
                   {report.stats.checks_passed}
                 </div>
-                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                <div className="text-[10px] sm:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                   Passed
                 </div>
               </div>
               <div
-                className="rounded-xl p-4 text-center"
+                className="rounded-xl p-2.5 sm:p-4 text-center"
                 style={{
                   background: "rgba(255,184,48,0.08)",
                   border: "1px solid rgba(255,184,48,0.2)",
                 }}
               >
-                <div className="text-2xl font-bold" style={{ color: "var(--warning)" }}>
+                <div className="text-lg sm:text-2xl font-bold" style={{ color: "var(--warning)" }}>
                   {report.stats.checks_warned}
                 </div>
-                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                <div className="text-[10px] sm:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                   Warnings
                 </div>
               </div>
               <div
-                className="rounded-xl p-4 text-center"
+                className="rounded-xl p-2.5 sm:p-4 text-center"
                 style={{
                   background: "rgba(255,90,90,0.08)",
                   border: "1px solid rgba(255,90,90,0.2)",
                 }}
               >
-                <div className="text-2xl font-bold" style={{ color: "var(--danger)" }}>
+                <div className="text-lg sm:text-2xl font-bold" style={{ color: "var(--danger)" }}>
                   {report.stats.checks_failed}
                 </div>
-                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                <div className="text-[10px] sm:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                   Failed
                 </div>
               </div>
@@ -560,12 +561,12 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
 
           {/* Footer */}
           <div
-            className="px-8 py-4 border-t flex items-center justify-between"
+            className="px-4 sm:px-8 py-4 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3"
             style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}
           >
             <button
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[var(--accent)]/50"
+              className="order-3 sm:order-1 w-full sm:w-auto px-6 py-2.5 rounded-xl border text-sm font-medium text-center transition-all hover:border-[var(--accent)]/50"
               style={{
                 borderColor: "rgba(var(--overlay-rgb),0.13)",
                 color: "var(--text)",
@@ -575,10 +576,10 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
               Close
             </button>
 
-            <div className="flex items-center gap-3">
+            <div className="order-1 sm:order-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 onClick={() => exportDocx(report)}
-                className="px-5 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[rgba(var(--overlay-rgb),0.3)] flex items-center gap-2"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border text-sm font-medium transition-all hover:border-[rgba(var(--overlay-rgb),0.3)] flex items-center justify-center gap-2"
                 style={{
                   borderColor: "rgba(var(--overlay-rgb),0.13)",
                   color: "var(--text)",
@@ -594,7 +595,7 @@ export default function ReportModal({ isOpen, onClose, report }: ReportModalProp
                 href={report.url}
                 target="_blank"
                 rel="noreferrer"
-                className="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-sm font-semibold text-center transition-all hover:opacity-85"
                 style={{ background: "var(--accent)", color: "var(--on-accent)" }}
               >
                 Visit Site →

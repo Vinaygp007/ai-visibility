@@ -304,7 +304,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
           )}
 
           {/* Filter tabs */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             {(["all", "issues", "broken"] as const).map(f => (
               <button
                 key={f}
@@ -323,8 +323,69 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
             ))}
           </div>
 
-          {/* Page table */}
-          <div className="rounded-xl border overflow-x-auto" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+          {/* Page table — mobile card list */}
+          <div className="sm:hidden rounded-xl border divide-y" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
+            {sorted.length === 0 ? (
+              <div className="px-4 py-6 text-center text-[12px]" style={{ color: "var(--text-muted)" }}>
+                No pages match this filter
+              </div>
+            ) : sorted.map((page) => {
+              const isOk = page.status >= 200 && page.status < 400;
+              const sColor = statusColor(page.status);
+              const titleLen = page.metaTitleLength;
+              const titleColor = !titleLen ? "var(--danger)" : titleLen < 30 || titleLen > 60 ? "var(--warning)" : "var(--success)";
+              return (
+                <div key={page.url} className="px-4 py-3" style={{ borderColor: "rgba(var(--overlay-rgb),0.05)" }}>
+                  <a
+                    href={page.url} target="_blank" rel="noreferrer"
+                    className="font-mono text-[12px] hover:underline block truncate"
+                    style={{ color: isOk ? "var(--text)" : "var(--danger)" }}
+                    title={page.url}
+                  >
+                    {shortUrl(page.url, baseUrl)}
+                  </a>
+                  <div className="grid grid-cols-3 gap-x-3 gap-y-2 mt-2.5 text-[11px] font-mono">
+                    {([
+                      { label: "Status", value: page.status || "err", color: sColor, bold: true },
+                      { label: "Time", value: fmt(page.responseTimeMs), color: page.responseTimeMs > 800 ? "var(--danger)" : page.responseTimeMs > 400 ? "var(--warning)" : "var(--text-muted)" },
+                      { label: "Words", value: isOk ? page.wordCount : "-", color: isOk && page.wordCount < 100 ? "var(--warning)" : "var(--text-muted)" },
+                      {
+                        label: "H1",
+                        value: !isOk ? "-" : page.h1Count === 0 ? "✕" : page.h1Count > 1 ? `${page.h1Count}x` : "✓",
+                        color: !isOk ? "var(--text-muted)" : page.h1Count === 0 ? "var(--danger)" : page.h1Count > 1 ? "var(--warning)" : "var(--success)",
+                      },
+                      { label: "H2s", value: isOk ? page.h2Count : "-", color: "var(--text-muted)" },
+                      { label: "Text%", value: isOk ? `${page.textRatioPercent}%` : "-", color: isOk && page.textRatioPercent < 10 ? "var(--warning)" : "var(--text-muted)" },
+                      { label: "Title", value: titleLen > 0 ? `${titleLen}ch` : "-", color: titleColor },
+                      { label: "Depth", value: page.linkDepth, color: page.linkDepth > 3 ? "var(--warning)" : "var(--text-muted)" },
+                      { label: "Inbound", value: page.inboundLinkCount, color: page.inboundLinkCount === 0 && page.linkDepth > 0 ? "var(--warning)" : "var(--text-muted)" },
+                    ] as { label: string; value: string | number; color: string; bold?: boolean }[]).map((stat) => (
+                      <div key={stat.label}>
+                        <div className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>{stat.label}</div>
+                        <div style={{ color: stat.color, fontWeight: stat.bold ? 700 : 400 }}>{stat.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {page.issues.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {page.issues.map(issue => (
+                        <span
+                          key={issue}
+                          className="text-[9px] font-mono px-1.5 py-0.5 rounded-full"
+                          style={{ background: `${ISSUE_COLORS[issue] ?? "var(--warning)"}18`, color: ISSUE_COLORS[issue] ?? "var(--warning)", border: `1px solid ${ISSUE_COLORS[issue] ?? "var(--warning)"}30` }}
+                        >
+                          {issue}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Page table — desktop */}
+          <div className="hidden sm:block rounded-xl border overflow-x-auto" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)" }}>
             <table className="w-full text-[12px] border-collapse">
               <thead>
                 <tr style={{ background: "rgba(var(--overlay-rgb),0.03)", borderBottom: "1px solid rgba(var(--overlay-rgb),0.07)" }}>
@@ -344,7 +405,7 @@ export default function CrawlSection({ url, autoRun = false }: { url: string; au
               <tbody>
                 {sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-6 text-center text-[12px]" style={{ color: "var(--text-muted)" }}>
+                    <td colSpan={11} className="px-3 py-6 text-center text-[12px]" style={{ color: "var(--text-muted)" }}>
                       No pages match this filter
                     </td>
                   </tr>
