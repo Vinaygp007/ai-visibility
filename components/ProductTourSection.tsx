@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { ICON_GRADIENT, ICON_GRADIENT_FALLBACK } from "@/lib/iconGradient";
 import { useEffect, useState } from "react";
-import { getCurrentTheme, type Theme } from "@/lib/theme";
+import { getCurrentTheme, THEME_CHANGE_EVENT, type Theme } from "@/lib/theme";
 
 interface TourCategory {
   key: string;
@@ -113,7 +113,46 @@ export default function ProductTourSection() {
 
   useEffect(() => {
     setTheme(getCurrentTheme());
+    const onThemeChange = () => setTheme(getCurrentTheme());
+    window.addEventListener(THEME_CHANGE_EVENT, onThemeChange);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange);
   }, []);
+
+  const renderVisual = (cat: TourCategory) => (
+    <div
+      className="rounded-2xl border relative mx-auto"
+      style={{
+        background: "var(--surface)",
+        borderColor: "rgba(var(--overlay-rgb),0.08)",
+        boxShadow: "0 30px 60px -20px rgba(0,0,0,0.35)",
+        width: "fit-content",
+        maxWidth: "100%",
+      }}
+    >
+      <div className="flex items-center gap-1.5 px-5 pt-4 pb-1">
+        <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#ff5f57" }} />
+        <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#febc2e" }} />
+        <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#28c840" }} />
+        <div
+          className="flex-1 ml-2 rounded-lg px-3 py-1 text-[11px] font-mono truncate"
+          style={{ background: "rgba(var(--overlay-rgb),0.05)", color: "var(--text-dim)" }}
+        >
+          {cat.path}
+        </div>
+      </div>
+
+      <div className="p-3">
+        {theme && (
+          <img
+            src={cat.image[theme]}
+            alt={`${cat.label} — real scan data`}
+            className="block rounded-lg"
+            style={{ maxWidth: "100%", height: "auto" }}
+          />
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <section className="max-w-6xl mx-auto px-6 py-20">
@@ -135,107 +174,69 @@ export default function ProductTourSection() {
       <Reveal>
         <div className="grid lg:grid-cols-[300px_1fr] gap-3 lg:gap-8 items-start">
           {/* Category nav */}
-          <div className="flex lg:flex-col overflow-x-auto lg:overflow-visible gap-1 pb-2 lg:pb-0 -mx-1 px-1 lg:mx-0 lg:px-0">
+          <div className="flex flex-col gap-1 min-w-0">
             {CATEGORIES.map((cat) => {
               const isActive = cat.key === activeKey;
               return (
-                <button
-                  key={cat.key}
-                  onClick={() => setActiveKey(cat.key)}
-                  className="text-left rounded-xl transition-all duration-200 flex-shrink-0 lg:flex-shrink w-auto lg:w-full"
-                  style={{
-                    padding: isActive ? "14px 16px" : "11px 16px",
-                    background: isActive ? "rgba(var(--overlay-rgb),0.04)" : "transparent",
-                    borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
-                  }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <cat.Icon
-                      size={16}
-                      color={isActive ? ICON_GRADIENT : undefined}
-                      style={{ color: isActive ? ICON_GRADIENT_FALLBACK : "var(--text-dim)", flexShrink: 0 }}
-                    />
-                    <span
-                      className="text-[14px] whitespace-nowrap lg:whitespace-normal font-medium"
-                      style={{ color: isActive ? "var(--text)" : "var(--text-muted)" }}
-                    >
-                      {cat.label}
-                    </span>
-                  </div>
+                <div key={cat.key} className="min-w-0">
+                  <button
+                    onClick={() => setActiveKey(cat.key)}
+                    className="text-left rounded-xl transition-all duration-200 w-full"
+                    style={{
+                      padding: isActive ? "14px 16px" : "11px 16px",
+                      background: isActive ? "rgba(var(--overlay-rgb),0.04)" : "transparent",
+                      borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <cat.Icon
+                        size={16}
+                        color={isActive ? ICON_GRADIENT : undefined}
+                        style={{ color: isActive ? ICON_GRADIENT_FALLBACK : "var(--text-dim)", flexShrink: 0 }}
+                      />
+                      <span
+                        className="text-[14px] font-medium"
+                        style={{ color: isActive ? "var(--text)" : "var(--text-muted)" }}
+                      >
+                        {cat.label}
+                      </span>
+                    </div>
+
+                    {isActive && (
+                      <div className="mt-3 pl-[26px]">
+                        <p className="text-[13px] leading-relaxed mb-3" style={{ color: "var(--text-muted)" }}>
+                          {cat.desc}
+                        </p>
+                        <div className="flex flex-col gap-1.5">
+                          {cat.links.map((l) => (
+                            <Link
+                              key={l.label}
+                              href={l.href}
+                              className="group inline-flex items-center gap-1 text-[13px] font-medium w-fit"
+                              style={{ color: "var(--accent)" }}
+                            >
+                              {l.label}
+                              <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </button>
 
                   {isActive && (
-                    <div className="mt-3 pl-[26px] hidden lg:block">
-                      <p className="text-[13px] leading-relaxed mb-3" style={{ color: "var(--text-muted)" }}>
-                        {cat.desc}
-                      </p>
-                      <div className="flex flex-col gap-1.5">
-                        {cat.links.map((l) => (
-                          <Link
-                            key={l.label}
-                            href={l.href}
-                            className="group inline-flex items-center gap-1 text-[13px] font-medium w-fit"
-                            style={{ color: "var(--accent)" }}
-                          >
-                            {l.label}
-                            <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
-                          </Link>
-                        ))}
-                      </div>
+                    <div className="mt-4 lg:hidden animate-fade-up">
+                      {renderVisual(cat)}
                     </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
 
-          {/* Visual */}
-          <div key={active.key} className="animate-fade-up relative" style={{ minHeight: 420 }}>
-            {/* Title/desc shown here on mobile, where the nav list collapses */}
-            <div className="lg:hidden mb-6 relative">
-              <h3 className="text-lg font-bold mb-1.5" style={{ color: "var(--text)" }}>{active.label}</h3>
-              <p className="text-[13px] leading-relaxed mb-3" style={{ color: "var(--text-muted)" }}>{active.desc}</p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                {active.links.map((l) => (
-                  <Link key={l.label} href={l.href} className="inline-flex items-center gap-1 text-[13px] font-semibold" style={{ color: "var(--accent)" }}>
-                    {l.label} <ArrowRight size={13} />
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            <div
-              className="rounded-2xl border relative mx-auto"
-              style={{
-                background: "var(--surface)",
-                borderColor: "rgba(var(--overlay-rgb),0.08)",
-                boxShadow: "0 30px 60px -20px rgba(0,0,0,0.35)",
-                width: "fit-content",
-                maxWidth: "100%",
-              }}
-            >
-              <div className="flex items-center gap-1.5 px-5 pt-4 pb-1">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#ff5f57" }} />
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#febc2e" }} />
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#28c840" }} />
-                <div
-                  className="flex-1 ml-2 rounded-lg px-3 py-1 text-[11px] font-mono truncate"
-                  style={{ background: "rgba(var(--overlay-rgb),0.05)", color: "var(--text-dim)" }}
-                >
-                  {active.path}
-                </div>
-              </div>
-
-              <div className="p-3">
-                {theme && (
-                  <img
-                    src={active.image[theme]}
-                    alt={`${active.label} — real scan data`}
-                    className="block rounded-lg"
-                    style={{ maxWidth: "100%", height: "auto" }}
-                  />
-                )}
-              </div>
-            </div>
+          {/* Visual — desktop only, pinned in the second grid column */}
+          <div key={active.key} className="hidden lg:block animate-fade-up relative" style={{ minHeight: 420 }}>
+            {renderVisual(active)}
           </div>
         </div>
       </Reveal>

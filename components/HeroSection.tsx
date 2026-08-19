@@ -29,7 +29,7 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
   };
 
   return (
-    <section className="relative overflow-hidden max-w-3xl mx-auto px-6 pt-20 pb-12 text-center">
+    <section className="relative overflow-hidden max-w-3xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 md:pt-20 pb-12 text-center">
       {/* Aurora background, same treatment as the homepage hero */}
       <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
         <div
@@ -51,7 +51,7 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
         <Sparkles size={11} /> NEW SCAN
       </div>
 
-      <h1 className="heading-shimmer text-5xl md:text-6xl font-bold leading-none tracking-tight mb-5"
+      <h1 className="heading-shimmer text-4xl sm:text-5xl md:text-6xl font-bold leading-none tracking-tight mb-4 sm:mb-5"
         style={{
           background: "linear-gradient(110deg, var(--text) 20%, var(--accent) 50%, var(--text) 80%)",
           backgroundSize: "200% auto",
@@ -78,21 +78,23 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
       <p className="animate-fade-up fade-up-3 text-[11px] font-mono mb-6" style={{ color: "var(--text-muted)" }}>all 3 run simultaneously · scores averaged</p>
 
       {/* URL input */}
-      <div className="animate-fade-up fade-up-4 search-box flex items-center rounded-2xl border pl-4 pr-1.5 py-1.5 max-w-xl mx-auto transition-all"
+      <div className="animate-fade-up fade-up-4 search-box flex flex-col sm:flex-row sm:items-center rounded-2xl border p-2 sm:pl-4 sm:pr-1.5 sm:py-1.5 gap-2 sm:gap-0 max-w-xl mx-auto transition-all"
         style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.13)" }}>
-        <Search size={16} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
-        <input
-          type="text"
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && handleSubmit()}
-          placeholder="https://yourwebsite.com"
-          className="flex-1 bg-transparent border-none outline-none text-[15px] text-[var(--text)] py-2.5 px-3"
-        />
+        <div className="flex items-center gap-2 px-1 sm:px-0 sm:flex-1 min-w-0">
+          <Search size={16} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
+          <input
+            type="text"
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSubmit()}
+            placeholder="https://yourwebsite.com"
+            className="flex-1 min-w-0 bg-transparent border-none outline-none text-[15px] text-[var(--text)] py-2 px-1 sm:py-2.5 sm:px-3"
+          />
+        </div>
         <button
           onClick={handleSubmit}
           disabled={isLoading}
-          className="hero-analyze-btn flex items-center gap-1.5 rounded-xl px-6 py-2.5 text-sm font-semibold text-[var(--on-accent)] disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+          className="hero-analyze-btn w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-xl px-6 py-2.5 text-sm font-semibold text-[var(--on-accent)] disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
           style={{ background: "linear-gradient(135deg, var(--accent), var(--accent2))", whiteSpace: "nowrap" }}
         >
           {isLoading ? (

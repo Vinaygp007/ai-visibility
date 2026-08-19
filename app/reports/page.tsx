@@ -1361,10 +1361,10 @@ export default function PreviousReportsPage() {
                     <table className="w-full text-sm border-collapse">
                       <thead>
                         <tr>
-                          <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Report</th>
-                          <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Grade</th>
-                          <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Status</th>
-                          <th className="text-right px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Scanned</th>
+                          <th className="text-left px-3 sm:px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Report</th>
+                          <th className="hidden sm:table-cell text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Grade</th>
+                          <th className="hidden sm:table-cell text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Status</th>
+                          <th className="text-right px-3 sm:px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Scanned</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1477,23 +1477,41 @@ function HomepageRow({ report, onClick, delay }: { report: ReportSummary; onClic
       style={{ borderTop: "1px solid rgba(var(--overlay-rgb),0.06)", animationDelay: delay != null ? `${delay}s` : undefined }}
       onClick={onClick}
     >
-      <td className="px-6 py-3.5">
-        <div className="flex items-center gap-3">
+      <td className="px-3 sm:px-6 py-3.5">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <div
-            className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center"
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex-shrink-0 flex items-center justify-center"
             style={{ background: getScoreBg(report.overall_score), border: `1px solid ${getScoreColor(report.overall_score)}33` }}
           >
-            <div className="text-sm font-bold leading-none" style={{ color: getScoreColor(report.overall_score) }}>
+            <div className="text-xs sm:text-sm font-bold leading-none" style={{ color: getScoreColor(report.overall_score) }}>
               {report.overall_score}
             </div>
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-[var(--text)] truncate">{report.site_name}</div>
-            <div className="text-xs font-mono truncate" style={{ color: "var(--text-muted)" }}>{domainFromUrl(report.url)}</div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="text-sm font-semibold text-[var(--text)] truncate">{report.site_name}</div>
+              <span
+                className="sm:hidden flex-shrink-0 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
+                style={{ color: getScoreColor(report.overall_score), background: getScoreBg(report.overall_score) }}
+              >
+                {report.grade}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="text-xs font-mono truncate" style={{ color: "var(--text-muted)" }}>{domainFromUrl(report.url)}</div>
+              {report._cached && (
+                <span
+                  className="sm:hidden inline-flex items-center gap-0.5 flex-shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{ background: "rgba(66,133,244,0.1)", color: "#4285f4" }}
+                >
+                  <CheckCircle2 size={9} /> Cached
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </td>
-      <td className="px-6 py-3.5">
+      <td className="hidden sm:table-cell px-6 py-3.5">
         <span
           className="text-xs font-mono font-bold px-2 py-0.5 rounded-lg"
           style={{ color: getScoreColor(report.overall_score), background: getScoreBg(report.overall_score) }}
@@ -1501,7 +1519,7 @@ function HomepageRow({ report, onClick, delay }: { report: ReportSummary; onClic
           {report.grade}
         </span>
       </td>
-      <td className="px-6 py-3.5">
+      <td className="hidden sm:table-cell px-6 py-3.5">
         {report._cached ? (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full"
             style={{ background: "rgba(66,133,244,0.1)", color: "#4285f4" }}>
@@ -1511,10 +1529,10 @@ function HomepageRow({ report, onClick, delay }: { report: ReportSummary; onClic
           <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>—</span>
         )}
       </td>
-      <td className="px-6 py-3.5">
-        <div className="flex items-center justify-end gap-2">
-          <span className="text-xs font-mono" style={{ color: "var(--text-dim)" }}>{timeAgo(report.createdAt)}</span>
-          <ArrowRight size={15} className="rp-row-arrow" style={{ color: "var(--text-muted)" }} />
+      <td className="px-3 sm:px-6 py-3.5">
+        <div className="flex items-center justify-end gap-1 sm:gap-2">
+          <span className="hidden sm:inline text-xs font-mono" style={{ color: "var(--text-dim)" }}>{timeAgo(report.createdAt)}</span>
+          <ArrowRight size={15} className="rp-row-arrow flex-shrink-0" style={{ color: "var(--text-muted)" }} />
         </div>
       </td>
     </tr>

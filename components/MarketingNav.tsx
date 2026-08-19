@@ -207,16 +207,19 @@ export default function MarketingNav() {
         <ThemeToggle />
       </div>
 
-      <button
-        onClick={() => setMobileOpen(!mobileOpen)}
-        className="md:hidden flex flex-col gap-[5px] p-2 rounded-lg"
-        style={{ background: "rgba(var(--overlay-rgb),0.06)", border: "1px solid rgba(var(--overlay-rgb),0.1)" }}
-        aria-label="Toggle menu"
-      >
-        <span className="block w-5 h-0.5 bg-[var(--text)]" />
-        <span className="block w-5 h-0.5 bg-[var(--text)]" />
-        <span className="block w-5 h-0.5 bg-[var(--text)]" />
-      </button>
+      <div className="md:hidden flex items-center gap-2">
+        <ThemeToggle />
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="flex flex-col gap-[5px] p-2 rounded-lg"
+          style={{ background: "rgba(var(--overlay-rgb),0.06)", border: "1px solid rgba(var(--overlay-rgb),0.1)" }}
+          aria-label="Toggle menu"
+        >
+          <span className="block w-5 h-0.5 bg-[var(--text)]" />
+          <span className="block w-5 h-0.5 bg-[var(--text)]" />
+          <span className="block w-5 h-0.5 bg-[var(--text)]" />
+        </button>
+      </div>
       </div>
 
       {mobileOpen && (
@@ -267,9 +270,6 @@ export default function MarketingNav() {
               <button onClick={handleLogout} className="text-[15px] font-medium text-left" style={{ color: "var(--text)" }}>
                 Log out
               </button>
-              <div className="flex justify-end">
-                <ThemeToggle />
-              </div>
             </>
           ) : (
             <>
@@ -300,9 +300,6 @@ export default function MarketingNav() {
               >
                 Sign Up
               </Link>
-              <div className="flex justify-end">
-                <ThemeToggle />
-              </div>
             </>
           )}
         </div>

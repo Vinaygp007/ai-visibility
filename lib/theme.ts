@@ -1,4 +1,5 @@
 export const THEME_STORAGE_KEY = "aiscope-theme";
+export const THEME_CHANGE_EVENT = "aiscope-theme-change";
 
 export type Theme = "light" | "dark";
 
@@ -27,6 +28,7 @@ export function getStoredTheme(): Theme | null {
 export function applyTheme(theme: Theme) {
   document.documentElement.setAttribute("data-theme", theme);
   window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
 }
 
 export function getCurrentTheme(): Theme {

@@ -178,10 +178,10 @@ export default function CreditsPage() {
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr>
-                      <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Transaction</th>
-                      <th className="text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Date</th>
-                      <th className="text-right px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Amount</th>
-                      <th className="text-right px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Balance</th>
+                      <th className="text-left px-3 sm:px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Transaction</th>
+                      <th className="hidden sm:table-cell text-left px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Date</th>
+                      <th className="text-right px-3 sm:px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Amount</th>
+                      <th className="hidden sm:table-cell text-right px-6 py-3 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>Balance</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -194,27 +194,32 @@ export default function CreditsPage() {
                           className="dash-row animate-fade-up"
                           style={{ borderTop: "1px solid rgba(var(--overlay-rgb),0.06)", animationDelay: `${Math.min(i * 0.03, 0.24)}s` }}
                         >
-                          <td className="px-6 py-3.5">
-                            <div className="flex items-center gap-3">
+                          <td className="px-3 sm:px-6 py-3.5">
+                            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                               <div
                                 className="flex items-center justify-center rounded-full flex-shrink-0"
                                 style={{
-                                  width: 36, height: 36,
+                                  width: 32, height: 32,
                                   background: positive ? "rgba(0,232,122,0.1)" : "rgba(255,88,88,0.08)",
                                   color: positive ? "var(--success)" : "#ff5858",
                                 }}
                               >
-                                <Icon size={15} />
+                                <Icon size={14} />
                               </div>
-                              <span className="font-medium" style={{ color: "var(--text)" }}>{TYPE_LABELS[e.type] ?? e.type}</span>
+                              <div className="min-w-0">
+                                <div className="font-medium truncate" style={{ color: "var(--text)" }}>{TYPE_LABELS[e.type] ?? e.type}</div>
+                                <div className="sm:hidden text-[11px] font-mono truncate" style={{ color: "var(--text-dim)" }}>
+                                  {new Date(e.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                                </div>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-6 py-3.5" style={{ color: "var(--text-muted)" }}>
+                          <td className="hidden sm:table-cell px-6 py-3.5 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                             {new Date(e.createdAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                           </td>
-                          <td className="px-6 py-3.5 text-right">
+                          <td className="px-3 sm:px-6 py-3.5 text-right">
                             <span
-                              className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
+                              className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap"
                               style={{
                                 background: positive ? "rgba(0,232,122,0.1)" : "rgba(255,88,88,0.1)",
                                 color: positive ? "var(--success)" : "#ff5858",
@@ -224,7 +229,7 @@ export default function CreditsPage() {
                               {positive ? `+${e.amount}` : e.amount}
                             </span>
                           </td>
-                          <td className="px-6 py-3.5 text-right font-mono" style={{ color: "var(--text-dim)" }}>
+                          <td className="hidden sm:table-cell px-6 py-3.5 text-right font-mono" style={{ color: "var(--text-dim)" }}>
                             {e.balanceAfter}
                           </td>
                         </tr>

@@ -43,8 +43,33 @@ export default function ComparisonSection() {
       </Reveal>
 
       <Reveal delay={100}>
+        {/* Mobile: stacked cards */}
+        <div className="flex flex-col gap-2.5 lg:hidden">
+          {ROWS.map((row) => (
+            <div
+              key={row.label}
+              className="rounded-xl border px-4 py-3.5"
+              style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
+            >
+              <p className="text-[13.5px] leading-snug mb-3" style={{ color: "var(--text)" }}>{row.label}</p>
+              <div className="flex items-center justify-between text-[12.5px] py-1">
+                <span style={{ color: "var(--text-dim)" }}>Traditional SEO Tools</span>
+                <span className="text-base"><Mark value={row.traditional} /></span>
+              </div>
+              <div
+                className="flex items-center justify-between text-[12.5px] py-1 mt-0.5"
+                style={{ borderTop: "1px solid rgba(var(--overlay-rgb),0.06)" }}
+              >
+                <span className="font-medium" style={{ color: "var(--accent)" }}>AiScope</span>
+                <span className="text-base"><Mark value={row.aiscope} /></span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: comparison table */}
         <div
-          className="rounded-2xl border overflow-x-auto"
+          className="hidden lg:block rounded-2xl border overflow-x-auto"
           style={{ background: "var(--surface)", borderColor: "rgba(var(--overlay-rgb),0.08)" }}
         >
           <table className="w-full text-[13.5px] min-w-[560px]">
