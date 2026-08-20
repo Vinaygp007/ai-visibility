@@ -7,13 +7,23 @@ import Anthropic from "@anthropic-ai/sdk";
 import { GET as openaiGET, OPTIONS as openaiOPTIONS } from "../openapi/route";
 import type { AppSettings, AIProvider } from "@/types";
 import { getCurrentUser } from "@/lib/auth";
-import { getEffectiveSettings, countBillableProviders } from "@/lib/providerConfig";
+import { getEffectiveSettings, countBillableProviders, PROVIDER_RPM_LIMITS, DEFAULT_PROVIDER_RPM, providerRateLimitBucket } from "@/lib/providerConfig";
 import { spendCredits, refundCredits, InsufficientCreditsError } from "@/lib/credits";
 import { createScan, completeScan, failScan, findCachedScan, setScanLedgerDebit, insertScanResults } from "@/lib/scans";
 import { qualifyReferral } from "@/lib/referrals";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, waitForProviderSlot } from "@/lib/rateLimit";
 import { captureEvent } from "@/lib/analytics/posthog";
 import { guardedFetch } from "@/lib/ssrf";
+
+// The full pipeline (main analysis + citations) can legitimately run past a
+// minute once the provider-slot waits below and Gemini's own retry/backoff
+// are counted — the previous unset value fell back to the platform default,
+// which is short enough to kill a scan mid-flight under load.
+export const maxDuration = 300;
+
+function providerCapacityError(name: string): Error {
+  return new Error(`${name} is at capacity right now (too many concurrent scans) — try again shortly.`);
+}
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -672,8 +682,7 @@ function attemptJSONRecovery(raw: string): object | null {
 }
 
 // ── AI providers ───────────────────────────────────────────────────────────
-async function callGemini(prompt: string, preferredModel?: string): Promise<object> {
-  const apiKey = process.env.GEMINI_API_KEY;
+async function callGemini(prompt: string, apiKey: string, preferredModel?: string): Promise<object> {
   if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
   const preferred = preferredModel ? normalizeGeminiModelName(String(preferredModel)) : null;
@@ -722,8 +731,8 @@ async function callGemini(prompt: string, preferredModel?: string): Promise<obje
   );
 }
 
-async function callOpenAI(prompt: string, model = "gpt-4o-mini"): Promise<object> {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+async function callOpenAI(prompt: string, apiKey: string, model = "gpt-4o-mini"): Promise<object> {
+  const client = new OpenAI({ apiKey });
   const res = await client.chat.completions.create({
     model,
     messages: [
@@ -740,12 +749,12 @@ async function callOpenAI(prompt: string, model = "gpt-4o-mini"): Promise<object
   return parseJSON(res.choices[0]?.message?.content || "{}");
 }
 
-async function callPerplexity(prompt: string, model = "sonar"): Promise<object> {
+async function callPerplexity(prompt: string, apiKey: string, model = "sonar"): Promise<object> {
   const res = await fetch("https://api.perplexity.ai/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model,
@@ -781,8 +790,7 @@ async function callPerplexity(prompt: string, model = "sonar"): Promise<object> 
   }
 }
 
-async function callClaude(prompt: string, model = "claude-sonnet-4-6"): Promise<object> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+async function callClaude(prompt: string, apiKey: string, model = "claude-sonnet-4-6"): Promise<object> {
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
   const client = new Anthropic({ apiKey });
@@ -807,8 +815,7 @@ async function callClaude(prompt: string, model = "claude-sonnet-4-6"): Promise<
   return parseJSON(content.text);
 }
 
-async function callYouCom(prompt: string, model = "smart"): Promise<object> {
-  const apiKey = process.env.YOUCOM_API_KEY;
+async function callYouCom(prompt: string, apiKey: string, model = "smart"): Promise<object> {
   if (!apiKey) throw new Error("YOUCOM_API_KEY not configured");
 
   const res = await fetch(`https://api.you.com/${model}`, {
@@ -836,8 +843,7 @@ async function callDuckDuckGoAI(_prompt: string): Promise<object> {
   );
 }
 
-async function callMetaAI(prompt: string, model = "meta-llama/Llama-3.3-70B-Instruct-Turbo"): Promise<object> {
-  const apiKey = process.env.META_AI_API_KEY;
+async function callMetaAI(prompt: string, apiKey: string, model = "meta-llama/Llama-3.3-70B-Instruct-Turbo"): Promise<object> {
   if (!apiKey) throw new Error("META_AI_API_KEY not configured: use a Together AI key for Meta Llama models");
 
   const res = await fetch("https://api.together.xyz/v1/chat/completions", {
@@ -870,8 +876,7 @@ async function callMetaAI(prompt: string, model = "meta-llama/Llama-3.3-70B-Inst
   return parseJSON(raw);
 }
 
-async function callCopilot(prompt: string, model: string = "gpt-4o"): Promise<object> {
-  const apiKey = process.env.AZURE_OPENAI_KEY;
+async function callCopilot(prompt: string, apiKey: string, model: string = "gpt-4o"): Promise<object> {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
   const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT || model;
   
@@ -934,46 +939,20 @@ async function runAllProviders(
     throw new Error("No AI provider enabled. Please enable and configure at least one provider in /settings");
   }
 
+    // Direct references — each call* fn takes apiKey as an explicit arg, so
+    // it's safe to reuse the same call* function across concurrent requests
+    // with different keys without any shared/global state in between.
     const providerFunctions: Record<string, (prompt: string, apiKey: string, model?: string) => Promise<object>> = {
-      gemini: async (prompt: string, apiKey: string, model?: string) => {
-        process.env.GEMINI_API_KEY = apiKey;
-        return callGemini(prompt, model);
-      },
-      "ai-overview": async (prompt: string, apiKey: string, model?: string) => {
-        process.env.GEMINI_API_KEY = apiKey;
-        return callGemini(prompt, model);
-      },
-      ai_overview: async (prompt: string, apiKey: string, model?: string) => {
-        process.env.GEMINI_API_KEY = apiKey;
-        return callGemini(prompt, model);
-      },
-      openai: async (prompt: string, apiKey: string, model?: string) => {
-        process.env.OPENAI_API_KEY = apiKey;
-        return callOpenAI(prompt, model);
-      },
-      perplexity: async (prompt: string, apiKey: string, model?: string) => {
-        process.env.PERPLEXITY_API_KEY = apiKey;
-        return callPerplexity(prompt, model);
-      },
-      claude: async (prompt: string, apiKey: string, model?: string) => {
-        process.env.ANTHROPIC_API_KEY = apiKey;
-        return callClaude(prompt, model);
-      },
-      copilot: async (prompt: string, apiKey: string, model?: string) => {
-        process.env.AZURE_OPENAI_KEY = apiKey;
-        return callCopilot(prompt, model);
-      },
-      youcom: async (prompt: string, apiKey: string, model?: string) => {
-        process.env.YOUCOM_API_KEY = apiKey;
-        return callYouCom(prompt, model);
-      },
-      duckduckgo: async (prompt: string, _apiKey: string) => {
-        return callDuckDuckGoAI(prompt);
-      },
-      meta: async (prompt: string, apiKey: string, model?: string) => {
-        process.env.META_AI_API_KEY = apiKey;
-        return callMetaAI(prompt, model);
-      },
+      gemini: callGemini,
+      "ai-overview": callGemini,
+      ai_overview: callGemini,
+      openai: callOpenAI,
+      perplexity: callPerplexity,
+      claude: callClaude,
+      copilot: callCopilot,
+      youcom: callYouCom,
+      duckduckgo: callDuckDuckGoAI,
+      meta: callMetaAI,
     };
 
   // If both gemini and ai-overview are enabled they share the same API key and model.
@@ -985,10 +964,11 @@ async function runAllProviders(
   if (geminiConfig && aiOverviewConfig) {
     const t0 = Date.now();
     console.log("[AI] calling " + geminiConfig.name + " (shared with ai-overview to save quota)...");
-    process.env.GEMINI_API_KEY = geminiConfig.apiKey;
     sharedGeminiPromise = (async (): Promise<ProviderResult> => {
       try {
-        const data = await callGemini(prompt, geminiConfig.model) as Record<string, unknown>;
+        const gotSlot = await waitForProviderSlot("gemini", PROVIDER_RPM_LIMITS.gemini);
+        if (!gotSlot) throw providerCapacityError(geminiConfig.name);
+        const data = await callGemini(prompt, geminiConfig.apiKey, geminiConfig.model) as Record<string, unknown>;
         const rawResponse = JSON.stringify(data, null, 2);
         console.log("[AI] " + geminiConfig.name + " done in " + (Date.now() - t0) + "ms");
         return { name: geminiConfig.name, data, error: null, durationMs: Date.now() - t0, prompt, rawResponse };
@@ -1026,6 +1006,9 @@ async function runAllProviders(
       }
 
       try {
+        const bucket = providerRateLimitBucket(provider.id);
+        const gotSlot = await waitForProviderSlot(bucket, PROVIDER_RPM_LIMITS[bucket] ?? DEFAULT_PROVIDER_RPM);
+        if (!gotSlot) throw providerCapacityError(provider.name);
         console.log("[AI] calling " + provider.name + "...");
         const data = await fn(prompt, provider.apiKey, provider.model) as Record<string, unknown>;
         const rawResponse = JSON.stringify(data, null, 2);
@@ -1228,14 +1211,13 @@ function containsMention(sentence: string, companyName: string, domain: string):
 }
 
 // ── Gemini citations (live Google Search) ─────────────────────────────────
-async function getGeminiCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+async function getGeminiCitations(siteUrl: string, companyName: string, apiKey: string): Promise<CitationResult> {
   const urlObj = new URL(siteUrl);
   const domain = urlObj.hostname.replace("www.", "");
   const query = citationQuery(companyName || domain, urlObj.origin);
   const sysPrompt = citationSystemPrompt();
 
   const attempt = async () => {
-    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
     const modelCandidates = getGeminiModelCandidates();
@@ -1319,14 +1301,14 @@ async function getGeminiCitations(siteUrl: string, companyName: string): Promise
 }
 
 // ── OpenAI citations (web_search_preview — live search) ───────────────────
-async function getOpenAICitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+async function getOpenAICitations(siteUrl: string, companyName: string, apiKey: string): Promise<CitationResult> {
   const urlObj = new URL(siteUrl);
   const domain = urlObj.hostname.replace("www.", "");
   const query = citationQuery(companyName || domain, urlObj.origin);
   const sysPrompt = citationSystemPrompt();
 
   try {
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const client = new OpenAI({ apiKey });
 
     // Use the Responses API with web_search_preview for live results
     const response = await client.responses.create({
@@ -1382,7 +1364,7 @@ async function getOpenAICitations(siteUrl: string, companyName: string): Promise
 }
 
 // ── Perplexity citations (live web search) ────────────────────────────────
-async function getPerplexityCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+async function getPerplexityCitations(siteUrl: string, companyName: string, apiKey: string): Promise<CitationResult> {
   const urlObj = new URL(siteUrl);
   const domain = urlObj.hostname.replace("www.", "");
   const query = citationQuery(companyName || domain, urlObj.origin);
@@ -1390,7 +1372,7 @@ async function getPerplexityCitations(siteUrl: string, companyName: string): Pro
   try {
     const res = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: "sonar",
         messages: [{ role: "system", content: sysPrompt }, { role: "user", content: query }],
@@ -1422,13 +1404,12 @@ async function getPerplexityCitations(siteUrl: string, companyName: string): Pro
 }
 
 // ── Claude citations ──────────────────────────────────────────────────────
-async function getClaudeCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+async function getClaudeCitations(siteUrl: string, companyName: string, apiKey: string): Promise<CitationResult> {
   const urlObj = new URL(siteUrl);
   const domain = urlObj.hostname.replace("www.", "");
   const query = citationQuery(companyName || domain, urlObj.origin);
   const sysPrompt = citationSystemPrompt();
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
@@ -1466,13 +1447,12 @@ async function getClaudeCitations(siteUrl: string, companyName: string): Promise
 }
 
 // ── Meta AI citations ─────────────────────────────────────────────────────
-async function getMetaCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+async function getMetaCitations(siteUrl: string, companyName: string, apiKey: string): Promise<CitationResult> {
   const urlObj = new URL(siteUrl);
   const domain = urlObj.hostname.replace("www.", "");
   const query = citationQuery(companyName || domain, urlObj.origin);
   const sysPrompt = citationSystemPrompt();
   try {
-    const apiKey = process.env.META_AI_API_KEY;
     if (!apiKey) throw new Error("META_AI_API_KEY not configured");
     const res = await fetch("https://api.together.xyz/v1/chat/completions", {
       method: "POST",
@@ -1500,13 +1480,12 @@ async function getMetaCitations(siteUrl: string, companyName: string): Promise<C
 }
 
 // ── You.com citations ─────────────────────────────────────────────────────
-async function getYouComCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+async function getYouComCitations(siteUrl: string, companyName: string, apiKey: string): Promise<CitationResult> {
   const urlObj = new URL(siteUrl);
   const domain = urlObj.hostname.replace("www.", "");
   const query = citationQuery(companyName || domain, urlObj.origin);
   const sysPrompt = citationSystemPrompt();
   try {
-    const apiKey = process.env.YOUCOM_API_KEY;
     if (!apiKey) throw new Error("YOUCOM_API_KEY not configured");
     const res = await fetch("https://api.you.com/smart", {
       method: "POST",
@@ -1532,13 +1511,12 @@ async function getYouComCitations(siteUrl: string, companyName: string): Promise
 }
 
 // ── Copilot citations ─────────────────────────────────────────────────────
-async function getCopilotCitations(siteUrl: string, companyName: string): Promise<CitationResult> {
+async function getCopilotCitations(siteUrl: string, companyName: string, apiKey: string): Promise<CitationResult> {
   const urlObj = new URL(siteUrl);
   const domain = urlObj.hostname.replace("www.", "");
   const query = citationQuery(companyName || domain, urlObj.origin);
   const sysPrompt = citationSystemPrompt();
   try {
-    const apiKey = process.env.AZURE_OPENAI_KEY;
     const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
     if (!apiKey || !endpoint) throw new Error("Azure OpenAI not configured");
     const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o";
@@ -1610,7 +1588,7 @@ async function runCitationChecks(
       error: String(err).slice(0, 150),
     }));
 
-  const citationFns: Record<string, (siteUrl: string, companyName: string) => Promise<CitationResult>> = {
+  const citationFns: Record<string, (siteUrl: string, companyName: string, apiKey: string) => Promise<CitationResult>> = {
     gemini: getGeminiCitations,
     openai: getOpenAICitations,
     perplexity: getPerplexityCitations,
@@ -1620,28 +1598,20 @@ async function runCitationChecks(
     copilot: getCopilotCitations,
   };
 
-  const envKeyMap: Record<string, [string, string]> = {
-    gemini: ["GEMINI_API_KEY", "apiKey"],
-    "ai-overview": ["GEMINI_API_KEY", "apiKey"],
-    openai: ["OPENAI_API_KEY", "apiKey"],
-    perplexity: ["PERPLEXITY_API_KEY", "apiKey"],
-    claude: ["ANTHROPIC_API_KEY", "apiKey"],
-    meta: ["META_AI_API_KEY", "apiKey"],
-    youcom: ["YOUCOM_API_KEY", "apiKey"],
-    copilot: ["AZURE_OPENAI_KEY", "apiKey"],
-  };
-
   const enabledProviders = settings?.providers?.filter(p => p.enabled && p.apiKey) ?? [];
 
   // Step 1: handle gemini first so ai-overview can reuse its result
   let geminiCitationPromise: Promise<CitationResult> | null = null;
   const geminiProvider = enabledProviders.find(p => p.id === "gemini");
   if (geminiProvider) {
-    process.env.GEMINI_API_KEY = geminiProvider.apiKey;
     if (skipGemini) {
       geminiCitationPromise = Promise.resolve(unavailable("Gemini 2.0 Flash", "Skipped because Gemini failed during main analysis"));
     } else {
-      geminiCitationPromise = wrap("Gemini 2.0 Flash", () => getGeminiCitations(siteUrl, companyName));
+      geminiCitationPromise = wrap("Gemini 2.0 Flash", async () => {
+        const gotSlot = await waitForProviderSlot("gemini", PROVIDER_RPM_LIMITS.gemini);
+        if (!gotSlot) throw providerCapacityError("Gemini");
+        return getGeminiCitations(siteUrl, companyName, geminiProvider.apiKey);
+      });
     }
     tasks.push(geminiCitationPromise);
   }
@@ -1661,16 +1631,14 @@ async function runCitationChecks(
         tasks.push(geminiCitationPromise.then(r => ({ ...r, provider: "Google AI Overview" })));
       } else {
         // Gemini provider not separately configured — run independently
-        process.env.GEMINI_API_KEY = provider.apiKey;
-        tasks.push(wrap("Google AI Overview", () =>
-          getGeminiCitations(siteUrl, companyName).then(r => ({ ...r, provider: "Google AI Overview" }))
-        ));
+        tasks.push(wrap("Google AI Overview", async () => {
+          const gotSlot = await waitForProviderSlot("gemini", PROVIDER_RPM_LIMITS.gemini);
+          if (!gotSlot) throw providerCapacityError("Google AI Overview");
+          return getGeminiCitations(siteUrl, companyName, provider.apiKey).then(r => ({ ...r, provider: "Google AI Overview" }));
+        }));
       }
       continue;
     }
-
-    const envEntry = envKeyMap[provider.id];
-    if (envEntry) process.env[envEntry[0]] = provider.apiKey;
 
     const fn = citationFns[provider.id];
     if (!fn) {
@@ -1678,7 +1646,12 @@ async function runCitationChecks(
       continue;
     }
 
-    tasks.push(wrap(provider.name, () => fn(siteUrl, companyName)));
+    tasks.push(wrap(provider.name, async () => {
+      const bucket = providerRateLimitBucket(provider.id);
+      const gotSlot = await waitForProviderSlot(bucket, PROVIDER_RPM_LIMITS[bucket] ?? DEFAULT_PROVIDER_RPM);
+      if (!gotSlot) throw providerCapacityError(provider.name);
+      return fn(siteUrl, companyName, provider.apiKey);
+    }));
   }
 
   const results = await Promise.all(tasks);

@@ -33,6 +33,30 @@ export const DEFAULT_PROVIDERS: Omit<AIProvider, "apiKey">[] = [
   { id: "meta", name: "Meta AI (Llama via Together AI)", enabled: false, model: "meta-llama/Llama-3.3-70B-Instruct-Turbo" },
 ];
 
+// Requests/minute shared across EVERY concurrent user for that provider.
+// All scans call out with the same platform-owned key (see PROVIDER_ENV_KEYS
+// above), so without a shared budget a burst of concurrent scans just races
+// for the provider's real account-wide rate limit and everyone draws 429s.
+// waitForProviderSlot() (lib/rateLimit.ts) enforces this. "ai-overview"
+// shares Gemini's key and isn't listed separately — call sites normalize it
+// to the "gemini" bucket. Defaults are conservative guesses; tune them
+// against your actual provider dashboard limits via the env vars below.
+export const DEFAULT_PROVIDER_RPM = 30;
+export const PROVIDER_RPM_LIMITS: Record<string, number> = {
+  gemini: Number(process.env.RATE_LIMIT_GEMINI_RPM) || 10,
+  openai: Number(process.env.RATE_LIMIT_OPENAI_RPM) || 60,
+  perplexity: Number(process.env.RATE_LIMIT_PERPLEXITY_RPM) || 40,
+  claude: Number(process.env.RATE_LIMIT_CLAUDE_RPM) || 40,
+  copilot: Number(process.env.RATE_LIMIT_COPILOT_RPM) || 30,
+  youcom: Number(process.env.RATE_LIMIT_YOUCOM_RPM) || 30,
+  meta: Number(process.env.RATE_LIMIT_META_RPM) || 30,
+};
+
+/** Normalizes a provider id to its rate-limit bucket — ai-overview shares Gemini's key/quota. */
+export function providerRateLimitBucket(providerId: string): string {
+  return providerId === "ai-overview" || providerId === "ai_overview" ? "gemini" : providerId;
+}
+
 // Deprecated/retired model ids get transparently remapped, so an admin's
 // stored provider_config row never has to be hand-edited after a provider
 // deprecates a model version.
