@@ -6,26 +6,28 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * is allowed (and records it), false if the bucket is over limit for the
  * window. Fails OPEN on a database error — a rate-limiter outage should
  * not take down the whole app.
+ *
+ * The check-and-record happens atomically inside check_and_record_rate_limit
+ * (see supabase/migrations/20260821000001_atomic_rate_limit.sql) — a plain
+ * SELECT count + INSERT from here would race under concurrent callers on
+ * the same bucket (two calls both read "under limit" before either writes),
+ * which defeats the limit at exactly the concurrency it's meant to hold.
  */
 export async function checkRateLimit(bucket: string, limit: number, windowMs: number): Promise<boolean> {
   const admin = createAdminClient();
-  const cutoff = new Date(Date.now() - windowMs).toISOString();
 
-  const { count, error } = await admin
-    .from("rate_limit_events")
-    .select("*", { count: "exact", head: true })
-    .eq("bucket", bucket)
-    .gte("created_at", cutoff);
+  const { data, error } = await admin.rpc("check_and_record_rate_limit", {
+    p_bucket: bucket,
+    p_limit: limit,
+    p_window_ms: windowMs,
+  });
 
   if (error) {
     console.warn("[rateLimit] check failed, failing open:", error);
     return true;
   }
 
-  if ((count ?? 0) >= limit) return false;
-
-  await admin.from("rate_limit_events").insert({ bucket });
-  return true;
+  return data === true;
 }
 
 /**
