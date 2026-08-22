@@ -1,6 +1,6 @@
 # AiScope
 
-> AiScope, by Marcstrat, audits how AI systems (ChatGPT, Gemini, Perplexity, and others) discover, crawl, and cite websites — checking crawler access, llms.txt presence, structured data, and live AI citation research.
+> AiScope, by Marcstrat, audits how AI systems (ChatGPT, Gemini, Perplexity, and others) discover, crawl, and cite websites, checking crawler access, llms.txt presence, structured data, and live AI citation research.
 
 AiScope is currently in public beta. Agencies, SEO/GEO consultants, and technical marketers can sign up for free.
 

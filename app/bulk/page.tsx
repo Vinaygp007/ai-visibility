@@ -1125,7 +1125,7 @@ export default function BulkPage() {
               </div>
 
               <p className="text-[13px] leading-relaxed mb-4" style={{ color: "var(--text-muted)" }}>
-                When this is on, we send real prompts to Gemini, ChatGPT and Perplexity for each URL to see whether — and how often — they cite that site, plus which competitors show up instead.
+                When this is on, we send real prompts to Gemini, ChatGPT and Perplexity for each URL to see whether (and how often) they cite that site, plus which competitors show up instead.
               </p>
 
               <ul className="text-[13px] leading-relaxed mb-4 space-y-1.5 list-disc pl-4" style={{ color: "var(--text-muted)" }}>
@@ -1135,7 +1135,7 @@ export default function BulkPage() {
               </ul>
 
               <p className="text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                Turning it off runs a faster, basic scan across all URLs that only checks crawler access and structured data — no live AI citation research.
+                Turning it off runs a faster, basic scan across all URLs that only checks crawler access and structured data, with no live AI citation research.
               </p>
 
               <button

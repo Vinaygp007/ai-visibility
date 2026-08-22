@@ -21,7 +21,7 @@ export async function POST() {
     .single();
 
   if (!profile?.stripe_customer_id) {
-    return NextResponse.json({ error: { code: "no_subscription", message: "No billing account yet — subscribe to a plan first." } }, { status: 400 });
+    return NextResponse.json({ error: { code: "no_subscription", message: "No billing account yet. Subscribe to a plan first." } }, { status: 400 });
   }
 
   const stripe = getStripeClient();

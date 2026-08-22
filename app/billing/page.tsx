@@ -109,7 +109,7 @@ export default function BillingPage() {
               <StatCard
                 icon={Calendar}
                 label={user?.subscriptionStatus === "canceled" ? "Access ends" : "Renews"}
-                value={periodDate ? periodDate.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"}
+                value={periodDate ? periodDate.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "n/a"}
                 tone="violet"
                 caption={isFree ? "no billing cycle" : periodDate ? periodDate.getFullYear().toString() : "n/a"}
               />

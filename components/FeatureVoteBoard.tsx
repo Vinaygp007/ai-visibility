@@ -27,7 +27,7 @@ const CANDIDATES: Candidate[] = [
     key: "bulk",
     label: "Bulk Scanner",
     icon: Layers,
-    desc: "Scan dozens of URLs in one run — queue a list and get AI-visibility scores across your whole site.",
+    desc: "Scan dozens of URLs in one run: queue a list and get AI-visibility scores across your whole site.",
     chips: ["14 AI Bots Checked", "Streams results live", "CSV & PDF export"],
     image: { light: "/real-data/bulk-light.webp", dark: "/real-data/bulk-dark.webp" },
   },
@@ -43,11 +43,11 @@ const CANDIDATES: Candidate[] = [
 
 const INTROS: Record<"neutral" | VotePage, string> = {
   neutral:
-    "We're launching with Scan only. Bulk Scanner and Prompt Runner are both built — cast your vote for the one you want first, and we'll ship the winner in v2. You get one vote, for one page, so pick carefully.",
+    "We're launching with Scan only. Bulk Scanner and Prompt Runner are both built, so cast your vote for the one you want first, and we'll ship the winner in v2. You get one vote, for one page, so pick carefully.",
   bulk:
-    "Bulk Scanner isn't open to your account yet — it ships in v2 if it wins this vote. Pick it, or Prompt Runner, below. You get one vote, for one page, so pick carefully.",
+    "Bulk Scanner isn't open to your account yet. It ships in v2 if it wins this vote. Pick it, or Prompt Runner, below. You get one vote, for one page, so pick carefully.",
   prompt:
-    "Prompt Runner isn't open to your account yet — it ships in v2 if it wins this vote. Pick it, or Bulk Scanner, below. You get one vote, for one page, so pick carefully.",
+    "Prompt Runner isn't open to your account yet. It ships in v2 if it wins this vote. Pick it, or Bulk Scanner, below. You get one vote, for one page, so pick carefully.",
 };
 
 // Eases 0 -> target on every change; simple and glitch-free since target only

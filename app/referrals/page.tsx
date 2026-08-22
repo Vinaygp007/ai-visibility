@@ -227,7 +227,7 @@ export default function ReferralsPage() {
                               {new Date(r.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                             </td>
                             <td className="hidden sm:table-cell px-6 py-3.5 text-right font-mono" style={{ color: r.status === "rewarded" ? "var(--success)" : "var(--text-dim)" }}>
-                              {r.status === "rewarded" ? `+${r.reward}` : "—"}
+                              {r.status === "rewarded" ? `+${r.reward}` : "N/A"}
                             </td>
                             <td className="px-3 sm:px-6 py-3.5 text-right">
                               <div className="flex flex-col items-end gap-0.5">

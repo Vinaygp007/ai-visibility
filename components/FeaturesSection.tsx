@@ -26,7 +26,7 @@ export default function FeaturesSection() {
           // THE OUTCOME
         </div>
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 text-[var(--text)]">
-          Not just a score — a plan
+          Not just a score: a plan
         </h2>
         <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
           Every audit merges three AI providers into a single number, then turns it into a ranked list of exactly what to fix first.

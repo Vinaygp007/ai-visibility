@@ -20,7 +20,7 @@ export default function BillingSuccessPage() {
         </div>
         <h1 className="text-2xl font-bold text-[var(--text)] mb-2">You&apos;re subscribed</h1>
         <p className="text-sm leading-relaxed mb-7" style={{ color: "var(--text-muted)" }}>
-          Payment confirmed — your plan and credits have been updated. This can take a few seconds to
+          Payment confirmed. Your plan and credits have been updated. This can take a few seconds to
           reflect if you check right away.
         </p>
 

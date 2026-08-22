@@ -85,7 +85,7 @@ export default function BotCoverageTable({
                   {bot.label}
                 </div>
                 <div className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
-                  {bot.company || "—"}
+                  {bot.company || "N/A"}
                 </div>
               </div>
               <span
@@ -142,7 +142,7 @@ export default function BotCoverageTable({
                   </td>
                   <td className="px-5 py-3">
                     <span className="text-[12px]" style={{ color: "var(--text-muted)" }}>
-                      {bot.company || "—"}
+                      {bot.company || "N/A"}
                     </span>
                   </td>
                   <td className="px-5 py-3">
@@ -163,7 +163,7 @@ export default function BotCoverageTable({
                       style={{ color: "var(--text-dim)" }}
                       title={bot.directive ?? bot.reason}
                     >
-                      {bot.directive ?? bot.reason ?? "—"}
+                      {bot.directive ?? bot.reason ?? "N/A"}
                     </span>
                   </td>
                 </tr>

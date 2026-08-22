@@ -22,7 +22,7 @@ import { guardedFetch } from "@/lib/ssrf";
 export const maxDuration = 300;
 
 function providerCapacityError(name: string): Error {
-  return new Error(`${name} is at capacity right now (too many concurrent scans) — try again shortly.`);
+  return new Error(`${name} is at capacity right now (too many concurrent scans). Try again shortly.`);
 }
 
 function sleep(ms: number) {

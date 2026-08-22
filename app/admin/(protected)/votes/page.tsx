@@ -31,7 +31,7 @@ async function getVoteData() {
       userId: v.user_id,
       page: v.page as VotePage,
       createdAt: v.created_at as string,
-      email: profileById.get(v.user_id)?.email ?? "—",
+      email: profileById.get(v.user_id)?.email ?? "N/A",
       fullName: profileById.get(v.user_id)?.full_name ?? null,
     })),
   };
@@ -53,7 +53,7 @@ export default async function AdminVotesPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-[var(--text)] mb-1">v2 feature vote</h2>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Every active account gets one permanent vote for Bulk Scanner or Prompt Runner — whichever leads here ships in v2.
+          Every active account gets one permanent vote for Bulk Scanner or Prompt Runner. Whichever leads here ships in v2.
         </p>
       </div>
 
@@ -82,11 +82,11 @@ export default async function AdminVotesPage() {
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--accent)" }} />
-              Bulk Scanner — {bulk} vote{bulk === 1 ? "" : "s"}
+              Bulk Scanner: {bulk} vote{bulk === 1 ? "" : "s"}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--accent2)" }} />
-              Prompt Runner — {prompt} vote{prompt === 1 ? "" : "s"}
+              Prompt Runner: {prompt} vote{prompt === 1 ? "" : "s"}
             </span>
           </div>
         </div>

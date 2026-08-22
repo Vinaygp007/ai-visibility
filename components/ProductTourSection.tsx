@@ -25,7 +25,7 @@ const CATEGORIES: TourCategory[] = [
     key: "crawlers",
     label: "AI Crawler Access",
     Icon: Bot,
-    desc: "See exactly which of the 14 AI bots we check — GPTBot, ClaudeBot, PerplexityBot, Google-Extended and more — can actually reach your pages.",
+    desc: "See exactly which of the 14 AI bots we check (GPTBot, ClaudeBot, PerplexityBot, Google-Extended and more) can actually reach your pages.",
     links: [
       { label: "Run a crawler check", href: "/scan" },
     ],
@@ -48,7 +48,7 @@ const CATEGORIES: TourCategory[] = [
     key: "citations",
     label: "AI Citation Tracking",
     Icon: MessageSquareQuote,
-    desc: "Ask the exact buyer-intent questions your customers ask, and see which sources ChatGPT, Gemini and Perplexity actually cite back — you or your competitors.",
+    desc: "Ask the exact buyer-intent questions your customers ask, and see which sources ChatGPT, Gemini and Perplexity actually cite back: you or your competitors.",
     links: [
       { label: "Track your citations", href: "/bulk-prompt" },
       { label: "How scoring works", href: "/#features" },
@@ -145,7 +145,7 @@ export default function ProductTourSection() {
         {theme && (
           <img
             src={cat.image[theme]}
-            alt={`${cat.label} — real scan data`}
+            alt={`Real scan data for ${cat.label}`}
             className="block rounded-lg"
             style={{ maxWidth: "100%", height: "auto" }}
           />

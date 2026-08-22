@@ -1526,7 +1526,10 @@ function HomepageRow({ report, onClick, delay }: { report: ReportSummary; onClic
             <CheckCircle2 size={11} /> Cached
           </span>
         ) : (
-          <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>—</span>
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: "rgba(0,232,122,0.1)", color: "var(--success)" }}>
+            <CheckCircle2 size={11} /> Completed
+          </span>
         )}
       </td>
       <td className="px-3 sm:px-6 py-3.5">

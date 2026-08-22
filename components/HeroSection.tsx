@@ -173,7 +173,7 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
             </div>
 
             <p className="text-[13px] leading-relaxed mb-4" style={{ color: "var(--text-muted)" }}>
-              When this is on, we send real prompts to Gemini, ChatGPT and Perplexity to see whether — and how often — they cite your site, plus which competitors show up instead.
+              When this is on, we send real prompts to Gemini, ChatGPT and Perplexity to see whether (and how often) they cite your site, plus which competitors show up instead.
             </p>
 
             <ul className="text-[13px] leading-relaxed mb-4 space-y-1.5 list-disc pl-4" style={{ color: "var(--text-muted)" }}>
@@ -183,7 +183,7 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
             </ul>
 
             <p className="text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              Turning it off runs a faster, basic scan that only checks crawler access and structured data — no live AI citation research.
+              Turning it off runs a faster, basic scan that only checks crawler access and structured data, with no live AI citation research.
             </p>
 
             <button

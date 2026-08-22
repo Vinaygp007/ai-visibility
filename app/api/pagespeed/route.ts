@@ -85,7 +85,7 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
     const raw = String(err);
     const friendly =
       raw.includes("abort") || raw.includes("Abort")
-        ? "Speed test timed out (110s). This site's full Lighthouse audit is taking unusually long — try again, or it may have anti-bot protection blocking Google's crawler."
+        ? "Speed test timed out (110s). This site's full Lighthouse audit is taking unusually long. Try again, or it may have anti-bot protection blocking Google's crawler."
         : raw.includes("fetch failed") || raw.includes("ENOTFOUND") || raw.includes("ECONNREFUSED")
         ? "Cannot reach Google PageSpeed API. Ensure the URL is publicly accessible and internet is available. Add PAGESPEED_API_KEY to .env for higher rate limits."
         : raw.slice(0, 200);

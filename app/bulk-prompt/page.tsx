@@ -1637,7 +1637,7 @@ export default function MultiPromptPage() {
             </div>
 
             <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-muted)", margin: "0 0 14px" }}>
-              When this is on, we send each prompt to Gemini, ChatGPT and Perplexity to see whether — and how often — they cite your site, plus which competitors show up instead.
+              When this is on, we send each prompt to Gemini, ChatGPT and Perplexity to see whether (and how often) they cite your site, plus which competitors show up instead.
             </p>
 
             <ul style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-muted)", margin: "0 0 14px", paddingLeft: 18 }}>
