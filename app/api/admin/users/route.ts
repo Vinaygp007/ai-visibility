@@ -189,10 +189,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: { code: "internal", message: "Failed to delete user." } }, { status: 500, headers: CORS_HEADERS });
   }
 
-  if (profile?.email) {
-    await admin.from("waitlist").delete().eq("email", profile.email.toLowerCase());
-  }
-
   await logAdminAction({
     actorId: gate.user.id,
     action: "user.delete",
