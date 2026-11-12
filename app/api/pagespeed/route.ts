@@ -64,23 +64,81 @@ function extractMetric(audit: Record<string, unknown> | undefined): MetricValue 
   };
 }
 
+// PSI wraps failures as { error: { code, message } }. Turn that into
+// something a user can act on instead of a truncated JSON blob.
+function friendlyPsiError(status: number, body: string): string {
+  let message = body;
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string } };
+    if (parsed.error?.message) message = parsed.error.message;
+  } catch {
+    /* not JSON, keep raw text */
+  }
+  if (status === 429 || /quota/i.test(message)) {
+    return "Google PageSpeed quota reached. Try again in a few minutes.";
+  }
+  if (/API key not valid/i.test(message)) {
+    return "PageSpeed API key is invalid. Check PAGESPEED_API_KEY in the deployment settings.";
+  }
+  const lh = message.match(/Lighthouse returned error: (\w+)/);
+  if (lh) {
+    const code = lh[1];
+    const reasons: Record<string, string> = {
+      NO_FCP: "the page didn't render any content for Google's test browser",
+      FAILED_DOCUMENT_REQUEST: "Google's test browser couldn't load the page",
+      ERRORED_DOCUMENT_REQUEST: "the site returned an error to Google's test browser",
+      DNS_FAILURE: "the domain couldn't be resolved",
+      NOT_HTML: "the URL didn't return an HTML page",
+    };
+    return `Google couldn't test this page (${code}): ${reasons[code] ?? "Lighthouse run failed"}. The site may be blocking bots or loading slowly. Try Re-test.`;
+  }
+  return `PageSpeed error ${status}: ${message.slice(0, 200)}`;
+}
+
+// Lighthouse runtime failures (NO_FCP, FAILED_DOCUMENT_REQUEST, ...) come back
+// as 400/500 and are often transient, especially on the throttled mobile run.
+function isRetryable(status: number, body: string): boolean {
+  if (status >= 500) return true;
+  return status === 400 && /Lighthouse returned error/i.test(body);
+}
+
+// The server-response-time audit's displayValue is a sentence
+// ("Root document took 180 ms"), not a value, so format the number ourselves.
+function ttfbMetric(audit: Record<string, unknown> | undefined): MetricValue {
+  const m = extractMetric(audit);
+  if (typeof m.numericValue === "number") {
+    m.displayValue = `${Math.round(m.numericValue).toLocaleString("en-US")} ms`;
+  }
+  return m;
+}
+
 async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: string): Promise<SpeedResult> {
   const params = new URLSearchParams({ url, strategy });
   if (apiKey) params.set("key", apiKey);
 
-  let data: Record<string, unknown>;
+  let data: Record<string, unknown> | undefined;
+  const deadline = Date.now() + 110_000;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 110_000);
   try {
-    const res = await fetch(`${PSI}?${params}`, {
-      headers: { Accept: "application/json" },
-      signal: ctrl.signal,
-    });
-    if (!res.ok) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const res = await fetch(`${PSI}?${params}`, {
+        headers: { Accept: "application/json" },
+        signal: ctrl.signal,
+      });
+      if (res.ok) {
+        data = await res.json() as Record<string, unknown>;
+        break;
+      }
       const errText = await res.text();
-      return emptyResult(strategy, `PSI API error ${res.status}: ${errText.slice(0, 150)}`);
+      // Only retry if there's realistically time for a second Lighthouse run.
+      if (attempt === 1 && isRetryable(res.status, errText) && deadline - Date.now() > 45_000) {
+        console.warn(`[pagespeed] ${strategy} attempt 1 failed (${res.status}), retrying`);
+        continue;
+      }
+      return emptyResult(strategy, friendlyPsiError(res.status, errText));
     }
-    data = await res.json() as Record<string, unknown>;
+    if (!data) return emptyResult(strategy, "PageSpeed returned no data.");
   } catch (err) {
     const raw = String(err);
     const friendly =
@@ -110,7 +168,7 @@ async function runPSI(url: string, strategy: "mobile" | "desktop", apiKey: strin
     cls:  extractMetric(audits?.["cumulative-layout-shift"]),
     inp:  extractMetric(audits?.["interaction-to-next-paint"] ?? audits?.["max-potential-fid"]),
     fcp:  extractMetric(audits?.["first-contentful-paint"]),
-    ttfb: extractMetric(audits?.["server-response-time"]),
+    ttfb: ttfbMetric(audits?.["server-response-time"]),
     tbt:  extractMetric(audits?.["total-blocking-time"]),
   };
 
