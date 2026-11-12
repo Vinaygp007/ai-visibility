@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useRouter } from "next/navigation";
 import ReportModal from "@/components/ReportModal";
 import StatCard from "@/components/StatCard";
@@ -821,10 +822,12 @@ function HamburgerMenu({
   activeTab,
   onTabChange,
   counts,
+  visibleTabs,
 }: {
   activeTab: ScanType;
   onTabChange: (t: ScanType) => void;
   counts: Record<ScanType, number>;
+  visibleTabs: ScanType[];
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -841,7 +844,7 @@ function HamburgerMenu({
     { key: "homepage" as ScanType, label: "Homepage Scans", Icon: Search, desc: "Individual URL analyses" },
     { key: "bulk" as ScanType, label: "Bulk Scans", Icon: Zap, desc: "Multi-URL batch jobs" },
     { key: "bulk_prompt" as ScanType, label: "Bulk Prompts", Icon: MessageSquare, desc: "Custom prompt runs" },
-  ];
+  ].filter((t) => visibleTabs.includes(t.key));
 
   return (
     <div className="relative" ref={ref}>
@@ -1012,6 +1015,16 @@ export default function PreviousReportsPage() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<ScanType>("homepage");
+
+  // Bulk Scanner is admin-only (see app/bulk/layout.tsx), so regular users
+  // never have bulk jobs: hide that tab for them.
+  const { user: currentUser } = useCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
+  const visibleTabs: ScanType[] = isAdmin ? ["homepage", "bulk", "bulk_prompt"] : ["homepage", "bulk_prompt"];
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) setActiveTab("homepage");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, activeTab]);
 
   // Homepage scan state
   const [reports, setReports] = useState<ReportSummary[]>([]);
@@ -1259,7 +1272,7 @@ export default function PreviousReportsPage() {
 
         {/* ── Tab switcher ─────────────────────────────────────────────────── */}
         <div className="mb-6 flex items-center gap-4 flex-wrap">
-          <HamburgerMenu activeTab={activeTab} onTabChange={setActiveTab} counts={counts} />
+          <HamburgerMenu activeTab={activeTab} onTabChange={setActiveTab} counts={counts} visibleTabs={visibleTabs} />
           <div
             className="flex items-center rounded-xl border p-1 gap-1"
             style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.08)", boxShadow: CARD_SHADOW }}
@@ -1268,7 +1281,7 @@ export default function PreviousReportsPage() {
               { key: "homepage" as ScanType, label: "Homepage", Icon: Search },
               { key: "bulk" as ScanType, label: "Bulk Scan", Icon: Zap },
               { key: "bulk_prompt" as ScanType, label: "Bulk Prompt", Icon: MessageSquare },
-            ] as const).map((tab) => (
+            ] as const).filter((tab) => visibleTabs.includes(tab.key)).map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}

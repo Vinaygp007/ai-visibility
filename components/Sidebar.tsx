@@ -4,13 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { Search, Layers, Terminal, Vote, FileText, History, Users, CreditCard, Settings, LogOut } from "lucide-react";
+import { Search, Layers, Terminal, FileText, History, Users, CreditCard, Settings, LogOut } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import BetaBadge from "./BetaBadge";
 
-// Bulk Scanner / Prompt Runner stay admin-only until the v2 feature vote
-// picks a winner (see app/bulk and app/bulk-prompt layouts) — regular users
-// get a link to the vote instead of two links that would just redirect them.
+// Bulk Scanner stays admin-only until v2 (see app/bulk layout); Prompt Runner
+// is open to everyone. The v2 vote (/vote) is hidden for now.
 export function getPrimaryLinks(isAdmin: boolean): { href: string; label: string; icon: LucideIcon }[] {
   if (isAdmin) {
     return [
@@ -21,7 +20,7 @@ export function getPrimaryLinks(isAdmin: boolean): { href: string; label: string
   }
   return [
     { href: "/scan", label: "Scan", icon: Search },
-    { href: "/vote", label: "Vote on v2", icon: Vote },
+    { href: "/bulk-prompt", label: "Prompt Runner", icon: Terminal },
   ];
 }
 
