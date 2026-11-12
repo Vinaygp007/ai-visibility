@@ -129,6 +129,18 @@ function dotColor(count: number) {
 }
 
 // ── Single prompt container card ──────────────────────────────────────────
+// Same URL with/without www, http(s) or a trailing slash counts once.
+// (The API now dedupes too; this also cleans runs saved before that fix.)
+function dedupeCitationUrls(urls: string[]): string[] {
+  const seen = new Set<string>();
+  return urls.filter((u) => {
+    const key = u.trim().toLowerCase().replace(/^https?:\/\/(www\.)?/, "").replace(/\/+$/, "");
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function PromptCard({
   container,
   index,
@@ -146,6 +158,8 @@ function PromptCard({
 }) {
   const { id, prompt, url, status, responses, citations, error, activeProvider, activeTab, activeCitProvider } = container;
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // Providers whose citation URL list is expanded past the first 6.
+  const [expandedUrls, setExpandedUrls] = useState<Record<string, boolean>>({});
 
   const hasCitations = citations.length > 0;
 
@@ -512,12 +526,12 @@ function PromptCard({
                       {c.status === "success" && (
                         <span style={{
                           fontSize: 9, fontFamily: "monospace",
-                          color: dotColor(c.count),
-                          background: `${dotColor(c.count)}18`,
-                          border: `1px solid ${dotColor(c.count)}44`,
+                          color: dotColor(dedupeCitationUrls(c.allCitationUrls).length),
+                          background: `${dotColor(dedupeCitationUrls(c.allCitationUrls).length)}18`,
+                          border: `1px solid ${dotColor(dedupeCitationUrls(c.allCitationUrls).length)}44`,
                           padding: "1px 6px", borderRadius: 4,
                         }}>
-                          {c.count} URL{c.count !== 1 ? "s" : ""}
+                          {dedupeCitationUrls(c.allCitationUrls).length} URL{dedupeCitationUrls(c.allCitationUrls).length !== 1 ? "s" : ""}
                         </span>
                       )}
                       <ChevronDown
@@ -555,9 +569,13 @@ function PromptCard({
                         </div>
 
                         {/* Citation URLs */}
-                        {c.allCitationUrls.length > 0 && (
+                        {c.allCitationUrls.length > 0 && (() => {
+                          // Same list the badge counts: first 6, then "+N more" expands the rest.
+                          const urls = dedupeCitationUrls(c.allCitationUrls);
+                          const expanded = !!expandedUrls[c.provider];
+                          return (
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            {c.allCitationUrls.slice(0, 6).map((url, i) => (
+                            {(expanded ? urls : urls.slice(0, 6)).map((url, i) => (
                               <a key={i} href={url} target="_blank" rel="noreferrer"
                                 className="pr-url-row"
                                 style={{
@@ -572,13 +590,22 @@ function PromptCard({
                                 <ExternalLink size={9} style={{ flexShrink: 0, opacity: 0.7 }} />
                               </a>
                             ))}
-                            {c.allCitationUrls.length > 6 && (
-                              <span style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "monospace", paddingLeft: 4 }}>
-                                +{c.allCitationUrls.length - 6} more
-                              </span>
+                            {urls.length > 6 && (
+                              <button
+                                type="button"
+                                onClick={() => setExpandedUrls((m) => ({ ...m, [c.provider]: !expanded }))}
+                                className="pr-tab"
+                                style={{
+                                  alignSelf: "flex-start", fontSize: 10, color: "var(--text-dim)", fontFamily: "monospace",
+                                  padding: "2px 4px", background: "transparent", border: "none", cursor: "pointer",
+                                }}
+                              >
+                                {expanded ? "Show less" : `+${urls.length - 6} more`}
+                              </button>
                             )}
                           </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

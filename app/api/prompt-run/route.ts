@@ -255,6 +255,17 @@ function buildCaller(
   };
 }
 
+// Treat http/https, "www." and a trailing slash as the same URL; keep the first spelling seen.
+function dedupeUrls(urls: string[]): string[] {
+  const seen = new Set<string>();
+  return urls.filter((u) => {
+    const key = u.trim().toLowerCase().replace(/^https?:\/\/(www\.)?/, "").replace(/\/+$/, "");
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function runCitationQuery(
   providerName: string,
   callFn: () => Promise<string>,
@@ -278,11 +289,13 @@ async function runCitationQuery(
     // Extract full https:// URLs
     const fullUrls = raw.match(/https?:\/\/[^\s\)\"\]]+/g) ?? [];
     // Also extract bare domains (e.g. "hubspot.com", "www.salesforce.com") and prefix them
-    const bareDomains = raw.match(/(?<![/@\w])(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s\)\"\]]*)?(?=[\s\)\"\],]|$)/g) ?? [];
+    // The lookbehind also excludes "." and "-" so we don't re-match the tail of a
+    // full URL (e.g. "hubspot.com/..." inside "https://www.hubspot.com/...").
+    const bareDomains = raw.match(/(?<![/@\w.-])(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s\)\"\]]*)?(?=[\s\)\"\],.;]|$)/g) ?? [];
     const fromBare = bareDomains
       .filter(d => !d.startsWith("http") && d.includes(".") && d.length > 4)
-      .map(d => "https://" + (d.startsWith("www.") ? d : d));
-    const allUrls = [...new Set([...fullUrls, ...fromBare])].map(u => u.replace(/[.,;]+$/, ""));
+      .map(d => "https://" + d);
+    const allUrls = dedupeUrls([...fullUrls, ...fromBare].map(u => u.replace(/[.,;]+$/, "")));
     return {
       provider: providerName,
       status: "success",
