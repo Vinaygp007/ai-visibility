@@ -389,13 +389,13 @@ export default function PromptResponsePanel({ providers, citations = [] }: Promp
             <div className="flex flex-col lg:flex-row" style={{ minHeight: 320 }}>
               {/* Left: Query + Response */}
               <div className="flex-1 p-4 sm:p-5 overflow-y-auto border-b lg:border-b-0 lg:border-r" style={{ borderColor: "rgba(var(--overlay-rgb),0.07)", maxHeight: 560 }}>
-                {/* Query */}
-                <div className="mb-4">
+                {/* Query (admins only; the API omits it for everyone else) */}
+                {activeCitationData.query && <div className="mb-4">
                   <p className="text-[10px] font-mono uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Query</p>
                   <div className="text-[12px] leading-relaxed px-4 py-3 rounded-xl" style={{ color: "var(--text)", background: "rgba(var(--overlay-rgb),0.03)", border: "1px solid rgba(var(--overlay-rgb),0.07)" }}>
                     {activeCitationData.query}
                   </div>
-                </div>
+                </div>}
 
                 {/* Response header */}
                 <div className="flex items-center justify-between mb-2">

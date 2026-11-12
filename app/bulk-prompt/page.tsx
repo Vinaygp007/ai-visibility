@@ -533,8 +533,8 @@ function PromptCard({
                     {/* Accordion body */}
                     {isOpen && (
                       <div className="pr-accordion-body" style={{ padding: "0 12px 10px" }}>
-                        {/* Citation query */}
-                        <div style={{ marginBottom: 8 }}>
+                        {/* Citation query (admins only; the API omits it for everyone else) */}
+                        {c.query && <div style={{ marginBottom: 8 }}>
                           <p style={{ fontSize: 9, fontFamily: "monospace", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
                             Citation query
                           </p>
@@ -544,7 +544,7 @@ function PromptCard({
                           }}>
                             {c.query}
                           </div>
-                        </div>
+                        </div>}
 
                         {/* Raw answer */}
                         <div style={{

@@ -534,7 +534,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         responses,
-        citations,
+        // The citation query is our internal instruction prompt; only admins see it.
+        citations: user.role === "admin" ? citations : citations.map((c) => ({ ...c, query: "" })),
         response: firstSuccess?.response ?? "",
         provider: firstSuccess?.provider ?? null,
         durationMs: firstSuccess?.durationMs ?? null,

@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,11 @@ export async function GET(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ batches: [], nextCursor: null, hasMore: false }, { status: 200 });
   }
+
+  // The citation query is our internal instruction prompt; only admins see it.
+  const isAdmin = (await getCurrentUser())?.role === "admin";
+  const stripQuery = (list: object[] | undefined) =>
+    isAdmin || !list ? list : list.map((c) => ({ ...c, query: "" }));
 
   try {
     let query = supabase
@@ -62,7 +68,7 @@ export async function GET(req: NextRequest) {
         provider: (r.provider as string | null) ?? null,
         durationMs: (r.durationMs as number | null) ?? null,
         responses: r.responses as object[] | undefined,
-        citations: r.citations as object[] | undefined,
+        citations: stripQuery(r.citations as object[] | undefined),
         error: row.error ?? undefined,
         createdAt,
       };
