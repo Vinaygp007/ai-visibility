@@ -8,7 +8,8 @@ const PROVIDER_CONFIG: Record<string, { color: string; bg: string; border: strin
   "ChatGPT (GPT-4o-mini)": { color: "#10a37f", bg: "rgba(16,163,127,0.1)", border: "rgba(16,163,127,0.28)", icon: "⬡" },
   "ChatGPT (GPT-4o)":      { color: "#10a37f", bg: "rgba(16,163,127,0.1)", border: "rgba(16,163,127,0.28)", icon: "⬡" },
   "Perplexity Sonar":      { color: "#20b2aa", bg: "rgba(32,178,170,0.1)",  border: "rgba(32,178,170,0.28)", icon: "◎" },
-  "Claude 3.5 Sonnet":     { color: "#c17c4e", bg: "rgba(193,124,78,0.1)",  border: "rgba(193,124,78,0.28)", icon: "◈" },
+  "Claude (Anthropic)":    { color: "#D97757", bg: "rgba(217,119,87,0.1)",  border: "rgba(217,119,87,0.28)", icon: "✺" },
+  "Claude 3.5 Sonnet":     { color: "#D97757", bg: "rgba(217,119,87,0.1)",  border: "rgba(217,119,87,0.28)", icon: "✺" },
   "Microsoft Copilot":     { color: "#0078d4", bg: "rgba(0,120,212,0.1)",   border: "rgba(0,120,212,0.28)", icon: "⊞" },
 };
 

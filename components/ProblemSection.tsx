@@ -35,7 +35,7 @@ export default function ProblemSection() {
         </h2>
         <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
           Alongside classic Google search, more discovery now happens through AI answers and AI chat: Google's AI
-          Overviews, ChatGPT, Perplexity, Copilot. Traditional SEO tells you nothing about how you show up in that
+          Overviews, ChatGPT, Claude, Perplexity, Copilot. Traditional SEO tells you nothing about how you show up in that
           half of the picture.
         </p>
       </Reveal>

@@ -18,6 +18,7 @@ const PROVIDERS = [
   { name: "Gemini", color: "#4285f4", target: 95 },
   { name: "ChatGPT", color: "#10a37f", target: 88 },
   { name: "Perplexity", color: "#20b2aa", target: 93 },
+  { name: "Claude", color: "#D97757", target: 90 },
 ];
 
 const TARGET_SCORE = Math.round(PROVIDERS.reduce((s, p) => s + p.target, 0) / PROVIDERS.length);
@@ -70,7 +71,7 @@ export default function HeroScanPreview() {
   const [typed, setTyped] = useState("");
   const [phase, setPhase] = useState<Phase>("typing");
   const [checkedCount, setCheckedCount] = useState(0);
-  const [providerScores, setProviderScores] = useState<number[]>([0, 0, 0]);
+  const [providerScores, setProviderScores] = useState<number[]>(() => PROVIDERS.map(() => 0));
   const [score, setScore] = useState(0);
   const [justMerged, setJustMerged] = useState(0);
   const cancelled = useRef(false);
@@ -110,7 +111,7 @@ export default function HeroScanPreview() {
 
         // Each provider scores the site independently, in parallel
         setPhase("scoring");
-        setProviderScores([0, 0, 0]);
+        setProviderScores(PROVIDERS.map(() => 0));
         setScore(0);
         const dialSteps = 26;
         for (let i = 1; i <= dialSteps; i++) {

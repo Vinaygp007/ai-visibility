@@ -6,7 +6,7 @@ import Reveal from "@/components/Reveal";
 const FAQS = [
   {
     q: "How is the visibility score calculated?",
-    a: "Gemini, ChatGPT and Perplexity each independently audit your site (crawler access, llms.txt, structured data, and citation research), and we merge and average their results into one score, so no single model's quirks dominate the result.",
+    a: "Gemini, ChatGPT, Claude and Perplexity each independently audit your site (crawler access, llms.txt, structured data, and citation research), and we merge and average their results into one score, so no single model's quirks dominate the result.",
   },
   {
     q: "What's llms.txt and do I actually need one?",
@@ -18,7 +18,7 @@ const FAQS = [
   },
   {
     q: "What's a credit and how many do I need per scan?",
-    a: "Each active AI provider (Gemini, ChatGPT, and Perplexity by default) costs 1 credit per URL, or 2 credits if you turn on live citation checking, so a 3-provider scan runs 3–6 credits depending on that toggle. Bulk scans and bulk prompt runs draw from the same pool, per URL or per prompt.",
+    a: "Each active AI provider (Gemini, ChatGPT, Claude, and Perplexity by default) costs 1 credit per URL, or 2 credits if you turn on live citation checking, so a 4-provider scan runs 4–8 credits depending on that toggle. Bulk scans and bulk prompt runs draw from the same pool, per URL or per prompt.",
   },
   {
     q: "What happens if I run out of credits?",

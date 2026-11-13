@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Sparkles, Search, ArrowRight, Loader2, Check, Circle, X } from "lucide-react";
-import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "./ProviderIcons";
+import { GeminiIcon, ChatGPTIcon, PerplexityIcon, ClaudeIcon } from "./ProviderIcons";
 
 interface HeroSectionProps {
   onAnalyze: (url: string, runCitations: boolean) => void;
@@ -10,9 +10,10 @@ interface HeroSectionProps {
 }
 
 const PROVIDERS = [
-  { name: "Gemini 2.0", Icon: GeminiIcon, color: "#4285f4" },
+  { name: "Gemini 3.6", Icon: GeminiIcon, color: "#4285f4" },
   { name: "ChatGPT",    Icon: ChatGPTIcon, color: "#10a37f" },
   { name: "Perplexity", Icon: PerplexityIcon, color: "#20b2aa" },
+  { name: "Claude", Icon: ClaudeIcon, color: "#D97757" },
 ];
 
 export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) {
@@ -61,7 +62,7 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
       </h1>
 
       <p className="animate-fade-up fade-up-3 text-[17px] leading-relaxed max-w-lg mx-auto mb-7" style={{ color: "var(--text-muted)" }}>
-        Drop in a URL and we'll check crawler access, structured data and how Gemini, ChatGPT and Perplexity already talk about your site.
+        Drop in a URL and we'll check crawler access, structured data and how Gemini, ChatGPT, Claude and Perplexity already talk about your site.
       </p>
 
       {/* Provider badges */}
@@ -75,7 +76,7 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
           </span>
         ))}
       </div>
-      <p className="animate-fade-up fade-up-3 text-[11px] font-mono mb-6" style={{ color: "var(--text-muted)" }}>all 3 run simultaneously · scores averaged</p>
+      <p className="animate-fade-up fade-up-3 text-[11px] font-mono mb-6" style={{ color: "var(--text-muted)" }}>all 4 run simultaneously · scores averaged</p>
 
       {/* URL input */}
       <div className="animate-fade-up fade-up-4 search-box flex flex-col sm:flex-row sm:items-center rounded-2xl border p-2 sm:pl-4 sm:pr-1.5 sm:py-1.5 gap-2 sm:gap-0 max-w-xl mx-auto transition-all"
@@ -173,12 +174,12 @@ export default function HeroSection({ onAnalyze, isLoading }: HeroSectionProps) 
             </div>
 
             <p className="text-[13px] leading-relaxed mb-4" style={{ color: "var(--text-muted)" }}>
-              When this is on, we send real prompts to Gemini, ChatGPT and Perplexity to see whether (and how often) they cite your site, plus which competitors show up instead.
+              When this is on, we send real prompts to Gemini, ChatGPT, Claude and Perplexity to see whether (and how often) they cite your site, plus which competitors show up instead.
             </p>
 
             <ul className="text-[13px] leading-relaxed mb-4 space-y-1.5 list-disc pl-4" style={{ color: "var(--text-muted)" }}>
               <li>Full GEO (Generative Engine Optimization) analysis</li>
-              <li>Citation counts across all 3 AI providers</li>
+              <li>Citation counts across all 4 AI providers</li>
               <li>Competitive analysis: see who&apos;s winning your AI visibility</li>
             </ul>
 

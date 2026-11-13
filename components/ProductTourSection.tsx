@@ -72,7 +72,7 @@ const CATEGORIES: TourCategory[] = [
     key: "bulk-prompt",
     label: "Bulk Prompt Runner",
     Icon: MessagesSquare,
-    desc: "Run the exact buyer-intent questions your customers ask AI, like \"best CRM for startups\" or \"top project management tools for remote teams,\" across Gemini, ChatGPT and Perplexity at once, and see whether you're the answer they get back.",
+    desc: "Run the exact buyer-intent questions your customers ask AI, like \"best CRM for startups\" or \"top project management tools for remote teams,\" across Gemini, ChatGPT, Claude and Perplexity at once, and see whether you're the answer they get back.",
     links: [
       { label: "Bulk prompt runner", href: "/bulk-prompt" },
       { label: "See plans", href: "/#pricing" },

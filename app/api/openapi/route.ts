@@ -66,7 +66,7 @@ export async function GET() {
       description:
         "Analyze any website's visibility to AI crawlers, language models, and search engines. " +
         "Returns deterministic scores, structured data checks, bot access rules, and live AI citation data " +
-        "from Gemini, ChatGPT, and Perplexity.\n\n" +
+        "from Gemini, ChatGPT, Claude, and Perplexity.\n\n" +
         "**Important:** AI Citations (`runCitations`) are enabled by default in all POST requests. " +
         "This gives you the full competitive landscape + GEO analysis out of the box. " +
         "Pass `runCitations: false` explicitly if you want a faster, cheaper scan without citation research.",
@@ -130,7 +130,7 @@ export async function GET() {
             "Fetches robots.txt, llms.txt, llms-full.txt, sitemap.xml, and the homepage, then computes " +
             "deterministic scores across 5 categories.\n\n" +
             "**Citations are ON by default.** The scan automatically runs live GEO/GTM research against " +
-            "Gemini, ChatGPT, and Perplexity, giving you competitive landscape analysis, AI sentiment " +
+            "Gemini, ChatGPT, Claude, and Perplexity, giving you competitive landscape analysis, AI sentiment " +
             "scores, and citation data with every call. Pass `runCitations: false` to skip this and get " +
             "a faster, cheaper basic scan.",
           operationId: "postAnalyze",
@@ -205,7 +205,7 @@ export async function GET() {
               description:
                 "Controls whether live AI citation research is included in the response. " +
                 "**Defaults to true**: every scan includes competitive landscape analysis, AI sentiment scores, " +
-                "and citation data from Gemini, ChatGPT, and Perplexity. " +
+                "and citation data from Gemini, ChatGPT, Claude, and Perplexity. " +
                 "Set to false only if you want a faster, cheaper basic scan without citation research.",
             },
           },
@@ -232,7 +232,7 @@ export async function GET() {
             citations: {
               type: "array",
               description:
-                "Live citation check results from Gemini, ChatGPT, and Perplexity. " +
+                "Live citation check results from Gemini, ChatGPT, Claude, and Perplexity. " +
                 "Included by default (when runCitations is true or omitted). " +
                 "Each entry contains the raw AI answer, citation URLs, mention count, and sentiment data.",
               items: { $ref: "#/components/schemas/CitationResult" },

@@ -5,8 +5,8 @@ import { ICON_GRADIENT, ICON_GRADIENT_FALLBACK } from "@/lib/iconGradient";
 const FEATURES = [
   {
     Icon: Sparkles,
-    title: "3 AI Providers, One Score",
-    desc: "Gemini, ChatGPT and Perplexity all run the same audit independently. Results are merged and averaged into a single visibility score.",
+    title: "4 AI Providers, One Score",
+    desc: "Gemini, ChatGPT, Claude and Perplexity all run the same audit independently. Results are merged and averaged into a single visibility score.",
   },
   {
     Icon: ListChecks,
@@ -29,7 +29,7 @@ export default function FeaturesSection() {
           Not just a score: a plan
         </h2>
         <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Every audit merges three AI providers into a single number, then turns it into a ranked list of exactly what to fix first.
+          Every audit merges four AI providers into a single number, then turns it into a ranked list of exactly what to fix first.
         </p>
       </Reveal>
 

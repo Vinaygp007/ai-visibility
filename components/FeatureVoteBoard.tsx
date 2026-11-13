@@ -35,7 +35,7 @@ const CANDIDATES: Candidate[] = [
     key: "prompt",
     label: "Prompt Runner",
     icon: Terminal,
-    desc: "Run up to 100 prompts in parallel against Gemini, ChatGPT and Perplexity to see how each cites you.",
+    desc: "Run up to 100 prompts in parallel against Gemini, ChatGPT, Claude and Perplexity to see how each cites you.",
     chips: ["Up to 100 prompts", "Runs in parallel", "AI citation research"],
     image: { light: "/real-data/prompt-light.webp", dark: "/real-data/prompt-dark.webp" },
   },

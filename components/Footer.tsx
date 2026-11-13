@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "./ProviderIcons";
+import { GeminiIcon, ChatGPTIcon, PerplexityIcon, ClaudeIcon } from "./ProviderIcons";
 import BetaBadge from "./BetaBadge";
 
 const PROVIDERS = [
   { name: "Gemini", Icon: GeminiIcon, color: "#4285f4" },
   { name: "ChatGPT", Icon: ChatGPTIcon, color: "#10a37f" },
   { name: "Perplexity", Icon: PerplexityIcon, color: "#20b2aa" },
+  { name: "Claude", Icon: ClaudeIcon, color: "#D97757" },
 ];
 
 const PRODUCT_LINKS = [
@@ -128,7 +129,7 @@ export default function Footer() {
           <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-4 text-center sm:text-left">
             <span>© {year} Marcstrat. All rights reserved.</span>
             <span className="hidden sm:inline" style={{ color: "rgba(var(--overlay-rgb),0.2)" }}>·</span>
-            <span>Powered by Gemini · ChatGPT · Perplexity</span>
+            <span>Powered by Gemini · ChatGPT · Claude · Perplexity</span>
           </div>
           <div className="flex items-center gap-5">
             <Link href="/privacy" className="transition-colors hover:text-[var(--text)]">Privacy Policy</Link>

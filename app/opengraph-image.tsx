@@ -52,11 +52,11 @@ export default function OpengraphImage() {
         </span>
 
         <span style={{ fontSize: 26, color: "#8a8fa3", textAlign: "center", marginBottom: 40 }}>
-          Audit how ChatGPT, Perplexity, Gemini and more discover and reference your site.
+          Audit how ChatGPT, Claude, Perplexity, Gemini and more discover and reference your site.
         </span>
 
         <div style={{ display: "flex", gap: 16 }}>
-          {["Gemini", "ChatGPT", "Perplexity"].map((name) => (
+          {["Gemini", "ChatGPT", "Claude", "Perplexity"].map((name) => (
             <div
               key={name}
               style={{

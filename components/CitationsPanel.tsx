@@ -9,7 +9,7 @@ const PROVIDER_COLORS: Record<string, { color: string; bg: string; border: strin
   "ChatGPT (GPT-4o)":      { color: "#10a37f", bg: "rgba(16,163,127,0.08)", border: "rgba(16,163,127,0.25)", icon: "⬡" },
   "ChatGPT (GPT-4o-mini)": { color: "#10a37f", bg: "rgba(16,163,127,0.08)", border: "rgba(16,163,127,0.25)", icon: "⬡" },
   "Perplexity Sonar":      { color: "#20b2aa", bg: "rgba(32,178,170,0.08)",  border: "rgba(32,178,170,0.25)", icon: "◎" },
-  "Claude (Anthropic)":    { color: "#c17c4e", bg: "rgba(193,124,78,0.08)",  border: "rgba(193,124,78,0.25)",  icon: "◆" },
+  "Claude (Anthropic)":    { color: "#D97757", bg: "rgba(217,119,87,0.08)",  border: "rgba(217,119,87,0.25)",  icon: "✺" },
   "Meta AI (Llama)":       { color: "#0668e1", bg: "rgba(6,104,225,0.08)",   border: "rgba(6,104,225,0.25)",   icon: "▲" },
   "You.com":               { color: "#a855f7", bg: "rgba(168,85,247,0.08)",  border: "rgba(168,85,247,0.25)",  icon: "◉" },
   "Microsoft Copilot":     { color: "#00b4d8", bg: "rgba(0,180,216,0.08)",   border: "rgba(0,180,216,0.25)",   icon: "⬟" },

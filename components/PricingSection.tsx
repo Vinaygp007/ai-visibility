@@ -12,7 +12,7 @@ const PLANS = [
     monthly: 0,
     annual: 0,
     desc: "Try it out, no card required.",
-    features: ["20 credits, one-time", "Gemini, ChatGPT & Perplexity", "Watermarked PDF export"],
+    features: ["20 credits, one-time", "Gemini, ChatGPT, Claude & Perplexity", "Watermarked PDF export"],
     highlight: false,
   },
   {
@@ -21,7 +21,7 @@ const PLANS = [
     monthly: 19,
     annual: 190,
     desc: "For freelancers and solo operators.",
-    features: ["400 credits/mo", "All 3 active AI models", "10-URL bulk scanning"],
+    features: ["400 credits/mo", "All 4 AI models", "10-URL bulk scanning"],
     highlight: false,
   },
   {
@@ -30,7 +30,7 @@ const PLANS = [
     monthly: 49,
     annual: 490,
     desc: "For growing teams and regular audits.",
-    features: ["1,500 credits/mo", "All 3 active AI models", "50-URL bulk scanning", "30-day report history"],
+    features: ["1,500 credits/mo", "All 4 AI models", "50-URL bulk scanning", "30-day report history"],
     highlight: true,
   },
   {

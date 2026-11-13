@@ -13,20 +13,21 @@ import HeroScanPreview from "@/components/HeroScanPreview";
 import HeroCTA from "@/components/HeroCTA";
 import BottomCTA from "@/components/BottomCTA";
 import Footer from "@/components/Footer";
-import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "@/components/ProviderIcons";
+import { GeminiIcon, ChatGPTIcon, PerplexityIcon, ClaudeIcon } from "@/components/ProviderIcons";
 
 const FEATURE_CHIPS = [
   "14 AI Bots Checked",
   "llms.txt Detection",
   "Structured Data",
-  "3 AI Providers",
+  "4 AI Providers",
   "Merged Analysis",
 ];
 
 const PROVIDERS = [
-  { name: "Gemini 2.0", Icon: GeminiIcon, color: "#4285f4" },
+  { name: "Gemini 3.6", Icon: GeminiIcon, color: "#4285f4" },
   { name: "ChatGPT", Icon: ChatGPTIcon, color: "#10a37f" },
   { name: "Perplexity", Icon: PerplexityIcon, color: "#20b2aa" },
+  { name: "Claude", Icon: ClaudeIcon, color: "#D97757" },
 ];
 
 export default function LandingPage() {
@@ -96,7 +97,7 @@ export default function LandingPage() {
               ))}
             </div>
             <p className="animate-fade-up fade-up-3 text-[11px] font-mono mb-9" style={{ color: "var(--text-muted)" }}>
-              all 3 run simultaneously · scores averaged
+              all 4 run simultaneously · scores averaged
             </p>
 
             <HeroCTA />

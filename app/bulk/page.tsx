@@ -12,16 +12,17 @@ import CrawlSection from "@/components/CrawlSection";
 import StatCards from "@/components/StatCards";
 import ProviderScoreChart from "@/components/ProviderScoreChart";
 import BotCoverageTable from "@/components/BotCoverageTable";
-import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "@/components/ProviderIcons";
+import { GeminiIcon, ChatGPTIcon, PerplexityIcon, ClaudeIcon } from "@/components/ProviderIcons";
 import {
   Layers, Check, Circle, Upload, AlertTriangle, Play, Square, Download, Plus,
   ChevronRight, CheckCircle2, XCircle, Loader2, X, ArrowLeft,
 } from "lucide-react";
 
 const PROVIDERS = [
-  { name: "Gemini 2.0", Icon: GeminiIcon, color: "#4285f4" },
+  { name: "Gemini 3.6", Icon: GeminiIcon, color: "#4285f4" },
   { name: "ChatGPT", Icon: ChatGPTIcon, color: "#10a37f" },
   { name: "Perplexity", Icon: PerplexityIcon, color: "#20b2aa" },
+  { name: "Claude", Icon: ClaudeIcon, color: "#D97757" },
 ];
 
 const FEATURE_CHIPS = [
@@ -936,7 +937,7 @@ export default function BulkPage() {
               ))}
             </div>
             <p className="text-[11px] font-mono mb-4" style={{ color: "var(--text-muted)" }}>
-              every URL scanned by all 3, in parallel · scores averaged
+              every URL scanned by all 4, in parallel · scores averaged
             </p>
 
             <div className="flex flex-wrap gap-4">
@@ -1125,12 +1126,12 @@ export default function BulkPage() {
               </div>
 
               <p className="text-[13px] leading-relaxed mb-4" style={{ color: "var(--text-muted)" }}>
-                When this is on, we send real prompts to Gemini, ChatGPT and Perplexity for each URL to see whether (and how often) they cite that site, plus which competitors show up instead.
+                When this is on, we send real prompts to Gemini, ChatGPT, Claude and Perplexity for each URL to see whether (and how often) they cite that site, plus which competitors show up instead.
               </p>
 
               <ul className="text-[13px] leading-relaxed mb-4 space-y-1.5 list-disc pl-4" style={{ color: "var(--text-muted)" }}>
                 <li>Full GEO (Generative Engine Optimization) analysis</li>
-                <li>Citation counts across all 3 AI providers</li>
+                <li>Citation counts across all 4 AI providers</li>
                 <li>Competitive analysis: see who&apos;s winning your AI visibility</li>
               </ul>
 

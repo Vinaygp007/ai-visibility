@@ -15,7 +15,7 @@ const STEPS = [
   },
   {
     Icon: Sparkles,
-    title: "Gemini, ChatGPT & Perplexity run in parallel",
+    title: "Gemini, ChatGPT, Claude & Perplexity run in parallel",
     body: "All three independently audit AI-crawler access and research how (or whether) AI answers already reference your brand.",
   },
   {

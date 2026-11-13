@@ -2,20 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
-import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "./ProviderIcons";
+import { GeminiIcon, ChatGPTIcon, PerplexityIcon, ClaudeIcon } from "./ProviderIcons";
 
 const STEPS = [
   "Fetching robots.txt & llms.txt",
   "Scanning HTML, meta tags & structured data",
   "Checking 14 AI bot permissions",
-  "Running Gemini, Groq & Perplexity in parallel",
+  "Running Gemini, ChatGPT, Claude & Perplexity in parallel",
   "Merging & averaging AI results",
 ];
 
 const PROVIDERS = [
-  { name: "Gemini 2.0",  color: "#4285f4", Icon: GeminiIcon },
+  { name: "Gemini 3.6",  color: "#4285f4", Icon: GeminiIcon },
   { name: "ChatGPT",     color: "#10a37f", Icon: ChatGPTIcon },
   { name: "Perplexity",  color: "#20b2aa", Icon: PerplexityIcon },
+  { name: "Claude",      color: "#D97757", Icon: ClaudeIcon },
 ];
 
 export default function LoadingSection({ url }: { url: string }) {

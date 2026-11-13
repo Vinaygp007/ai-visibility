@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { PROMPT_CHAR_LIMIT } from "@/lib/limits";
 import { UserPlan } from "@/types";
-import { GeminiIcon, ChatGPTIcon, PerplexityIcon } from "@/components/ProviderIcons";
+import { GeminiIcon, ChatGPTIcon, PerplexityIcon, ClaudeIcon } from "@/components/ProviderIcons";
 import {
   Terminal, Sparkles, Zap, Play, RotateCw, X, Plus, Upload, ClipboardPaste, Download,
   Trash2, ChevronDown, Copy, Check, AlertCircle, Loader2, CheckCircle2, XCircle, Circle,
@@ -11,9 +11,10 @@ import {
 } from "lucide-react";
 
 const PROVIDERS = [
-  { name: "Gemini 2.0", Icon: GeminiIcon, color: "#4285f4" },
+  { name: "Gemini 3.6", Icon: GeminiIcon, color: "#4285f4" },
   { name: "ChatGPT", Icon: ChatGPTIcon, color: "#10a37f" },
   { name: "Perplexity", Icon: PerplexityIcon, color: "#20b2aa" },
+  { name: "Claude", Icon: ClaudeIcon, color: "#D97757" },
 ];
 
 const FEATURE_CHIPS = ["Up to 100 prompts", "Runs in parallel", "AI citation research", "CSV & PDF export"];
@@ -65,19 +66,21 @@ const PROVIDER_CONFIG: Record<string, { color: string; bg: string; border: strin
   "ChatGPT (GPT-4o-mini)": { color: "#10a37f", bg: "rgba(16,163,127,0.1)", border: "rgba(16,163,127,0.28)" },
   "ChatGPT (GPT-4o)":      { color: "#10a37f", bg: "rgba(16,163,127,0.1)", border: "rgba(16,163,127,0.28)" },
   "Perplexity Sonar":      { color: "#20b2aa", bg: "rgba(32,178,170,0.1)",  border: "rgba(32,178,170,0.28)" },
-  "Claude 3.5 Sonnet":     { color: "#c17c4e", bg: "rgba(193,124,78,0.1)",  border: "rgba(193,124,78,0.28)" },
+  "Claude (Anthropic)":    { color: "#D97757", bg: "rgba(217,119,87,0.1)",  border: "rgba(217,119,87,0.28)" },
+  "Claude 3.5 Sonnet":     { color: "#D97757", bg: "rgba(217,119,87,0.1)",  border: "rgba(217,119,87,0.28)" },
   "Microsoft Copilot":     { color: "#0078d4", bg: "rgba(0,120,212,0.1)",   border: "rgba(0,120,212,0.28)" },
 };
 
 const DEFAULT_PROVIDER_CFG = { color: "var(--text-muted)", bg: "rgba(var(--overlay-rgb),0.05)", border: "rgba(var(--overlay-rgb),0.12)" };
 
-// Real brandmarks for the 3 core providers; every other provider name (Claude,
-// Copilot, ...) falls back to a generic glyph so the accordion row never looks broken.
+// Real brandmarks for the 4 core providers; every other provider name
+// (Copilot, ...) falls back to a generic glyph so the accordion row never looks broken.
 function ProviderBrandIcon({ name, size = 13 }: { name: string; size?: number }) {
   const n = name.toLowerCase();
   if (n.includes("gemini")) return <GeminiIcon size={size} />;
   if (n.includes("chatgpt") || n.includes("gpt")) return <ChatGPTIcon size={size} />;
   if (n.includes("perplexity")) return <PerplexityIcon size={size} />;
+  if (n.includes("claude")) return <ClaudeIcon size={size} />;
   return <Bot size={size} />;
 }
 
@@ -1664,12 +1667,12 @@ export default function MultiPromptPage() {
             </div>
 
             <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-muted)", margin: "0 0 14px" }}>
-              When this is on, we send each prompt to Gemini, ChatGPT and Perplexity to see whether (and how often) they cite your site, plus which competitors show up instead.
+              When this is on, we send each prompt to Gemini, ChatGPT, Claude and Perplexity to see whether (and how often) they cite your site, plus which competitors show up instead.
             </p>
 
             <ul style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-muted)", margin: "0 0 14px", paddingLeft: 18 }}>
               <li>Full GEO (Generative Engine Optimization) analysis</li>
-              <li>Citation counts across all 3 AI providers</li>
+              <li>Citation counts across all 4 AI providers</li>
               <li>Competitive analysis: see who&apos;s winning your AI visibility</li>
             </ul>
 
