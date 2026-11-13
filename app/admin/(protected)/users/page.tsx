@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCurrentUser } from "@/lib/useCurrentUser";
+import { ROLES, ROLE_LABEL, isAdminRole, isSuperAdmin, type UserRole } from "@/lib/roles";
 
 type Plan = "free" | "starter" | "growth" | "agency" | "scale";
 const PLANS: Plan[] = ["free", "starter", "growth", "agency", "scale"];
@@ -9,7 +11,7 @@ interface AdminUser {
   id: string;
   email: string;
   fullName: string | null;
-  role: "user" | "admin";
+  role: UserRole;
   status: "pending" | "active" | "suspended";
   referralCode: string;
   plan: Plan;
@@ -19,6 +21,14 @@ interface AdminUser {
   currentPeriodEnd: string | null;
   hasStripeCustomer: boolean;
 }
+
+const ROLE_BADGE: Record<UserRole, { color: string; bg: string } | null> = {
+  user: null,
+  admin: { color: "var(--accent)", bg: "rgba(0,229,255,0.1)" },
+  super_admin: { color: "#a855f7", bg: "rgba(168,85,247,0.12)" },
+};
+
+const INPUT_STYLE = { background: "rgba(var(--overlay-rgb),0.03)", borderColor: "rgba(var(--overlay-rgb),0.1)", color: "var(--text)" };
 
 const SUB_STATUS_STYLE: Record<string, { label: string; color: string }> = {
   active: { label: "Active", color: "var(--success)" },
@@ -35,6 +45,12 @@ export default function AdminUsersPage() {
   const [grantReason, setGrantReason] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [subscribersOnly, setSubscribersOnly] = useState(false);
+  const { user: me } = useCurrentUser();
+  const meIsSuper = isSuperAdmin(me?.role);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<"admin" | "super_admin">("admin");
+  const [creating, setCreating] = useState(false);
 
   const loadUsers = async (q = "") => {
     setLoading(true);
@@ -79,16 +95,64 @@ export default function AdminUsersPage() {
     loadUsers(search);
   };
 
-  const handleRoleToggle = async (user: AdminUser) => {
-    const nextRole = user.role === "admin" ? "user" : "admin";
+  const handleRoleChange = async (user: AdminUser, nextRole: UserRole) => {
+    if (nextRole === user.role) return;
+    if (!window.confirm(`Change ${user.email} from ${ROLE_LABEL[user.role]} to ${ROLE_LABEL[nextRole]}?`)) return;
     const res = await fetch("/api/admin/users", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.id, role: nextRole }),
     });
-    if (res.ok) {
-      showMessage(`${user.email} is now ${nextRole}.`);
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      showMessage(data?.error?.message ?? "Failed to change role.");
+      return;
+    }
+    showMessage(`${user.email} is now ${ROLE_LABEL[nextRole]}.`);
+    loadUsers(search);
+  };
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const send = (updateExisting: boolean) =>
+        fetch("/api/admin/accounts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: newEmail, password: newPassword, role: newRole, updateExisting }),
+        });
+
+      let res = await send(false);
+      let data = await res.json().catch(() => null);
+
+      // Existing account (e.g. a Google signup with no password): confirm,
+      // then set this password and role on it instead of creating a new one.
+      if (res.status === 409 && data?.error?.code === "already_exists") {
+        const ok = window.confirm(
+          `${newEmail} already has an account.\n\nSet this password on it and make them ${ROLE_LABEL[newRole]}? ` +
+            "Any password they already had will be replaced. Google sign-in keeps working."
+        );
+        if (!ok) return;
+        res = await send(true);
+        data = await res.json().catch(() => null);
+      }
+
+      if (!res.ok) {
+        showMessage(data?.error?.message ?? "Failed to create account.");
+        return;
+      }
+      showMessage(
+        data?.updated
+          ? `${newEmail} is now ${ROLE_LABEL[newRole]} with the new password. They can sign in at /admin/login.`
+          : `${ROLE_LABEL[newRole]} account created for ${newEmail}. They can sign in at /admin/login.`
+      );
+      setNewEmail("");
+      setNewPassword("");
+      setNewRole("admin");
       loadUsers(search);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -111,10 +175,13 @@ export default function AdminUsersPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.id, status: nextStatus }),
     });
-    if (res.ok) {
-      showMessage(`${user.email} is now ${nextStatus}.`);
-      loadUsers(search);
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      showMessage(data?.error?.message ?? "Failed to update status.");
+      return;
     }
+    showMessage(`${user.email} is now ${nextStatus}.`);
+    loadUsers(search);
   };
 
   const handleDelete = async (user: AdminUser) => {
@@ -139,6 +206,59 @@ export default function AdminUsersPage() {
         <div className="mb-4 px-4 py-2.5 rounded-lg text-sm" style={{ background: "rgba(0,229,255,0.08)", color: "var(--accent)" }}>
           {message}
         </div>
+      )}
+
+      {meIsSuper && (
+        <form
+          onSubmit={handleCreateAccount}
+          className="mb-8 rounded-2xl border p-4 sm:p-5"
+          style={{ background: "rgba(var(--overlay-rgb),0.02)", borderColor: "rgba(var(--overlay-rgb),0.07)" }}
+        >
+          <div className="text-sm font-semibold text-[var(--text)] mb-1">Create admin account</div>
+          <div className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+            Creates an email + password login for the admin panel, or sets a password on an existing account (e.g. someone who signed up with Google). Share the password with them securely.
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="email"
+              required
+              placeholder="Email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm"
+              style={INPUT_STYLE}
+            />
+            <input
+              type="password"
+              required
+              minLength={8}
+              placeholder="Password (min 8 chars)"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm"
+              style={INPUT_STYLE}
+            />
+            <select
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as "admin" | "super_admin")}
+              className="px-3 py-2 rounded-lg border text-sm"
+              style={INPUT_STYLE}
+              aria-label="Role for new account"
+            >
+              <option value="admin" style={{ background: "var(--surface)", color: "var(--text)" }}>Admin</option>
+              <option value="super_admin" style={{ background: "var(--surface)", color: "var(--text)" }}>Super admin</option>
+            </select>
+            <button
+              type="submit"
+              disabled={creating}
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex-shrink-0 disabled:opacity-60"
+              style={{ background: "var(--accent)", color: "var(--on-accent)" }}
+            >
+              {creating ? "Creating…" : "Create"}
+            </button>
+          </div>
+        </form>
       )}
 
       <div className="mb-6 flex flex-col sm:flex-row gap-2">
@@ -182,6 +302,14 @@ export default function AdminUsersPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-[var(--text)] break-all">{u.email}</span>
+                    {ROLE_BADGE[u.role] && (
+                      <span
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ color: ROLE_BADGE[u.role]!.color, background: ROLE_BADGE[u.role]!.bg }}
+                      >
+                        {ROLE_LABEL[u.role]}
+                      </span>
+                    )}
                     {subStatus && (
                       <span
                         className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
@@ -213,13 +341,21 @@ export default function AdminUsersPage() {
                       <option key={p} value={p} style={{ background: "var(--surface)", color: "var(--text)" }}>{p}</option>
                     ))}
                   </select>
-                  <button
-                    onClick={() => handleRoleToggle(u)}
-                    className="px-3 py-1.5 rounded-lg text-xs border"
-                    style={{ borderColor: "rgba(var(--overlay-rgb),0.12)", color: "var(--text)" }}
-                  >
-                    {u.role === "admin" ? "Revoke admin" : "Make admin"}
-                  </button>
+                  {meIsSuper && u.email !== me?.email && (
+                    <select
+                      value={u.role}
+                      onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
+                      className="px-3 py-1.5 rounded-lg text-xs border"
+                      style={{ borderColor: "rgba(var(--overlay-rgb),0.12)", color: "var(--text)", background: "rgba(var(--overlay-rgb),0.03)" }}
+                      aria-label="Role"
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r} value={r} style={{ background: "var(--surface)", color: "var(--text)" }}>{ROLE_LABEL[r]}</option>
+                      ))}
+                    </select>
+                  )}
+                  {u.email !== me?.email && (meIsSuper || !isAdminRole(u.role)) && (
+                  <>
                   <button
                     onClick={() => handleStatusToggle(u)}
                     className="px-3 py-1.5 rounded-lg text-xs border"
@@ -234,6 +370,8 @@ export default function AdminUsersPage() {
                   >
                     Delete
                   </button>
+                  </>
+                  )}
                 </div>
               </div>
 

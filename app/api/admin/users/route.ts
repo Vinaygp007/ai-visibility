@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/adminGate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit";
+import { isAdminRole, isSuperAdmin } from "@/lib/roles";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
 
 const patchSchema = z.object({
   userId: z.string().uuid(),
-  role: z.enum(["user", "admin"]).optional(),
+  role: z.enum(["user", "admin", "super_admin"]).optional(),
   status: z.enum(["pending", "active", "suspended"]).optional(),
   plan: z.enum(["free", "starter", "growth", "agency", "scale"]).optional(),
 });
@@ -137,6 +138,20 @@ export async function PATCH(req: NextRequest) {
 
   const { userId, role, status, plan } = parsed.data;
   const admin = createAdminClient();
+  const actorIsSuper = isSuperAdmin(gate.user.role);
+
+  if (role && !actorIsSuper) {
+    return NextResponse.json({ error: { code: "forbidden", message: "Only a super admin can change roles." } }, { status: 403, headers: CORS_HEADERS });
+  }
+  if ((role || status) && userId === gate.user.id) {
+    return NextResponse.json({ error: { code: "invalid_input", message: "You cannot change your own role or status." } }, { status: 422, headers: CORS_HEADERS });
+  }
+  if (status && !actorIsSuper) {
+    const { data: target } = await admin.from("profiles").select("role").eq("id", userId).single();
+    if (isAdminRole(target?.role)) {
+      return NextResponse.json({ error: { code: "forbidden", message: "Only a super admin can suspend an admin account." } }, { status: 403, headers: CORS_HEADERS });
+    }
+  }
   const updates: Record<string, string> = {};
   if (role) updates.role = role;
   if (status) updates.status = status;
@@ -177,6 +192,13 @@ export async function DELETE(req: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  if (!isSuperAdmin(gate.user.role)) {
+    const { data: target } = await admin.from("profiles").select("role").eq("id", userId).single();
+    if (isAdminRole(target?.role)) {
+      return NextResponse.json({ error: { code: "forbidden", message: "Only a super admin can delete an admin account." } }, { status: 403, headers: CORS_HEADERS });
+    }
+  }
 
   // waitlist.email is unique and unrelated to auth.users (no FK), so it
   // survives the account delete below — grab it first so a re-submission

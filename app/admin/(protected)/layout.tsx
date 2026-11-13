@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { isAdminRole } from "@/lib/roles";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) {
     redirect("/admin/login");
   }
-  if (user.role !== "admin") {
+  if (!isAdminRole(user.role)) {
     redirect("/admin/login?error=not_admin");
   }
 

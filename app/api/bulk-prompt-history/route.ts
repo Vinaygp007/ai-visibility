@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
+import { isAdminRole } from "@/lib/roles";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   }
 
   // The citation query is our internal instruction prompt; only admins see it.
-  const isAdmin = (await getCurrentUser())?.role === "admin";
+  const isAdmin = isAdminRole((await getCurrentUser())?.role);
   const stripQuery = (list: object[] | undefined) =>
     isAdmin || !list ? list : list.map((c) => ({ ...c, query: "" }));
 

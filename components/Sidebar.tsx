@@ -7,6 +7,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Search, Layers, Terminal, FileText, History, Users, CreditCard, Settings, LogOut } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import BetaBadge from "./BetaBadge";
+import { isAdminRole } from "@/lib/roles";
 
 // Bulk Scanner stays admin-only until v2 (see app/bulk layout); Prompt Runner
 // is open to everyone. The v2 vote (/vote) is hidden for now.
@@ -64,7 +65,7 @@ export default function Sidebar() {
   const router = useRouter();
   const { user } = useCurrentUser();
   const role = user?.role ?? null;
-  const primaryLinks = getPrimaryLinks(role === "admin");
+  const primaryLinks = getPrimaryLinks(isAdminRole(role));
 
   async function handleLogout() {
     const supabase = createClient();
@@ -114,7 +115,7 @@ export default function Sidebar() {
         <>
           <div className="h-px my-3 mx-1" style={{ background: "rgba(var(--overlay-rgb),0.08)" }} />
           <nav className="flex flex-col gap-1">
-            {role === "admin" && <NavLink {...ADMIN_LINK} active={isActive(ADMIN_LINK.href)} />}
+            {isAdminRole(role) && <NavLink {...ADMIN_LINK} active={isActive(ADMIN_LINK.href)} />}
             <button
               onClick={handleLogout}
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[14px] font-medium text-left transition-colors"

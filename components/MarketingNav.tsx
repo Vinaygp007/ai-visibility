@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import ThemeToggle from "./ThemeToggle";
 import BetaBadge from "./BetaBadge";
+import { isAdminRole } from "@/lib/roles";
 
 const MARKETING_LINKS = [
   { href: "#features", label: "Features" },
@@ -125,7 +126,7 @@ export default function MarketingNav() {
   }
 
   const displayName = fullName || email?.split("@")[0] || "Account";
-  const accountLinks = role === "admin" ? [...ACCOUNT_LINKS, ADMIN_LINK] : ACCOUNT_LINKS;
+  const accountLinks = isAdminRole(role) ? [...ACCOUNT_LINKS, ADMIN_LINK] : ACCOUNT_LINKS;
 
   return (
     <nav

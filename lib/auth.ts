@@ -1,12 +1,13 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { UserPlan } from "@/types";
+import type { UserRole } from "@/lib/roles";
 
 export interface CurrentUser {
   id: string;
   email: string;
   fullName: string | null;
-  role: "user" | "admin";
+  role: UserRole;
   status: "pending" | "active" | "suspended";
   referralCode: string;
   creditBalance: number;

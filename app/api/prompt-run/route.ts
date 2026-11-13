@@ -15,6 +15,7 @@ import { createScan, completeScan, failScan, insertScanResults, setScanLedgerDeb
 import { qualifyReferral } from "@/lib/referrals";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { captureEvent } from "@/lib/analytics/posthog";
+import { isAdminRole } from "@/lib/roles";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -548,7 +549,7 @@ export async function POST(request: NextRequest) {
       {
         responses,
         // The citation query is our internal instruction prompt; only admins see it.
-        citations: user.role === "admin" ? citations : citations.map((c) => ({ ...c, query: "" })),
+        citations: isAdminRole(user.role) ? citations : citations.map((c) => ({ ...c, query: "" })),
         response: firstSuccess?.response ?? "",
         provider: firstSuccess?.provider ?? null,
         durationMs: firstSuccess?.durationMs ?? null,

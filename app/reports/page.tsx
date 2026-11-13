@@ -12,6 +12,7 @@ import {
   FileSpreadsheet, FileText, AlertCircle, X, ArrowRight, CheckCircle2, XCircle,
   Loader2, Telescope, ExternalLink, Gauge, type LucideIcon,
 } from "lucide-react";
+import { isAdminRole } from "@/lib/roles";
 
 // Subtle elevation so list rows/panels read as distinct cards against the
 // page background, on top of their existing border.
@@ -1019,7 +1020,7 @@ export default function PreviousReportsPage() {
   // Bulk Scanner is admin-only (see app/bulk/layout.tsx), so regular users
   // never have bulk jobs: hide that tab for them.
   const { user: currentUser } = useCurrentUser();
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = isAdminRole(currentUser?.role);
   const visibleTabs: ScanType[] = isAdmin ? ["homepage", "bulk", "bulk_prompt"] : ["homepage", "bulk_prompt"];
   useEffect(() => {
     if (!visibleTabs.includes(activeTab)) setActiveTab("homepage");

@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth";
+import { isAdminRole, isSuperAdmin } from "@/lib/roles";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +25,7 @@ export async function requireAdmin(): Promise<AdminGateResult> {
       ),
     };
   }
-  if (user.role !== "admin") {
+  if (!isAdminRole(user.role)) {
     return {
       ok: false,
       error: NextResponse.json(
@@ -34,4 +35,21 @@ export async function requireAdmin(): Promise<AdminGateResult> {
     };
   }
   return { ok: true, user };
+}
+
+// For actions only a super admin may take: creating admin accounts and
+// changing anyone's role. A plain admin gets 403 here.
+export async function requireSuperAdmin(): Promise<AdminGateResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  if (!isSuperAdmin(gate.user.role)) {
+    return {
+      ok: false,
+      error: NextResponse.json(
+        { error: { code: "forbidden", message: "Super admin access required." } },
+        { status: 403, headers: CORS_HEADERS }
+      ),
+    };
+  }
+  return gate;
 }

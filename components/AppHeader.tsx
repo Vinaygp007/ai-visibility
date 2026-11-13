@@ -10,6 +10,7 @@ import UserMenu from "./UserMenu";
 import ThemeToggle from "./ThemeToggle";
 import BetaBadge from "./BetaBadge";
 import { Info } from "lucide-react";
+import { isAdminRole } from "@/lib/roles";
 
 const TODAY_LABEL = new Date().toLocaleDateString("en-US", {
   weekday: "long",
@@ -28,7 +29,7 @@ export default function AppHeader() {
   const email = user?.email ?? null;
   const role = user?.role ?? null;
   const displayName = fullName || email?.split("@")[0] || "Account";
-  const isAdmin = role === "admin";
+  const isAdmin = isAdminRole(role);
   const accountLinks = isAdmin ? [...ACCOUNT_LINKS, ADMIN_LINK] : ACCOUNT_LINKS;
   const primaryLinks = getPrimaryLinks(isAdmin);
 

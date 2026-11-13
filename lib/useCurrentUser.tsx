@@ -2,9 +2,10 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { UserPlan } from "@/types";
+import type { UserRole } from "@/lib/roles";
 
 interface CurrentUserClient {
-  role: "user" | "admin";
+  role: UserRole;
   fullName: string | null;
   email: string;
   creditBalance: number;
