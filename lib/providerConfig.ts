@@ -26,7 +26,7 @@ export const DEFAULT_PROVIDERS: Omit<AIProvider, "apiKey">[] = [
   { id: "ai-overview", name: "Google AI Overview", enabled: false, model: "gemini-2.5-pro" },
   { id: "openai", name: "ChatGPT (OpenAI)", enabled: true, model: "gpt-4o-mini" },
   { id: "perplexity", name: "Perplexity", enabled: true, model: "sonar" },
-  { id: "claude", name: "Claude (Anthropic)", enabled: false, model: "claude-sonnet-4-6" },
+  { id: "claude", name: "Claude (Anthropic)", enabled: false, model: "claude-sonnet-5-5" },
   { id: "copilot", name: "Microsoft Copilot", enabled: false, model: "gpt-4o" },
   { id: "youcom", name: "You.com", enabled: false, model: "smart" },
   { id: "duckduckgo", name: "DuckDuckGo AI", enabled: false, model: "ddg-default" },
@@ -68,10 +68,13 @@ const MODEL_MIGRATIONS: Record<string, string> = {
   "gemini-1.5-flash": "gemini-3.6-flash",
   "gemini-1.5-flash-8b": "gemini-3.6-flash",
   "gemini-2.5-pro": "gemini-2.5-flash",
-  "claude-3-5-sonnet-20241022": "claude-sonnet-4-6",
+  "claude-3-5-sonnet-20241022": "claude-sonnet-5-5",
   "claude-3-5-haiku-20241022": "claude-haiku-4-5-20251001",
   "claude-3-opus-20240229": "claude-opus-4-8",
-  "claude-3-sonnet-20240229": "claude-sonnet-4-6",
+  "claude-3-sonnet-20240229": "claude-sonnet-5-5",
+  // Stored admin settings still hold the old id; remap so every Claude call
+  // runs on Sonnet 5.5 without hand-editing provider_config.
+  "claude-sonnet-4-6": "claude-sonnet-5-5",
   "claude-3-haiku-20240307": "claude-haiku-4-5-20251001",
 };
 

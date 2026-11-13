@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { AnalysisResult, UserPlan, BotDetail } from "@/types";
 import { toPlainText, extractProviderText } from "@/lib/plainText";
+import { downloadBulkMarkdown } from "@/lib/bulkMarkdown";
 import CategoryCard from "@/components/CategoryCard";
 import Recommendations from "@/components/Recommendations";
 import PromptResponsePanel from "@/components/PromptResponsePanel";
@@ -30,7 +31,7 @@ const FEATURE_CHIPS = [
   "llms.txt Detection",
   "Structured Data",
   "Streams results live",
-  "CSV & PDF export",
+  "CSV, PDF & Markdown export",
 ];
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -1304,6 +1305,13 @@ export default function BulkPage() {
                     style={{ borderColor: "rgba(0,232,122,0.3)", color: "var(--success)", background: "rgba(0,232,122,0.05)" }}
                   >
                     <Download size={11} /> CSV
+                  </button>
+                  <button
+                    onClick={() => downloadBulkMarkdown(rows, plan).catch(() => alert("Markdown export failed. Check your connection and try again."))}
+                    className="bk-export-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-[12px] transition-all"
+                    style={{ borderColor: "rgba(0,232,122,0.3)", color: "var(--success)", background: "rgba(0,232,122,0.05)" }}
+                  >
+                    <Download size={11} /> MD
                   </button>
                   <button
                     onClick={handleReset}

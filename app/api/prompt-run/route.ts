@@ -210,16 +210,22 @@ async function callOpenAI(
 }
 
 async function callClaude(apiKey: string, model: string, prompt: string, systemPrompt?: string): Promise<string> {
+  // Sonnet 5.5 thinks by default: thinking blocks precede the answer and
+  // count toward max_tokens. Server-side fallback re-runs a safety-declined
+  // request on a fallback model inside the same call.
+  const isSonnet55 = model === "claude-sonnet-5-5";
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
+      ...(isSonnet55 ? { "anthropic-beta": "server-side-fallback-2026-07-01" } : {}),
     },
     body: JSON.stringify({
       model,
-      max_tokens: 2048,
+      max_tokens: isSonnet55 ? 8000 : 2048,
+      ...(isSonnet55 ? { output_config: { effort: "medium" }, fallbacks: "default" } : {}),
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: [{ role: "user", content: prompt }],
     }),
@@ -229,7 +235,9 @@ async function callClaude(apiKey: string, model: string, prompt: string, systemP
     throw new Error(`Claude HTTP ${res.status}${detail ? `: ${detail}` : ""}`);
   }
   const data = await res.json();
-  return data?.content?.[0]?.text ?? "";
+  if (data?.stop_reason === "refusal") throw new Error("Claude declined this request");
+  const blocks: Array<{ type?: string; text?: string }> = Array.isArray(data?.content) ? data.content : [];
+  return blocks.filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
 }
 
 function buildCaller(

@@ -23,7 +23,7 @@ const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
   "ai-overview": [{ label: "Gemini 2.5 Flash", value: "gemini-2.5-flash" }],
   openai: [{ label: "GPT-4o Mini", value: "gpt-4o-mini" }],
   perplexity: [{ label: "Sonar", value: "sonar" }],
-  claude: [{ label: "Claude Sonnet", value: "claude-sonnet-4-6" }],
+  claude: [{ label: "Claude Sonnet 5.5", value: "claude-sonnet-5-5" }],
   copilot: [{ label: "GPT-4o", value: "gpt-4o" }],
   youcom: [{ label: "You.com Smart", value: "smart" }],
   duckduckgo: [{ label: "DuckDuckGo AI Chat", value: "ddg-default" }],

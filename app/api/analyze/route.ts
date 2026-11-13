@@ -222,7 +222,8 @@ function extractKeywords(html: string): { word: string; count: number; inTitle: 
   const meta  = (html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] || "").toLowerCase();
   const text  = html
     .replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+    // Drop HTML entities first, or "&quot;" survives as the keyword "quot".
+    .replace(/<[^>]+>/g, " ").replace(/&[a-z0-9#]+;/gi, " ").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
   const words = text.split(" ").filter(w => w.length > 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
   const freq: Record<string, number> = {};
   for (const w of words) freq[w] = (freq[w] || 0) + 1;
@@ -790,14 +791,19 @@ async function callPerplexity(prompt: string, apiKey: string, model = "sonar"): 
   }
 }
 
-async function callClaude(prompt: string, apiKey: string, model = "claude-sonnet-4-6"): Promise<object> {
+// Sonnet 5.5 notes: it rejects non-default sampling params (no `temperature`),
+// thinks by default (thinking blocks come before the text block and count
+// toward max_tokens, hence the headroom), and can stop with
+// stop_reason "refusal" — surfaced as a readable error, like any failed call.
+async function callClaude(prompt: string, apiKey: string, model = "claude-sonnet-5-5"): Promise<object> {
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
     model,
-    max_tokens: 2000,
-    temperature: 0.1,
+    max_tokens: 8000,
+    // Short structured JSON task: low effort keeps thinking (billed as output) small.
+    output_config: { effort: "low" },
     system: "You are an AI Visibility Auditor. Return ONLY a valid JSON object. No markdown. No explanation. Start with { and end with }.",
     messages: [
       {
@@ -807,12 +813,18 @@ async function callClaude(prompt: string, apiKey: string, model = "claude-sonnet
     ],
   });
 
-  const content = response.content[0];
-  if (content.type !== "text") {
-    throw new Error("Claude returned non-text content");
+  if (response.stop_reason === "refusal") {
+    throw new Error("Claude declined this request");
+  }
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  if (!text) {
+    throw new Error("Claude returned no text content");
   }
 
-  return parseJSON(content.text);
+  return parseJSON(text);
 }
 
 async function callYouCom(prompt: string, apiKey: string, model = "smart"): Promise<object> {
@@ -1413,12 +1425,22 @@ async function getClaudeCitations(siteUrl: string, companyName: string, apiKey: 
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 800,
+      model: "claude-sonnet-5-5",
+      // Sonnet 5.5's thinking counts toward max_tokens, and the deep-dive
+      // prompt's answer alone runs ~2-4K tokens: 4000 cut answers off
+      // mid-sentence. Billing is per token actually generated.
+      max_tokens: 12000,
+      output_config: { effort: "medium" },
       system: sysPrompt,
       messages: [{ role: "user", content: query }],
+      // Deliberately the basic web_search_20250305, not _20260209: the newer
+      // variant runs searches inside code execution, so the final text blocks
+      // carry no web_search_result_location citations — cited pages and
+      // mentions below came back empty. max_uses stays 5 so citation counts
+      // stay comparable with earlier scans.
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
     });
+    if (response.stop_reason === "refusal") throw new Error("Claude declined this request");
     const textBlocks = response.content.filter((b): b is Anthropic.TextBlock => b.type === "text");
     const text = textBlocks.map(b => b.text).join("");
 
