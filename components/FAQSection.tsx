@@ -26,7 +26,7 @@ const FAQS = [
   },
   {
     q: "What's the difference between the plans?",
-    a: "Free gives you 20 credits once, just to try it out. Starter and Growth raise your monthly credit pool and bulk-scan cap. Agency adds white-label PDF exports, a 150-URL bulk cap, and 100 bulk prompts per batch. Scale raises the bulk cap to 500 URLs, enough credits for a full 500-URL scan with citations every month.",
+    a: "Free gives you 20 credits once, just to try it out. Starter and Growth raise your monthly credit pool and bulk-scan cap. Agency adds white-label PDF exports, a 100-URL bulk cap, and 80 bulk prompts per batch. Scale raises the bulk cap to 400 URLs plus 100 prompts, and its 4,000 credits cover both with citations every month.",
   },
   {
     q: "Do you store my website's data?",

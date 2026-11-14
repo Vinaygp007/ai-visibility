@@ -39,7 +39,7 @@ const PLANS = [
     monthly: 99,
     annual: 990,
     desc: "For agencies running client reports.",
-    features: ["1,500 credits/mo", "White-label PDF export", "150-URL bulk + 100 prompts", "Unlimited history"],
+    features: ["1,500 credits/mo", "White-label PDF export", "100-URL bulk + 80 prompts", "Unlimited history"],
     highlight: false,
   },
   {
@@ -48,7 +48,7 @@ const PLANS = [
     monthly: 249,
     annual: 2490,
     desc: "For heavy bulk usage and full provider access.",
-    features: ["4,000 credits/mo", "All 4 AI models", "500-URL bulk + 100 prompts", "Unlimited history"],
+    features: ["4,000 credits/mo", "All 4 AI models", "400-URL bulk + 100 prompts", "Unlimited history"],
     highlight: false,
   },
 ];
