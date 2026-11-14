@@ -2133,6 +2133,7 @@ function BulkPromptCard({ batch, plan }: { batch: BulkPromptBatch; plan: UserPla
   const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
   // ✅ batch.runs is an array now
   const runs = batch.runs;
+  const passRate = runs.length > 0 ? Math.round((batch.passedRuns / runs.length) * 100) : 0;
 
   const handleExport = async (format: "csv" | "pdf") => {
     setExporting(format);
@@ -2159,29 +2160,41 @@ function BulkPromptCard({ batch, plan }: { batch: BulkPromptBatch; plan: UserPla
         onClick={() => setExpanded((e) => !e)}
       >
         <div
-          className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center"
-          style={{ background: "rgba(0,229,255,0.07)", border: "1px solid rgba(0,229,255,0.15)" }}
+          className="w-14 h-14 rounded-xl flex-shrink-0 flex flex-col items-center justify-center"
+          style={{ background: getScoreBg(passRate), border: `1px solid ${getScoreColor(passRate)}33` }}
         >
-          <MessageSquare size={22} style={{ color: "var(--accent)" }} />
+          <div className="text-lg font-bold leading-none" style={{ color: getScoreColor(passRate) }}>{passRate}%</div>
+          <div className="text-[9px] font-mono mt-0.5" style={{ color: getScoreColor(passRate) + "99" }}>pass</div>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-sm font-semibold text-[var(--text)]">{runs.length} run{runs.length !== 1 ? "s" : ""}</span>
+            <span className="text-sm font-semibold text-[var(--text)]">{runs.length} prompt{runs.length !== 1 ? "s" : ""}</span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(0,229,255,0.1)", color: "var(--accent)", border: "1px solid rgba(0,229,255,0.2)" }}>
+              style={{
+                background: batch.status === "done" ? "rgba(0,232,122,0.1)" : "rgba(255,184,48,0.1)",
+                color: batch.status === "done" ? "var(--success)" : "var(--warning)",
+                border: `1px solid ${batch.status === "done" ? "rgba(0,232,122,0.2)" : "rgba(255,184,48,0.2)"}`,
+              }}>
               {batch.status}
             </span>
-            {batch.passedRuns > 0 && (
-              <span className="flex items-center gap-1 text-[10px] font-mono" style={{ color: "var(--success)" }}><CheckCircle2 size={10} /> {batch.passedRuns}</span>
-            )}
-            {batch.failedRuns > 0 && (
-              <span className="flex items-center gap-1 text-[10px] font-mono" style={{ color: "var(--danger)" }}><XCircle size={10} /> {batch.failedRuns}</span>
+            {batch.runCitations && (
+              <span className="text-[10px] font-mono" style={{ color: "var(--text-dim)" }}>citations on</span>
             )}
           </div>
-          <div className="text-xs font-mono truncate" style={{ color: "var(--text-muted)" }}>
-            {batch.topic ? `${batch.topic.slice(0, 60)}${batch.topic.length > 60 ? "…" : ""}` : batch.batchId}
-            {" · "}
-            {timeAgo(batch.createdAt ?? batch.updatedAt)}
+          <div className="flex items-center gap-3 text-xs font-mono min-w-0" style={{ color: "var(--text-muted)" }}>
+            <span className="flex items-center gap-1 flex-shrink-0" style={{ color: "var(--success)" }}><CheckCircle2 size={11} /> {batch.passedRuns}</span>
+            <span className="flex items-center gap-1 flex-shrink-0" style={{ color: "var(--danger)" }}><XCircle size={11} /> {batch.failedRuns}</span>
+            <span className="flex-shrink-0">·</span>
+            <span className="flex-shrink-0">{timeAgo(batch.createdAt ?? batch.updatedAt)}</span>
+            {batch.topic && (
+              <>
+                <span className="flex-shrink-0">·</span>
+                <span className="truncate">
+                  {batch.topic.slice(0, 60)}{batch.topic.length > 60 ? "…" : ""}
+                  {runs.length > 1 ? ` +${runs.length - 1} more` : ""}
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

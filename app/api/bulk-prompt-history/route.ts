@@ -1,9 +1,10 @@
 // app/api/bulk-prompt-history/route.ts
 // GET /api/bulk-prompt-history?limit=20&cursor=<scanId>
-// Each prompt-run call is one Postgres `scans` row (kind='prompt_run') —
-// there's no real multi-execution "batch" grouping in this app (each call
-// creates exactly one run), so each scan is presented as its own
-// single-run batch to keep the old Firestore response shape intact.
+// Each prompt-run call is one Postgres `scans` row (kind='prompt_run').
+// Runs started together from the Bulk Prompt page share result.batchId and
+// are returned as one batch; runs without one (the single Prompt Runner,
+// and runs saved before batch ids were stored) are a batch of their own.
+// `limit` counts batches; `cursor` is the oldest run id of the last batch.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -32,13 +33,16 @@ export async function GET(req: NextRequest) {
     isAdmin || !list ? list : list.map((c) => ({ ...c, query: "" }));
 
   try {
+    // Pull a window of runs, then group. A batch cut off by the window's
+    // edge is held back for the next page so it's never shown split.
+    const WINDOW = 1000;
     let query = supabase
       .from("scans")
       .select("id, url, status, error, result, created_at")
       .eq("kind", "prompt_run")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(limit + 1);
+      .limit(WINDOW);
 
     if (cursor) {
       const { data: cursorRow } = await supabase.from("scans").select("created_at").eq("id", cursor).maybeSingle();
@@ -48,17 +52,44 @@ export async function GET(req: NextRequest) {
     const { data: rows, error } = await query;
     if (error) throw error;
 
-    const hasMore = (rows?.length ?? 0) > limit;
-    const pageItems = hasMore ? rows!.slice(0, limit) : rows ?? [];
+    type Row = NonNullable<typeof rows>[number];
+    const groups = new Map<string, Row[]>();
+    // Runs saved before batch ids were stored have none. A "Run All" fires
+    // its prompts seconds apart, so consecutive old runs started within
+    // LEGACY_GAP_MS of each other are treated as one batch.
+    const LEGACY_GAP_MS = 2 * 60_000;
+    let legacyKey: string | null = null;
+    let legacyPrevAt = 0;
+    for (const row of rows ?? []) {
+      const r = (row.result ?? {}) as Record<string, unknown>;
+      let key: string;
+      if (typeof r.batchId === "string" && r.batchId) {
+        key = `b:${r.batchId}`;
+      } else {
+        const at = new Date(row.created_at as string).getTime();
+        if (!legacyKey || legacyPrevAt - at > LEGACY_GAP_MS) legacyKey = `s:${row.id}`;
+        legacyPrevAt = at;
+        key = legacyKey;
+      }
+      const list = groups.get(key);
+      if (list) list.push(row);
+      else groups.set(key, [row]);
+    }
 
-    const batches = pageItems.map((row) => {
+    let ordered = Array.from(groups.values()); // newest batch first
+    const windowFull = (rows?.length ?? 0) === WINDOW;
+    if (windowFull && ordered.length > 1) ordered = ordered.slice(0, -1);
+
+    const pageGroups = ordered.slice(0, limit);
+    const hasMore = ordered.length > limit || windowFull;
+
+    const toRun = (row: Row) => {
       const r = (row.result ?? {}) as Record<string, unknown>;
       const createdAt = row.created_at as string;
-
-      const run = {
+      return {
         executionId: row.id,
         promptId: (r.promptId as string) ?? "default",
-        status: row.status === "completed" ? "success" : "failed",
+        status: row.status === "completed" ? "success" : row.status === "running" ? "running" : "failed",
         url: (r.url as string | null) ?? null,
         hasUrl: (r.hasUrl as boolean) ?? false,
         prompt: r.prompt as string | undefined,
@@ -72,28 +103,44 @@ export async function GET(req: NextRequest) {
         citations: stripQuery(r.citations as object[] | undefined),
         error: row.error ?? undefined,
         createdAt,
+        _providerCount: r.providerCount as number | undefined,
       };
+    };
 
+    const batches = pageGroups.map((group) => {
+      // Rows arrive newest first; show runs in the order they were started.
+      const runs = group.map(toRun).reverse();
+      const first = runs[0];
+      const passed = runs.filter((x) => x.status === "success").length;
+      const running = runs.filter((x) => x.status === "running").length;
+      const failed = runs.length - passed - running;
+      const batchId =
+        ((group[0].result as Record<string, unknown> | null)?.batchId as string | undefined) ?? group[0].id;
       return {
-        id: row.id,
-        batchId: row.id,
-        status: row.status === "completed" ? "done" : row.status,
-        promptId: run.promptId,
-        url: run.url,
-        topic: run.topic,
-        runCitations: run.runCitations ?? false,
-        providerCount: (r.providerCount as number) ?? undefined,
-        totalRuns: 1,
-        passedRuns: row.status === "completed" ? 1 : 0,
-        failedRuns: row.status === "completed" ? 0 : 1,
-        createdAt,
-        updatedAt: createdAt,
-        runs: [run],
+        id: group[group.length - 1].id,
+        batchId,
+        status: running > 0 ? "running" : "done",
+        promptId: first.promptId,
+        url: first.url,
+        topic: first.topic,
+        runCitations: runs.some((x) => x.runCitations),
+        providerCount: first._providerCount,
+        totalRuns: runs.length,
+        passedRuns: passed,
+        failedRuns: failed,
+        createdAt: first.createdAt,
+        updatedAt: runs[runs.length - 1].createdAt,
+        runs: runs.map((run) => {
+          const { _providerCount, ...rest } = run;
+          void _providerCount;
+          return rest;
+        }),
       };
     });
 
-    const nextCursor = hasMore ? pageItems[pageItems.length - 1].id : null;
-    return NextResponse.json({ batches, nextCursor, hasMore });
+    const lastGroup = pageGroups[pageGroups.length - 1];
+    const nextCursor = hasMore && lastGroup ? lastGroup[lastGroup.length - 1].id : null;
+    return NextResponse.json({ batches, nextCursor, hasMore: !!nextCursor });
   } catch (err: unknown) {
     console.error("[bulk-prompt-history] fetch error:", err);
     // Never return 500 — the UI shows a hard error banner on non-2xx.

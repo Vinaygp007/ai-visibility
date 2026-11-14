@@ -23,6 +23,9 @@ export async function createScan(params: {
   bulkJobId?: string | null;
   creditsCost: number;
   cacheKey?: string | null;
+  // Initial result, e.g. a prompt run's batch id and prompt, so even a run
+  // that fails before completeScan() still shows up grouped in history.
+  result?: Record<string, unknown> | null;
 }): Promise<string> {
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -35,6 +38,7 @@ export async function createScan(params: {
       bulk_job_id: params.bulkJobId ?? null,
       credits_cost: params.creditsCost,
       cache_key: params.cacheKey ?? null,
+      result: params.result ?? null,
       status: "running",
     })
     .select("id")

@@ -340,6 +340,10 @@ export async function POST(request: NextRequest) {
     const promptId = typeof body?.promptId === "string" && body.promptId.trim()
       ? body.promptId.trim()
       : "default";
+    // Groups the runs of one Bulk Prompt "Run All" in Previous Reports.
+    const batchId = typeof body?.batchId === "string" && body.batchId.trim()
+      ? body.batchId.trim().slice(0, 100)
+      : null;
 
     if (!customPrompt) {
       return NextResponse.json(
@@ -401,7 +405,13 @@ export async function POST(request: NextRequest) {
     // Cost: billable providers × (2 "queries" if citations run, else 1) —
     // same model as /api/analyze (spec §6.3).
     estimatedCost = countBillableProviders(settings.providers) * (runCitations ? 2 : 1);
-    scanId = await createScan({ userId: user.id, kind: "prompt_run", url, creditsCost: estimatedCost });
+    scanId = await createScan({
+      userId: user.id,
+      kind: "prompt_run",
+      url,
+      creditsCost: estimatedCost,
+      result: { batchId, promptId, url, hasUrl, prompt: customPrompt, finalPrompt, topic, runCitations },
+    });
 
     try {
       const spendResult = await spendCredits(user.id, estimatedCost, scanId, `scan_debit:${scanId}`);
@@ -512,6 +522,7 @@ export async function POST(request: NextRequest) {
     const runSucceeded = !!firstSuccess?.response && !firstSuccess?.error;
 
     const runRecord = {
+      batchId,
       promptId,
       status: runSucceeded ? "success" : "failed",
       url,
