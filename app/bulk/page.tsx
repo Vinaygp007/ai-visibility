@@ -701,7 +701,7 @@ export default function BulkPage() {
   const [rows, setRows] = useState<BulkRow[]>([]);
   const [phase, setPhase] = useState<JobPhase>("idle");
   const [jobId, setJobId] = useState("");
-  const [runCitations, setRunCitations] = useState(false);
+  const [runCitations, setRunCitations] = useState(true);
   const [concurrency, setConcurrency] = useState(3);
   const [total, setTotal] = useState(0);
   const [completed, setCompleted] = useState(0);
