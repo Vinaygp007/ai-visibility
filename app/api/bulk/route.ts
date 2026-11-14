@@ -12,6 +12,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { getEffectiveSettings } from "@/lib/providerConfig";
 import { createBulkJob, updateBulkJobCounters, completeBulkJob } from "@/lib/bulkJobs";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { isAdminRole } from "@/lib/roles";
+import { bulkLimitsFor } from "@/lib/planLimits";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -138,6 +140,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: "unauthenticated", message: "Sign in required." } }, { status: 401, headers: CORS_HEADERS });
     }
 
+    // Bulk Scanner is admin-only for now (matches app/bulk/layout.tsx). The
+    // per-plan URL limit below already applies once it opens to customers.
+    const isAdmin = isAdminRole(user.role);
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Bulk scanning isn't available on your account yet." }, { status: 403, headers: CORS_HEADERS });
+    }
+    const maxUrls = bulkLimitsFor(user.plan, isAdmin).urls;
+
     // Job creation itself is the rate-limited action — individual items
     // are throttled by bulk's own concurrency/delay settings, not this.
     const allowed = await checkRateLimit(`bulk:user:${user.id}`, 3, 10 * 60_000);
@@ -157,13 +167,20 @@ export async function POST(request: NextRequest) {
           return false;
         }
       })
-      .map((u: string) => (u.startsWith("http") ? u : "https://" + u))
-      .slice(0, 500);
+      .map((u: string) => (u.startsWith("http") ? u : "https://" + u));
 
     if (urls.length === 0) {
       return NextResponse.json(
         { error: "No valid URLs provided" },
         { status: 400, headers: CORS_HEADERS }
+      );
+    }
+    if (urls.length > maxUrls) {
+      return NextResponse.json(
+        { error: maxUrls === 0
+            ? "Bulk scanning isn't included in your plan."
+            : `Your plan allows up to ${maxUrls} URLs per bulk scan (got ${urls.length}).` },
+        { status: 403, headers: CORS_HEADERS }
       );
     }
 

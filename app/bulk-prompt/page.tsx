@@ -3,6 +3,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { PROMPT_CHAR_LIMIT } from "@/lib/limits";
 import { UserPlan } from "@/types";
+import { bulkLimitsFor } from "@/lib/planLimits";
+import { isAdminRole } from "@/lib/roles";
 import { GeminiIcon, ChatGPTIcon, PerplexityIcon, ClaudeIcon } from "@/components/ProviderIcons";
 import {
   Terminal, Sparkles, Zap, Play, RotateCw, X, Plus, Upload, ClipboardPaste, Download,
@@ -17,7 +19,7 @@ const PROVIDERS = [
   { name: "Claude", Icon: ClaudeIcon, color: "#D97757" },
 ];
 
-const FEATURE_CHIPS = ["Up to 100 prompts", "Runs in parallel", "AI citation research", "CSV & PDF export"];
+const FEATURE_CHIPS = ["Runs in parallel", "AI citation research", "CSV & PDF export"];
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface ProviderResponse {
@@ -1026,13 +1028,21 @@ export default function MultiPromptPage() {
   const batchIdRef = useRef<string>(genBatchId());
   const importInputRef = useRef<HTMLInputElement>(null);
   const [plan, setPlan] = useState<UserPlan>("free");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetch("/api/me")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data?.plan) setPlan(data.plan); })
+      .then((data) => {
+        if (data?.plan) setPlan(data.plan);
+        setIsAdmin(isAdminRole(data?.role));
+      })
       .catch(() => {});
   }, []);
+
+  // Largest batch this plan may build (lib/planLimits.ts). Every path that
+  // adds prompt cards trims to it.
+  const maxPrompts = bulkLimitsFor(plan, isAdmin).prompts;
 
   const updateContainer = useCallback((id: string, patch: Partial<PromptContainer>) => {
     setContainers(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
@@ -1044,8 +1054,8 @@ export default function MultiPromptPage() {
 
   const addContainers = useCallback((count: number) => {
     const news = Array.from({ length: count }, () => makeContainer());
-    setContainers(prev => [...prev, ...news]);
-  }, []);
+    setContainers(prev => [...prev, ...news].slice(0, maxPrompts));
+  }, [maxPrompts]);
 
   const startNewBatch = useCallback(() => {
     batchIdRef.current = genBatchId();
@@ -1114,10 +1124,10 @@ export default function MultiPromptPage() {
   const runAll = useCallback(async () => {
     startNewBatch();
     setGlobalRunning(true);
-    const toRun = containers.filter(c => c.prompt.trim() && c.status !== "running");
+    const toRun = containers.slice(0, maxPrompts).filter(c => c.prompt.trim() && c.status !== "running");
     await runWithConcurrency(toRun, RUN_ALL_CONCURRENCY, (c) => runSingle(c.id));
     setGlobalRunning(false);
-  }, [containers, runSingle, startNewBatch]);
+  }, [containers, maxPrompts, runSingle, startNewBatch]);
 
   const clearAll = useCallback(() => {
     startNewBatch();
@@ -1129,25 +1139,25 @@ export default function MultiPromptPage() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        setContainers(prev => [...prev, ...parseImportJson(String(reader.result))]);
+        setContainers(prev => [...prev, ...parseImportJson(String(reader.result))].slice(0, maxPrompts));
       } catch (e) {
         window.alert(`Couldn't import JSON: ${e instanceof Error ? e.message : String(e)}`);
       }
     };
     reader.readAsText(file);
-  }, []);
+  }, [maxPrompts]);
 
   // Same import, but from JSON pasted directly into the textarea below (no file needed)
   const importFromJsonText = useCallback((text: string) => {
     try {
       const imported = parseImportJson(text);
-      setContainers(prev => [...prev, ...imported]);
+      setContainers(prev => [...prev, ...imported].slice(0, maxPrompts));
       setPasteModalOpen(false);
       setPasteText("");
     } catch (e) {
       window.alert(`Couldn't import JSON: ${e instanceof Error ? e.message : String(e)}`);
     }
-  }, []);
+  }, [maxPrompts]);
 
   const doneCount = containers.filter(c => c.status === "done").length;
   const runningCount = containers.filter(c => c.status === "running").length;
@@ -1199,7 +1209,7 @@ export default function MultiPromptPage() {
               </div>
             </div>
             <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" }}>
-              Add up to 100 independent prompts · run all in parallel · each gets its own AI response
+              Add up to {maxPrompts} independent prompts · run all in parallel · each gets its own AI response
             </p>
 
             <div style={{
@@ -1227,7 +1237,7 @@ export default function MultiPromptPage() {
               <div style={{ width: 1, alignSelf: "stretch", background: "rgba(var(--overlay-rgb),0.08)" }} />
 
               <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-                {FEATURE_CHIPS.map((feat) => (
+                {[`Up to ${maxPrompts} prompts`, ...FEATURE_CHIPS].map((feat) => (
                   <div key={feat} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "var(--text-muted)" }}>
                     <span style={{
                       width: 15, height: 15, borderRadius: "50%", flexShrink: 0,
@@ -1333,8 +1343,8 @@ export default function MultiPromptPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 4px" }}>
                   <span style={{ fontSize: 10.5, color: "var(--text-dim)", fontFamily: "monospace" }}>Add</span>
                   <input
-                    type="number" min={1} max={100} value={addCount}
-                    onChange={e => setAddCount(Math.min(100, Math.max(1, Number(e.target.value))))}
+                    type="number" min={1} max={maxPrompts} value={addCount}
+                    onChange={e => setAddCount(Math.min(maxPrompts, Math.max(1, Number(e.target.value))))}
                     className="pr-field"
                     style={{
                       width: 46, background: "var(--surface)", border: "1px solid rgba(var(--overlay-rgb),0.09)",
@@ -1344,14 +1354,14 @@ export default function MultiPromptPage() {
                   />
                   <button
                     onClick={() => addContainers(addCount)}
-                    disabled={containers.length >= 100}
+                    disabled={containers.length >= maxPrompts}
                     className="pr-btn-ghost-fill"
                     style={{
                       display: "flex", alignItems: "center", gap: 5,
                       padding: "5px 13px", borderRadius: 8, fontSize: 11.5, fontWeight: 600,
                       background: "rgba(0,229,255,0.08)", color: "var(--accent)",
                       border: "1px solid rgba(0,229,255,0.2)", cursor: "pointer",
-                      opacity: containers.length >= 100 ? 0.4 : 1,
+                      opacity: containers.length >= maxPrompts ? 0.4 : 1,
                     }}
                   >
                     <Plus size={12} /> Add
@@ -1361,7 +1371,7 @@ export default function MultiPromptPage() {
                 <div style={{ width: 1, height: 20, background: "rgba(var(--overlay-rgb),0.08)" }} />
 
                 <button
-                  onClick={() => setContainers(PROMPT_PRESETS.map(p => makeContainer(p)))}
+                  onClick={() => setContainers(PROMPT_PRESETS.slice(0, maxPrompts).map(p => makeContainer(p)))}
                   className="pr-btn-ghost"
                   style={{
                     display: "flex", alignItems: "center", gap: 5,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripeClient } from "@/lib/stripe/client";
-import { PLAN_CONFIG, planForPriceId } from "@/lib/stripe/plans";
+import { PLAN_CONFIG, planForPriceId, addOneMonth } from "@/lib/stripe/plans";
 
 // Stripe needs Node's crypto to verify signatures — pin off the edge runtime.
 export const runtime = "nodejs";
@@ -22,6 +22,34 @@ function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
   const sub = invoice.parent?.subscription_details?.subscription;
   if (!sub) return null;
   return typeof sub === "string" ? sub : sub.id;
+}
+
+// Yearly subscriptions are invoiced once a year, but plan credits are
+// monthly: the yearly plan's first month comes with the invoice and the
+// remaining months from the /api/cron/plan-credits job, scheduled here.
+function nextMonthlyGrantAt(subscription: Stripe.Subscription): string | null {
+  if (subscription.items.data[0]?.price.recurring?.interval !== "year") return null;
+  return addOneMonth(new Date()).toISOString();
+}
+
+// Starts a new plan period: unused plan credits expire, the plan's monthly
+// credits are granted, and yearly plans get their next monthly grant
+// scheduled. Top-up and other non-plan credits are untouched.
+async function resetPlanCredits(
+  userId: string,
+  amount: number,
+  idempotencyKey: string,
+  nextGrantAt: string | null
+) {
+  const { error } = await createAdminClient().rpc("reset_plan_credits", {
+    p_user_id: userId,
+    p_amount: amount,
+    p_idempotency_key: idempotencyKey,
+    p_next_grant_at: nextGrantAt,
+  });
+  // Throwing returns a 500, so Stripe retries the event; the idempotency
+  // key makes the retry safe.
+  if (error) throw error;
 }
 
 async function userIdForCustomer(customerId: string): Promise<string | null> {
@@ -79,13 +107,12 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", userId);
 
-      await admin.rpc("grant_credits", {
-        p_user_id: userId,
-        p_amount: PLAN_CONFIG[plan].credits,
-        p_type: "subscription_grant",
-        p_reference_id: null,
-        p_idempotency_key: `stripe_checkout:${session.id}`,
-      });
+      await resetPlanCredits(
+        userId,
+        PLAN_CONFIG[plan].credits,
+        `stripe_checkout:${session.id}`,
+        nextMonthlyGrantAt(subscription)
+      );
       break;
     }
 
@@ -119,6 +146,9 @@ export async function POST(req: NextRequest) {
         .from("profiles")
         .update({ plan: "free", subscription_status: "canceled" })
         .eq("id", userId);
+
+      // Plan credits end with the subscription; top-up credits stay.
+      await resetPlanCredits(userId, 0, `stripe_subscription_deleted:${subscription.id}`, null);
       break;
     }
 
@@ -139,13 +169,12 @@ export async function POST(req: NextRequest) {
       const plan = priceId ? planForPriceId(priceId) : null;
       if (!plan) break;
 
-      await admin.rpc("grant_credits", {
-        p_user_id: userId,
-        p_amount: PLAN_CONFIG[plan].credits,
-        p_type: "subscription_grant",
-        p_reference_id: null,
-        p_idempotency_key: `stripe_invoice:${invoice.id}`,
-      });
+      await resetPlanCredits(
+        userId,
+        PLAN_CONFIG[plan].credits,
+        `stripe_invoice:${invoice.id}`,
+        nextMonthlyGrantAt(subscription)
+      );
 
       await admin
         .from("profiles")

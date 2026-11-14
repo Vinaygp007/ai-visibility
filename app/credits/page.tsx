@@ -33,6 +33,8 @@ const TYPE_LABELS: Record<string, string> = {
   referral_bonus_referrer: "Referral bonus",
   referral_bonus_referee: "Referral bonus",
   purchase: "Purchase",
+  subscription_grant: "Monthly plan credits",
+  plan_expiry: "Unused plan credits expired",
 };
 
 // Each transaction type gets its own glyph + tint so the ledger reads at a
@@ -46,6 +48,8 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
   referral_bonus_referrer: Gift,
   referral_bonus_referee: Gift,
   purchase: CreditCard,
+  subscription_grant: CreditCard,
+  plan_expiry: RotateCcw,
 };
 
 export default function CreditsPage() {

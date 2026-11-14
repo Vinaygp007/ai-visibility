@@ -5,7 +5,8 @@ import { createServerClient } from "@supabase/ssr";
 const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/callback", "/admin/login", "/privacy", "/terms"];
 // Stripe calls this with no session cookie at all — signature verification
 // inside the route itself is what authenticates the caller, not a session.
-const PUBLIC_API_PREFIXES: string[] = ["/api/webhooks/stripe"];
+// The cron job authenticates with CRON_SECRET inside the route the same way.
+const PUBLIC_API_PREFIXES: string[] = ["/api/webhooks/stripe", "/api/cron/"];
 // Top-level segments that map to a real page route. Anything outside this
 // list (and outside /api) can't resolve to anything but not-found.tsx, so an
 // unauthenticated visitor should see that 404 instead of being bounced to

@@ -55,3 +55,15 @@ export function planForPriceId(priceId: string): PaidPlan | null {
   }
   return null;
 }
+
+// Same day next month, clamped to the month's last day (Jan 31 -> Feb 28/29)
+// so a yearly plan's monthly grants don't drift into the following month.
+export function addOneMonth(from: Date): Date {
+  const d = new Date(from);
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, lastDay));
+  return d;
+}
