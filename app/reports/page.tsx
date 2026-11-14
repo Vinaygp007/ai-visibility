@@ -13,6 +13,7 @@ import {
   Loader2, Telescope, ExternalLink, Gauge, type LucideIcon,
 } from "lucide-react";
 import { isAdminRole } from "@/lib/roles";
+import { downloadBulkMarkdown } from "@/lib/bulkMarkdown";
 
 // Subtle elevation so list rows/panels read as distinct cards against the
 // page background, on top of their existing border.
@@ -174,6 +175,18 @@ function normalizeBulkAnalysisResult(
 }
 
 // Using shared plain-text helpers from lib/plainText
+
+// Same per-company Markdown zip as the Bulk Scanner's "MD" button, built from
+// saved job results.
+async function exportBulkMarkdown(jobs: BulkJob[], plan: UserPlan) {
+  const rows = jobs.flatMap((job) =>
+    job.results.map((r) => ({
+      ...r,
+      fullData: r.status === "success" ? normalizeBulkAnalysisResult(r.fullData, r) ?? undefined : undefined,
+    }))
+  );
+  await downloadBulkMarkdown(rows, plan);
+}
 
 // ── Export helpers ────────────────────────────────────────────────────────────
 
@@ -935,14 +948,16 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches, p
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const handleExport = async (format: "csv" | "pdf") => {
+  const handleExport = async (format: "csv" | "pdf" | "md") => {
     setExporting(format);
     setOpen(false);
     try {
       if (activeTab === "homepage") {
         format === "csv" ? exportHomepageCSV(homepageReports) : await exportHomepagePDF(homepageReports, plan);
       } else if (activeTab === "bulk") {
-        format === "csv" ? exportBulkCSV(bulkJobs) : await exportBulkPDF(bulkJobs, plan);
+        if (format === "csv") exportBulkCSV(bulkJobs);
+        else if (format === "md") await exportBulkMarkdown(bulkJobs, plan);
+        else await exportBulkPDF(bulkJobs, plan);
       } else {
         format === "csv" ? exportBulkPromptCSV(bulkPromptBatches) : await exportBulkPromptPDF(bulkPromptBatches, plan);
       }
@@ -985,7 +1000,7 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches, p
           <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(var(--overlay-rgb),0.06)" }}>
             <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>Export as</p>
           </div>
-          {(["csv", "pdf"] as const).map((fmt) => {
+          {((activeTab === "bulk" ? ["csv", "pdf", "md"] : ["csv", "pdf"]) as ("csv" | "pdf" | "md")[]).map((fmt) => {
             const FmtIcon = fmt === "csv" ? FileSpreadsheet : FileText;
             return (
               <button
@@ -998,7 +1013,7 @@ function ExportMenu({ activeTab, homepageReports, bulkJobs, bulkPromptBatches, p
                 <div>
                   <div className="font-medium">.{fmt.toUpperCase()}</div>
                   <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                    {fmt === "csv" ? "Spreadsheet data" : "Formatted document"}
+                    {fmt === "csv" ? "Spreadsheet data" : fmt === "md" ? "Markdown zip, one file per site" : "Formatted document"}
                   </div>
                 </div>
               </button>
@@ -1854,14 +1869,16 @@ function BulkResultRow({
 function BulkJobCard({ job, plan }: { job: BulkJob; plan: UserPlan }) {
   const [expanded, setExpanded] = useState(false);
   const [modalReport, setModalReport] = useState<AnalysisResult | null>(null);
-  const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
+  const [exporting, setExporting] = useState<"csv" | "pdf" | "md" | null>(null);
   const passRate = job.total > 0 ? Math.round((job.passed / job.total) * 100) : 0;
 
-  const handleExport = async (format: "csv" | "pdf") => {
+  const handleExport = async (format: "csv" | "pdf" | "md") => {
     setExporting(format);
     try {
       if (format === "csv") {
         exportBulkCSV([job]);
+      } else if (format === "md") {
+        await exportBulkMarkdown([job], plan);
       } else {
         await exportBulkPDF([job], plan);
       }
@@ -1929,6 +1946,14 @@ function BulkJobCard({ job, plan }: { job: BulkJob; plan: UserPlan }) {
                 style={{ background: "rgba(0,229,255,0.08)", color: "var(--accent)", border: "1px solid rgba(0,229,255,0.18)" }}
               >
                 {exporting === "pdf" ? <Loader2 size={11} className="rp-spin" /> : <FileText size={11} />} {exporting === "pdf" ? "Exporting…" : "PDF"}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); void handleExport("md"); }}
+                disabled={!!exporting}
+                className="rp-icon-btn flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded disabled:opacity-50"
+                style={{ background: "rgba(0,232,122,0.08)", color: "var(--success)", border: "1px solid rgba(0,232,122,0.18)" }}
+              >
+                {exporting === "md" ? <Loader2 size={11} className="rp-spin" /> : <FileText size={11} />} {exporting === "md" ? "Exporting…" : "MD"}
               </button>
               <ChevronDown
                 size={16}
