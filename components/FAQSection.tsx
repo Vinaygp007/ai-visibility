@@ -22,11 +22,11 @@ const FAQS = [
   },
   {
     q: "What happens if I run out of credits?",
-    a: "You can buy more any time for $10 per 500 credits. Those never expire. Monthly plan credits reset with your billing cycle and don't carry over, so a big one-off batch is usually cheaper covered by overage credits than by upgrading a tier.",
+    a: "You can buy more any time for $10 per 125 credits. Those never expire. Monthly plan credits reset with your billing cycle and don't carry over, so a big one-off batch is usually cheaper covered by overage credits than by upgrading a tier.",
   },
   {
     q: "What's the difference between the plans?",
-    a: "Free gives you 20 credits once, just to try it out. Starter and Growth raise your monthly credit pool and bulk-scan cap. Agency adds white-label PDF exports, a 500-URL bulk cap, and 100 bulk prompts per batch. Scale unlocks all 7 AI providers, including Claude, Copilot, and Meta AI, alongside Agency's bulk limits.",
+    a: "Free gives you 20 credits once, just to try it out. Starter and Growth raise your monthly credit pool and bulk-scan cap. Agency adds white-label PDF exports, a 150-URL bulk cap, and 100 bulk prompts per batch. Scale raises the bulk cap to 500 URLs, enough credits for a full 500-URL scan with citations every month.",
   },
   {
     q: "Do you store my website's data?",

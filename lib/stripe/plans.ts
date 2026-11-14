@@ -13,28 +13,28 @@ interface PlanConfig {
 // steps) — see .env.local for the STRIPE_PRICE_* keys.
 export const PLAN_CONFIG: Record<PaidPlan, PlanConfig> = {
   starter: {
-    credits: 400,
+    credits: 200,
     priceIds: {
       monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY!,
       yearly: process.env.STRIPE_PRICE_STARTER_YEARLY!,
     },
   },
   growth: {
-    credits: 1500,
+    credits: 600,
     priceIds: {
       monthly: process.env.STRIPE_PRICE_GROWTH_MONTHLY!,
       yearly: process.env.STRIPE_PRICE_GROWTH_YEARLY!,
     },
   },
   agency: {
-    credits: 4000,
+    credits: 1500,
     priceIds: {
       monthly: process.env.STRIPE_PRICE_AGENCY_MONTHLY!,
       yearly: process.env.STRIPE_PRICE_AGENCY_YEARLY!,
     },
   },
   scale: {
-    credits: 8500,
+    credits: 4000,
     priceIds: {
       monthly: process.env.STRIPE_PRICE_SCALE_MONTHLY!,
       yearly: process.env.STRIPE_PRICE_SCALE_YEARLY!,

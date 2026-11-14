@@ -21,7 +21,7 @@ const PLANS = [
     monthly: 19,
     annual: 190,
     desc: "For freelancers and solo operators.",
-    features: ["400 credits/mo", "All 4 AI models", "10-URL bulk scanning"],
+    features: ["200 credits/mo", "All 4 AI models", "10-URL bulk scanning"],
     highlight: false,
   },
   {
@@ -30,7 +30,7 @@ const PLANS = [
     monthly: 49,
     annual: 490,
     desc: "For growing teams and regular audits.",
-    features: ["1,500 credits/mo", "All 4 AI models", "50-URL bulk scanning", "30-day report history"],
+    features: ["600 credits/mo", "All 4 AI models", "50-URL bulk scanning", "30-day report history"],
     highlight: true,
   },
   {
@@ -39,7 +39,7 @@ const PLANS = [
     monthly: 99,
     annual: 990,
     desc: "For agencies running client reports.",
-    features: ["4,000 credits/mo", "White-label PDF export", "500-URL bulk + 100 prompts", "Unlimited history"],
+    features: ["1,500 credits/mo", "White-label PDF export", "150-URL bulk + 100 prompts", "Unlimited history"],
     highlight: false,
   },
   {
@@ -48,7 +48,7 @@ const PLANS = [
     monthly: 249,
     annual: 2490,
     desc: "For heavy bulk usage and full provider access.",
-    features: ["8,500 credits/mo", "All 7 AI models", "500-URL bulk + 100 prompts", "Unlimited history"],
+    features: ["4,000 credits/mo", "All 4 AI models", "500-URL bulk + 100 prompts", "Unlimited history"],
     highlight: false,
   },
 ];
@@ -211,7 +211,7 @@ export default function PricingSection() {
       </div>
 
       <p className="text-center text-[12px] mt-8" style={{ color: "var(--text-dim)" }}>
-        Need more? Add extra credits any time for $10 / 500 credits, no expiry.
+        Need more? Add extra credits any time for $10 / 125 credits, no expiry.
       </p>
     </section>
   );
